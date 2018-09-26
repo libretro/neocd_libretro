@@ -185,7 +185,7 @@ static void patchROM_48(uint32_t address, uint32_t data1, uint16_t data2)
 
 static void installSpeedHack(uint32_t address)
 {
-    patchROM_16(address, 0xFABE);
+    patchROM_48(address, 0xFABE4E71, 0x4E71);
 }
 
 static void disableSMKDANChecksum(uint32_t address)

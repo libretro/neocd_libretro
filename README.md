@@ -32,16 +32,6 @@ Copy the `libneocd_libretro` library to `RetroArch/cores`.
 
 Copy `neocd_libretro.info` to folder `RetroArch/info`
 
-#### Additional DLL files (Windows only)
-
-NeoCD requires two DLL libraries not found in the standard distribution of RetroArch:
-
-* `libFLAC-8.dll`
-* `libvorbisfile-3.dll`
-
-Copy them somewhere in your path or directly into RetroArch's binary directory
-
-
 ### Required BIOS Files
 
 To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder.
@@ -114,3 +104,9 @@ The project uses custom cmake finders in the folder `cmakescripts` to locate the
 * x64 / Windows / GCC 8.2
 * x64 / Arch Linux / GCC 8.2
 * Raspberry Pi 3 / Arch Linux / GCC 8.2
+
+## Known problems
+
+* On Raspberry Pi set the CPU governor to "performance" to avoid possible micro stutter.
+* In Metal Slug 2 sound glitches occasionally on Front or Top loader BIOSes, use the CDZ bios.
+* In Galaxy Fight the raster effects glitch in demo mode but strangely work fine when playing.

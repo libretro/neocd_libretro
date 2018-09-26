@@ -10,6 +10,11 @@ set(CMAKE_BUILD_TYPE_INIT "Release")
 project(neocd_libretro)
 set(PROJECT_NAME neocd_libretro)
 
+# Under Windows we want static libraries
+if (WIN32)
+    set(BUILD_STATIC 1)
+endif (WIN32)
+
 # Set default locations
 set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/cmake-build-${CMAKE_BUILD_TYPE}/output)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
@@ -100,7 +105,7 @@ INCLUDE_DIRECTORIES(
 )
 
 # Add the libraries to the link options
-set(LINK_OPTIONS ${LINK_OPTIONS} Threads::Threads ${FLAC_LIBRARY} ${VORBIS_LIBRARY} ${OGG_LIBRARY} ${VORBISFILE_LIBRARY})
+set(LINK_OPTIONS ${LINK_OPTIONS} Threads::Threads ${FLAC_LIBRARY} ${VORBISFILE_LIBRARY} ${VORBIS_LIBRARY} ${OGG_LIBRARY})
 
 add_library(${PROJECT_NAME} SHARED ${CXX_SRCS} ${C_SRCS})
 
