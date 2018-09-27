@@ -6,7 +6,7 @@ manufacturer = "SNK"
 categories = "Emulator"
 systemname = "SNK Neo Geo CD"
 database = "SNK - Neo Geo CD"
-license = "GPLv3"
+license = "LGPLv3"
 display_version = "2018"
 supports_no_game = "false"
 
