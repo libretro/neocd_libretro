@@ -8,12 +8,12 @@
 #endif
 
 #if defined(__ppc__) || defined(__POWERPC__) || defined(_M_PPC)
-    #ifndef BIG_ENDIAN
-        #define BIG_ENDIAN
+    #ifndef BIG_ENDIAN_MACHINE
+        #define BIG_ENDIAN_MACHINE
     #endif
 #else
-    #ifndef LITTLE_ENDIAN
-        #define LITTLE_ENDIAN
+    #ifndef LITTLE_ENDIAN_MACHINE
+        #define LITTLE_ENDIAN_MACHINE
     #endif
 #endif
 
@@ -45,7 +45,7 @@
     }
 #endif
 
-#ifdef BIG_ENDIAN
+#ifdef BIG_ENDIAN_MACHINE
     #define BIG_ENDIAN_WORD(x) (x)
     #define BIG_ENDIAN_DWORD(x) (x)
     #define LITTLE_ENDIAN_WORD(x) BYTE_SWAP_16(x)
@@ -55,6 +55,6 @@
     #define BIG_ENDIAN_DWORD(x) BYTE_SWAP_32(x)
     #define LITTLE_ENDIAN_WORD(x) (x)
     #define LITTLE_ENDIAN_DWORD(x) (x)
-#endif // LITTLE_ENDIAN
+#endif // LITTLE_ENDIAN_MACHINE
 
 #endif // ENDIAN_H

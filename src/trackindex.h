@@ -2,44 +2,40 @@
 #define TRACKINDEX
 
 #include <cstdint>
+#include <utility>
+
+// Class used to store both track and index.
 
 class TrackIndex
 {
 public:
-    TrackIndex() : m_trackIndex(0)
+    TrackIndex(uint8_t track = 0, uint8_t index = 0) : 
+        m_trackIndex(std::make_pair(track, index))
     { }
 
-    TrackIndex(uint8_t track, uint8_t index) : m_trackIndex((uint16_t(track) << 8) | index)
-    { }
-
-    TrackIndex(uint16_t value) : m_trackIndex(value)
-    { }
-
-    TrackIndex(const TrackIndex& other) : m_trackIndex(other.m_trackIndex)
+    TrackIndex(const TrackIndex& other) : 
+        m_trackIndex(other.m_trackIndex)
     { }
 
     uint8_t track() const
     {
-        return m_trackIndex >> 8;
+        return m_trackIndex.first;
     }
 
     void setTrack(uint8_t track)
     {
-        m_trackIndex &= 0xFF;
-        m_trackIndex |= uint16_t(track) << 8;
+        m_trackIndex.first = track;
     }
 
     uint8_t index() const
     {
-        return m_trackIndex & 0xFF;
+        return m_trackIndex.second;
     }
 
     void setIndex(uint8_t index)
     {
-        m_trackIndex &= 0xFF00;
-        m_trackIndex |= index;
+        m_trackIndex.second = index;
     }
-
 
     bool operator==(const TrackIndex& other) const
     {
@@ -54,17 +50,14 @@ public:
 
     bool operator<(const TrackIndex& other) const
     {
-        return m_trackIndex < other.m_trackIndex;
-    }
+        if (m_trackIndex.first == other.m_trackIndex.first)
+            return m_trackIndex.second < other.m_trackIndex.second;
 
-    static uint16_t makeTrackIndex(uint8_t track, uint8_t index)
-    {
-        return (uint16_t(track) << 8) | index;
+        return m_trackIndex.first < other.m_trackIndex.first;
     }
 
 protected:
-    uint16_t m_trackIndex;
+    std::pair<uint8_t, uint8_t> m_trackIndex;
 };
 
 #endif // TRACKINDEX
-
