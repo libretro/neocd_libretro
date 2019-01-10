@@ -27,7 +27,7 @@ enum
 
 typedef union
 {
-#ifdef LITTLE_ENDIAN
+#ifdef LITTLE_ENDIAN_MACHINE
 	struct { Uint8	l, h, h2, h3; } b;
 	struct { Uint16	l, h; } w;
 #else
