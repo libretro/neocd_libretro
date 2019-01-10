@@ -83,6 +83,7 @@ NeoCD accepts as input a cue sheet file (CUE). The image can be either of "singl
 ## For Developers
 
 ### Project Dependencies
+
 * A C++11 compiler
 * CMake > 3.0
 * libFLAC
@@ -91,7 +92,9 @@ NeoCD accepts as input a cue sheet file (CUE). The image can be either of "singl
 * MSYS (Windows)
 
 The project uses custom cmake finders in the folder `cmakescripts` to locate the libraries.
+
 ### Compiling
+
 * Make sure the development packages for libFLAC, libogg and libvorbis are installed.
 * Eventually, edit the CFLAGS in CMakeLists.txt to suit your platform (Raspberry Pi...)
 * Invoke CMake: `cmake -G "Unix Makefiles" .` or `cmake -G "MSYS Makefiles" .` (Windows)
