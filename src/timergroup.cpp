@@ -6,6 +6,7 @@
 #include "round.h"
 
 #include <algorithm>
+#include <limits>
 
 void watchdogTimerCallback(Timer* timer, uint32_t userData)
 {
@@ -60,7 +61,10 @@ void hirqTimerCallback(Timer* timer, uint32_t userData)
     // I don't know the exact reason for the need to add 1 to hirqRegister + 1 here and several other parts of the code,
     // but it's important for line effects in Karnov's Revenge to work correctly.
     if ((neocd.video.hirqControl & Video::HIRQ_CTRL_AUTOREPEAT) && (neocd.video.hirqRegister != 0xFFFFFFFF))
-        timer->armRelative(Timer::pixelToMaster(std::max(uint32_t(1), neocd.video.hirqRegister + 1)));
+    {
+        constexpr uint32_t MAX_PIXELS = Timer::masterToPixel(std::numeric_limits<int32_t>::max() - 4);
+        timer->armRelative(Timer::pixelToMaster(std::max(uint32_t(1), std::min(MAX_PIXELS, neocd.video.hirqRegister + 1))));
+    }
 }
 
 void ym2610TimerCallback(Timer* Timer, uint32_t data)
