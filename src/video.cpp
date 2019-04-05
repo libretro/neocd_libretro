@@ -5,9 +5,9 @@
 
 #include <cstring>
 #include <algorithm>
+#include <array>
 
-static const uint32_t SPR_DECODE_TABLE[256] =
-{
+static const std::array<uint32_t, 256> SPR_DECODE_TABLE {
     0x00000000, 0x00000001, 0x00000010, 0x00000011,
     0x00000100, 0x00000101, 0x00000110, 0x00000111,
     0x00001000, 0x00001001, 0x00001010, 0x00001011,
@@ -74,6 +74,25 @@ static const uint32_t SPR_DECODE_TABLE[256] =
     0x11111100, 0x11111101, 0x11111110, 0x11111111
 };
 
+static const std::array<uint8_t, 256> X_ZOOM_TABLE{
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+    0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+    0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0,
+    0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0,
+    0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0,
+    1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0,
+    1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1,
+    1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1,
+    1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+};
+
 Video::Video() :
     paletteRamPc(nullptr),
     fixUsageMap(nullptr),
@@ -97,6 +116,9 @@ Video::Video() :
     sprite_zoomY(255),
     sprite_clipping(0x20)
 {
+    static_assert((FRAMEBUFFER_WIDTH % 16) == 0, "Framebuffer width must be a multiple of 16.");
+    static_assert(FRAMEBUFFER_WIDTH <= 320, "Framebuffer width must less or equal to 320.");
+
     // Palette RAM: 16KiB, converted into RGB565 equivalent
     paletteRamPc = reinterpret_cast<uint16_t*>(std::malloc(Memory::PALETTERAM_SIZE));
 
@@ -177,8 +199,7 @@ void Video::updateFixUsageMap()
 // Note: scanline between 16 and 240!
 void Video::drawFix(uint32_t scanline)
 {
-    // Skip the first column (framebuffer width is 304 instead of 320)
-    uint16_t* videoRamPtr = &neocd.memory.videoRam[(0xE004 / 2) + ((scanline - 16) / 8)] + 32;
+    uint16_t* videoRamPtr = &neocd.memory.videoRam[(0xE004 / 2) + ((scanline - 16) / 8)] + (Video::LEFT_BORDER * 4);
     uint16_t* videoRamEndPtr = videoRamPtr + (FRAMEBUFFER_WIDTH * 4);
     uint16_t* frameBufferPtr = frameBuffer + ((scanline - 16) * FRAMEBUFFER_WIDTH);
 
@@ -289,9 +310,6 @@ void Video::drawSprites(uint32_t scanline, uint16_t *spriteList, uint16_t sprite
             sprite_x = spriteAttributes3 >> 7;
         }
 
-        if ((sprite_x >= 0x138) && (sprite_x <= 0x1F8))
-            continue;
-
         drawSprite(spriteNumber, sprite_x, sprite_y, sprite_zoomX, sprite_zoomY, scanline, sprite_clipping);
     }
 }
@@ -304,221 +322,85 @@ inline void drawSpriteLine(
     const uint16_t* paletteBase,
     uint16_t*& frameBufferPtr)
 {
-    auto sprShift = [&](int n) {
-        pixelData >>= (n * 4);
-    };
+    uint16_t* out = frameBufferPtr;
 
-    auto sprDrawPixel = [&]() {
-        uint8_t pixel = pixelData & 0xF;
-        if (pixel)
-            *frameBufferPtr = paletteBase[pixel];
-        frameBufferPtr += increment;
+    auto drawSprLine = [&](int N) {
+        for(int i = 0; i < 8; ++i)
+        {
+            if (X_ZOOM_TABLE[N * 16 + i])
+            {
+                uint32_t mask = 0xF << (i * 4);
+                if (pixelData & mask)
+                    *out = paletteBase[(pixelData >> (i * 4)) & 0xF];
+                out += increment;
+            }
+        }
+
+        for(int i = 0; i < 8; ++i)
+        {
+            if (X_ZOOM_TABLE[N * 16 + 8 + i])
+            {
+                uint32_t mask = 0xF << (i * 4);
+                if (pixelDataB & mask)
+                    *out = paletteBase[(pixelDataB >> (i * 4)) & 0xF];
+                out += increment;
+            }
+        }
     };
 
     switch (zoomX)
     {
-    case 0:     // 00000000
+    case 0:
+        drawSprLine(0);
         break;
-
-    case 1:     // 00001000
+    case 1:
+        drawSprLine(1);
+        break;
     case 2:
-        sprShift(4);
-        sprDrawPixel();
+        drawSprLine(2);
         break;
-
-    case 3:     // 00101000
+    case 3:
+        drawSprLine(3);
+        break;
     case 4:
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(4);
         break;
-
-    case 5:     // 00101010
+    case 5:
+        drawSprLine(5);
+        break;
     case 6:
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(6);
         break;
-
-    case 7:     // 10101010
+    case 7:
+        drawSprLine(7);
+        break;
     case 8:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(8);
         break;
-
-    case 9:     // 10111010
+    case 9:
+        drawSprLine(9);
+        break;
     case 10:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(10);
         break;
-
-    case 11:    // 10111011
+    case 11:
+        drawSprLine(11);
+        break;
     case 12:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
+        drawSprLine(12);
         break;
-
-    case 13:    // 11111011
+    case 13:
+        drawSprLine(13);
+        break;
     case 14:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
+        drawSprLine(14);
         break;
-
-    case 15:    // 11111111
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
+    case 15:
+        drawSprLine(15);
         break;
     }
 
-    pixelData = pixelDataB;
-
-    switch (zoomX)
-    {
-    case    0:      // 10000000
-    case    1:
-        sprDrawPixel();
-        break;
-
-    case    2:      // 10001000
-    case    3:
-        sprDrawPixel();
-        sprShift(4);
-        sprDrawPixel();
-        break;
-
-    case    4:      // 10001010
-    case    5:
-        sprDrawPixel();
-        sprShift(4);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        break;
-
-    case    6:      // 10101010
-    case    7:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        break;
-
-    case    8:      // 11101010
-    case    9:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        break;
-
-    case    10:     // 11101011
-    case    11:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        break;
-
-    case    12:     // 11101111
-    case    13:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        break;
-
-    case    14:
-    case    15:     // 11111111
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        break;
-    }
+    frameBufferPtr = out;
 }
 
 inline void drawSpriteLineClipped(
@@ -531,221 +413,85 @@ inline void drawSpriteLineClipped(
     const uint16_t* low,
     const uint16_t* high)
 {
-    auto sprShift = [&](int n) {
-        pixelData >>= (n * 4);
-    };
+    uint16_t* out = frameBufferPtr;
 
-    auto sprDrawPixel = [&]() {
-        uint8_t pixel = pixelData & 0xF;
-        if (pixel && (frameBufferPtr >= low) && (frameBufferPtr < high))
-            *frameBufferPtr = paletteBase[pixel];
-        frameBufferPtr += increment;
+    auto drawSprLine = [&](int N) {
+        for(int i = 0; i < 8; ++i)
+        {
+            if (X_ZOOM_TABLE[N * 16 + i])
+            {
+                uint32_t mask = 0xF << (i * 4);
+                if ((pixelData & mask) && (out >= low) && (out < high))
+                    *out = paletteBase[(pixelData >> (i * 4)) & 0xF];
+                out += increment;
+            }
+        }
+
+        for(int i = 0; i < 8; ++i)
+        {
+            if (X_ZOOM_TABLE[N * 16 + 8 + i])
+            {
+                uint32_t mask = 0xF << (i * 4);
+                if ((pixelDataB & mask) && (out >= low) && (out < high))
+                    *out = paletteBase[(pixelDataB >> (i * 4)) & 0xF];
+                out += increment;
+            }
+        }
     };
 
     switch (zoomX)
     {
-    case 0:     // 00000000
+    case 0:
+        drawSprLine(0);
         break;
-
-    case 1:     // 00001000
+    case 1:
+        drawSprLine(1);
+        break;
     case 2:
-        sprShift(4);
-        sprDrawPixel();
+        drawSprLine(2);
         break;
-
-    case 3:     // 00101000
+    case 3:
+        drawSprLine(3);
+        break;
     case 4:
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(4);
         break;
-
-    case 5:     // 00101010
+    case 5:
+        drawSprLine(5);
+        break;
     case 6:
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(6);
         break;
-
-    case 7:     // 10101010
+    case 7:
+        drawSprLine(7);
+        break;
     case 8:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(8);
         break;
-
-    case 9:     // 10111010
+    case 9:
+        drawSprLine(9);
+        break;
     case 10:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
+        drawSprLine(10);
         break;
-
-    case 11:    // 10111011
+    case 11:
+        drawSprLine(11);
+        break;
     case 12:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
+        drawSprLine(12);
         break;
-
-    case 13:    // 11111011
+    case 13:
+        drawSprLine(13);
+        break;
     case 14:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
+        drawSprLine(14);
         break;
-
-    case 15:    // 11111111
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
+    case 15:
+        drawSprLine(15);
         break;
     }
 
-    pixelData = pixelDataB;
-
-    switch (zoomX)
-    {
-    case    0:      // 10000000
-    case    1:
-        sprDrawPixel();
-        break;
-
-    case    2:      // 10001000
-    case    3:
-        sprDrawPixel();
-        sprShift(4);
-        sprDrawPixel();
-        break;
-
-    case    4:      // 10001010
-    case    5:
-        sprDrawPixel();
-        sprShift(4);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        break;
-
-    case    6:      // 10101010
-    case    7:
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        break;
-
-    case    8:      // 11101010
-    case    9:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        break;
-
-    case    10:     // 11101011
-    case    11:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        break;
-
-    case    12:     // 11101111
-    case    13:
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(2);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        break;
-
-    case    14:
-    case    15:     // 11111111
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        sprShift(1);
-        sprDrawPixel();
-        break;
-    }
+    frameBufferPtr = out;
 }
 
 void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t zoomX, uint32_t zoomY, uint32_t scanline, uint32_t clipping)
@@ -753,26 +499,35 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
     uint32_t spriteLine = (scanline - y) & 0x1FF;
     uint32_t zoomLine = spriteLine & 0xFF;
     bool invert = (spriteLine & 0x100) != 0;
-    bool clippedDrawing;
+    
+    enum Status {
+        Normal,
+        Clipped,
+        Invisible
+    };
 
-    if (x >= 0x1F9)
+    auto withinLimits = [&](uint32_t value) {
+        return (value >= Video::LEFT_BORDER) && (value <= Video::RIGHT_BORDER);
+    };
+
+    auto checkVisibility = [&]() -> Status
     {
-        if (x + zoomX + 1 > 0x208)
-            clippedDrawing = true;
-        else
-            return;
-    }
-    else if (x < 8)
-    {
-        if (x + zoomX + 1 > 8)
-            clippedDrawing = true;
-        else
-            return;
-    }
-    else if (x + zoomX + 1 > 0x138)
-        clippedDrawing = true;
-    else
-        clippedDrawing = false;
+        uint32_t x2 = (x + zoomX + 1) & 0x1FF;
+        uint32_t x1 = (x & 0x1FF);
+
+        if (!withinLimits(x1) && !withinLimits(x2))
+            return Invisible;
+
+        if (!withinLimits(x1) || !withinLimits(x2))
+            return Clipped;
+
+        return Normal;
+    };
+
+    Status spriteStatus = checkVisibility();
+
+    if (spriteStatus == Invisible)
+        return;
 
     if (invert)
         zoomLine ^= 0xFF;
@@ -818,16 +573,12 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
 
     uint16_t* frameBufferPtr = frameBuffer;
 
+    frameBufferPtr += x;
+
     if (x > 0x1F0)
-    {
-        frameBufferPtr += x;
-        frameBufferPtr -= 0x208;
-    }
-    else
-    {
-        frameBufferPtr += x;
-        frameBufferPtr -= 8;
-    }
+        frameBufferPtr -= 0x200;
+
+    frameBufferPtr -= Video::LEFT_BORDER;
 
     frameBufferPtr += (scanline - 16) * FRAMEBUFFER_WIDTH;
 
@@ -851,7 +602,7 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
         | (SPR_DECODE_TABLE[spriteBase[0 + 3]] << 2)
         | (SPR_DECODE_TABLE[spriteBase[0 + 2]] << 3);
 
-    if (clippedDrawing)
+    if (spriteStatus == Clipped)
     {
         drawSpriteLineClipped(
             zoomX,
