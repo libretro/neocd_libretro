@@ -48,7 +48,7 @@ set(BASE_CXX_OPTIONS "-std=c++11 -Ofast -fomit-frame-pointer -fno-exceptions -fn
 # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native ${BASE_CXX_OPTIONS}") 
 
 # Playstation Classic, arm
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=arm ${BASE_CXX_OPTIONS}")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=arm ${BASE_CXX_OPTIONS} CXX=arm-linux-gnueabihf-g++-8 LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib_psc")
 
 # Linker options
 if (CMAKE_BUILD_TYPE MATCHES Release)
