@@ -8,7 +8,9 @@
 #include "memory_backupram.h"
 #include "memory_video.h"
 #include "memory_switches.h"
-#include "3rdparty/musashi/m68kcpu.h"
+extern "C" {
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 
 #include <cstring>
 #include <algorithm>

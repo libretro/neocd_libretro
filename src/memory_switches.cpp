@@ -1,5 +1,7 @@
 #include "memory_switches.h"
-#include "3rdparty/musashi/m68kcpu.h"
+extern "C" {
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 #include "neogeocd.h"
 
 static uint32_t switchReadByte(uint32_t address)

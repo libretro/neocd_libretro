@@ -1,5 +1,7 @@
 #include "memory_video.h"
-#include "3rdparty/musashi/m68kcpu.h"
+extern "C" {
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 #include "neogeocd.h"
 
 #include <algorithm>

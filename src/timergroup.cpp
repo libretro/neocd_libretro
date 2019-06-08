@@ -1,6 +1,8 @@
 #include "timergroup.h"
 #include "neogeocd.h"
-#include "3rdparty/musashi/m68kcpu.h"
+extern "C" {
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 #include "3rdparty/z80/z80.h"
 #include "3rdparty/ym/ym2610.h"
 #include "round.h"

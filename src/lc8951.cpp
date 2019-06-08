@@ -1,6 +1,8 @@
 #include "lc8951.h"
 #include "neogeocd.h"
-#include "3rdparty/musashi/m68kcpu.h"
+extern "C" {
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 
 #include <algorithm>
 #include <cstring>
