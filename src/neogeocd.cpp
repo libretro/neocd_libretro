@@ -1,5 +1,7 @@
 #include "neogeocd.h"
-#include "3rdparty/musashi/m68kcpu.h"
+extern "C" {
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 #include "m68kintf.h"
 #include "3rdparty/z80/z80.h"
 #include "z80intf.h"

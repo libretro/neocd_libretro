@@ -57,14 +57,10 @@ endif()
 
 # Define the CXX sources
 set ( CXX_SRCS
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopdm.cpp
     ${CMAKE_SOURCE_DIR}/src/3rdparty/z80/z80daisy.cpp
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopac.cpp
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kcpu.cpp
     ${CMAKE_SOURCE_DIR}/src/video.cpp
     ${CMAKE_SOURCE_DIR}/src/timergroup.cpp
     ${CMAKE_SOURCE_DIR}/src/timeprofiler.cpp
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopnz.cpp
     ${CMAKE_SOURCE_DIR}/src/oggfile.cpp
     ${CMAKE_SOURCE_DIR}/src/neogeocd.cpp
     ${CMAKE_SOURCE_DIR}/src/z80intf.cpp
@@ -76,7 +72,6 @@ set ( CXX_SRCS
     ${CMAKE_SOURCE_DIR}/src/memory_mapped.cpp
     ${CMAKE_SOURCE_DIR}/src/input.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_switches.cpp
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kops.cpp
     ${CMAKE_SOURCE_DIR}/src/cdrom.cpp
     ${CMAKE_SOURCE_DIR}/src/datapacker.cpp
     ${CMAKE_SOURCE_DIR}/src/libretro.cpp
@@ -90,6 +85,14 @@ set ( CXX_SRCS
     ${CMAKE_SOURCE_DIR}/src/memory_video.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_input.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_paletteram.cpp
+)
+
+set ( C_SRCS
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopdm.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopac.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kcpu.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopnz.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kops.c
 )
 
 # Find the required libraries

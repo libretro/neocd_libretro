@@ -1,8 +1,9 @@
 #include "m68kintf.h"
 #include "neogeocd.h"
-#include "3rdparty/musashi/m68kcpu.h"
 
 extern "C" {
+
+#include "3rdparty/musashi/m68kcpu.h"
 
     void m68ki_exception_bus_error(void)
     {
