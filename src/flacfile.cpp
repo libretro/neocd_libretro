@@ -1,7 +1,7 @@
-#include "flacfile.h"
-
 #include <algorithm>
 #include <cstring>
+
+#include "flacfile.h"
 
 #ifndef UNUSED_ARG
 #define UNUSED_ARG(x) (void)x
@@ -13,21 +13,14 @@ FLAC__StreamDecoderReadStatus flac_read_cb(const FLAC__StreamDecoder *decoder, F
     UNUSED_ARG(decoder);
 
     FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    std::ifstream *file = flacFile->m_file;
+    AbstractFile *file = flacFile->m_file;
 
-    if (!file || !file->is_open())
+    if (!file || !file->isOpen())
         return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
 
-    file->read(reinterpret_cast<char *>(&buffer[0]), *bytes);
-    *bytes = static_cast<size_t>(file->gcount());
+    *bytes = file->readData(&buffer[0], *bytes);
 
-    // Fix ifstream stupidity: eof is not a failure condition
-    if (file->fail() && file->eof())
-        file->clear();
-
-    if (file->fail())
-        return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
-    else if (*bytes == 0)
+    if (*bytes == 0)
         return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
 
     return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
@@ -39,14 +32,12 @@ FLAC__StreamDecoderSeekStatus flac_seek_cb(const FLAC__StreamDecoder *decoder, F
     UNUSED_ARG(decoder);
 
     FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    std::ifstream *file = flacFile->m_file;
+    AbstractFile *file = flacFile->m_file;
 
-    if (!file || !file->is_open())
+    if (!file || !file->isOpen())
         return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
 
-    file->seekg(absolute_byte_offset, std::ios::beg);
-
-    if (file->fail())
+    if (!file->seek(absolute_byte_offset))
         return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
 
     return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
@@ -58,15 +49,12 @@ FLAC__StreamDecoderTellStatus flac_tell_cb(const FLAC__StreamDecoder *decoder, F
     UNUSED_ARG(decoder);
 
     FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    std::ifstream *file = flacFile->m_file;
+    AbstractFile *file = flacFile->m_file;
 
-    if (!file || !file->is_open())
+    if (!file || !file->isOpen())
         return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
 
-    std::ios::pos_type temp = file->tellg();
-    *absolute_byte_offset = static_cast<FLAC__uint64>(temp);
-    if (temp < 0)
-        return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
+    *absolute_byte_offset = static_cast<FLAC__uint64>(file->pos());
 
     return FLAC__STREAM_DECODER_TELL_STATUS_OK;
 }
@@ -77,27 +65,12 @@ FLAC__StreamDecoderLengthStatus flac_length_cb(const FLAC__StreamDecoder *decode
     UNUSED_ARG(decoder);
 
     FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    std::ifstream *file = flacFile->m_file;
+    AbstractFile *file = flacFile->m_file;
 
-    if (!file || !file->is_open())
+    if (!file || !file->isOpen())
         return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
 
-    std::ios::pos_type position = file->tellg();
-    if (position < 0)
-        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
-
-    file->seekg(0, std::ios::end);
-    if (file->fail())
-        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
-
-    std::ios::pos_type temp = file->tellg();
-    *stream_length = static_cast<FLAC__uint64>(temp);
-    if (temp < 0)
-        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
-
-    file->seekg(position, std::ios::beg);
-    if (file->fail())
-        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
+    *stream_length = static_cast<FLAC__uint64>(file->size());
 
     return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
 }
@@ -108,9 +81,9 @@ FLAC__bool flac_eof_cb(const FLAC__StreamDecoder *decoder, void *client_data)
     UNUSED_ARG(decoder);
 
     FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    std::ifstream *file = flacFile->m_file;
+    AbstractFile *file = flacFile->m_file;
 
-    if (!file || !file->is_open())
+    if (!file || !file->isOpen())
         return false;
 
     return file->eof();
@@ -217,7 +190,7 @@ FlacFile::~FlacFile()
         FLAC__stream_decoder_delete(m_decoder);
 }
 
-bool FlacFile::initialize(std::ifstream *file)
+bool FlacFile::initialize(AbstractFile* file)
 {
     // Set the new pointer to the file stream
     m_file = file;

@@ -1,11 +1,11 @@
 #ifndef FLACFILE_H
 #define FLACFILE_H
 
-#include "FLAC/stream_decoder.h"
-
-#include <fstream>
+#include <cstdint>
 #include <vector>
-#include <stdint.h>
+
+#include "abstractfile.h"
+#include "FLAC/stream_decoder.h"
 
 class FlacFile
 {
@@ -19,7 +19,7 @@ public:
     // Non copyable
     FlacFile& operator=(const FlacFile&) = delete;
 
-    bool initialize(std::ifstream* file);
+    bool initialize(AbstractFile* file);
 
     size_t bytesAvailable() const;
 
@@ -42,7 +42,7 @@ public:
 
 protected:
     FLAC__StreamDecoder* m_decoder;
-    std::ifstream* m_file;
+    AbstractFile* m_file;
     std::vector<char> m_buffer;
     size_t m_readPosition;
 };

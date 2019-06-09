@@ -1,9 +1,11 @@
 #ifndef OGGFILE_H
 #define OGGFILE_H
 
-#include "vorbis/vorbisfile.h"
 #include <fstream>
-#include <stdint.h>
+#include <cstdint>
+
+#include "abstractfile.h"
+#include "vorbis/vorbisfile.h"
 
 class OggFile
 {
@@ -17,7 +19,7 @@ public:
     // Non copyable
     OggFile& operator=(const OggFile&) = delete;
 
-    bool initialize(std::ifstream* file);
+    bool initialize(AbstractFile* file);
 
     size_t read(char *data, size_t size);
 
@@ -34,7 +36,7 @@ public:
 
 protected:
     OggVorbis_File m_vorbisFile;
-    std::ifstream* m_file;
+    AbstractFile* m_file;
     bool m_isOpen;
 };
 

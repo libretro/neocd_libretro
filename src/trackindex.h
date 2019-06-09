@@ -42,6 +42,11 @@ public:
         return m_trackIndex == other.m_trackIndex;
     }
 
+    bool operator!=(const TrackIndex& other) const
+    {
+        return m_trackIndex != other.m_trackIndex;
+    }
+
     TrackIndex& operator=(const TrackIndex& other)
     {
         m_trackIndex = other.m_trackIndex;

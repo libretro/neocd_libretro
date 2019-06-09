@@ -1,7 +1,9 @@
 #ifndef WAVFILE_H
 #define WAVFILE_H
 
-#include <fstream>
+#include <cstdint>
+
+#include "abstractfile.h"
 
 class WavFile
 {
@@ -15,21 +17,21 @@ public:
     // Non copyable
     WavFile& operator=(const WavFile&) = delete;
 
-    bool initialize(std::ifstream* file);
+    bool initialize(AbstractFile* file);
 
-    size_t read(char *data, size_t size);
+    int64_t read(void *data, int64_t size);
 
-    bool seek(size_t position);
+    bool seek(int64_t position);
 
-    size_t length();
+    int64_t length();
 
     void cleanup();
 
 protected:
-    std::ifstream* m_file;
-    size_t m_currentPosition;
-    size_t m_dataStart;
-    size_t m_dataSize;
+    AbstractFile* m_file;
+    int64_t m_currentPosition;
+    int64_t m_dataStart;
+    int64_t m_dataSize;
 };
 
 #endif // WAVFILE_H

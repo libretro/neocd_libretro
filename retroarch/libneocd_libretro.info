@@ -1,13 +1,13 @@
 display_name = "SNK - Neo Geo CD (NeoCD)"
 authors = "Elta"
-supported_extensions = "cue"
+supported_extensions = "cue|chd"
 corename = "NeoCD"
 manufacturer = "SNK"
 categories = "Emulator"
 systemname = "SNK Neo Geo CD"
 database = "SNK - Neo Geo CD"
 license = "LGPLv3"
-display_version = "2018"
+display_version = "2019"
 supports_no_game = "false"
 
 firmware_count = 7

@@ -1,7 +1,7 @@
-#include "datapacker.h"
-
 #include <cstring>
 #include <algorithm>
+
+#include "datapacker.h"
 
 DataPacker::DataPacker() : 
     m_data(nullptr), 

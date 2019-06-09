@@ -80,11 +80,11 @@ void LC8951::reset()
 
 void LC8951::updateHeadRegisters(uint32_t lba)
 {
-    uint8_t m, s, f;
+    uint32_t m, s, f;
     
     CDROM_LOG(LOG_INFO, "CD LBA = %d\n", lba);
 
-    Cdrom::toMSF(Cdrom::fromLBA(lba), m, s, f);
+    CdromToc::toMSF(CdromToc::fromLBA(lba), m, s, f);
 
     HEAD0 = Cdrom::toBCD(m);
     HEAD1 = Cdrom::toBCD(s);
@@ -378,8 +378,8 @@ void LC8951::processCdCommand()
         {
         case 0x00:  // Get current position
         {
-            uint8_t     m, s, f;
-            Cdrom::toMSF(Cdrom::fromLBA(neocd.cdrom.position()), m, s, f);
+            uint32_t     m, s, f;
+            CdromToc::toMSF(CdromToc::fromLBA(neocd.cdrom.position()), m, s, f);
             responsePacket[0] = status;
             responsePacket[1] = Cdrom::toBCD(m);
             responsePacket[2] = Cdrom::toBCD(s);
@@ -397,8 +397,8 @@ void LC8951::processCdCommand()
             else
                 position = neocd.cdrom.position() - neocd.cdrom.currentTrackPosition();
 
-            uint8_t m, s, f;
-            Cdrom::toMSF(position, m, s, f);
+            uint32_t m, s, f;
+            CdromToc::toMSF(position, m, s, f);
 
             responsePacket[0] = status | 0x01;
             responsePacket[1] = Cdrom::toBCD(m);
@@ -425,8 +425,8 @@ void LC8951::processCdCommand()
 
         case 0x03: // Get leadout address (msf)
         {
-            uint8_t m, s, f;
-            Cdrom::toMSF(Cdrom::fromLBA(neocd.cdrom.leadout()), m, s, f);
+            uint32_t m, s, f;
+            CdromToc::toMSF(CdromToc::fromLBA(neocd.cdrom.leadout()), m, s, f);
             responsePacket[0] = status | 0x03;
             responsePacket[1] = Cdrom::toBCD(m);
             responsePacket[2] = Cdrom::toBCD(s);
@@ -448,9 +448,9 @@ void LC8951::processCdCommand()
         case 0x05: // Get track info
         {
             uint8_t track = Cdrom::fromBCD(commandPacket[2]);
-            uint32_t position = Cdrom::fromLBA(neocd.cdrom.trackPosition(track));
-            uint8_t m, s, f;
-            Cdrom::toMSF(position, m, s, f);
+            uint32_t position = CdromToc::fromLBA(neocd.cdrom.trackPosition(track));
+            uint32_t m, s, f;
+            CdromToc::toMSF(position, m, s, f);
 
             responsePacket[0] = status | 0x05;
             responsePacket[1] = Cdrom::toBCD(m);
@@ -512,7 +512,7 @@ void LC8951::processCdCommand()
         s = Cdrom::fromBCD(commandPacket[2]);
         f = Cdrom::fromBCD(commandPacket[3]);
 
-        uint32_t position = Cdrom::toLBA(Cdrom::fromMSF(m, s, f));
+        uint32_t position = CdromToc::toLBA(CdromToc::fromMSF(m, s, f));
 
         /*
             CDZ Bios sometimes send the play command twice.

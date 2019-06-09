@@ -473,8 +473,8 @@ void retro_get_system_info(struct retro_system_info *info)
     std::memset(info, 0, sizeof(retro_system_info));
     
     info->library_name = "NeoCD";
-    info->library_version = "2018";
-    info->valid_extensions = "cue";
+    info->library_version = "2019";
+    info->valid_extensions = "cue|chd";
     info->need_fullpath = true;
 }
 
@@ -560,7 +560,7 @@ bool retro_load_game(const struct retro_game_info *info)
     if (!loadBIOS())
         return false;
 
-    if (!neocd.cdrom.loadCue(info->path))
+    if (!neocd.cdrom.loadCd(info->path))
         return false;
 
     // Load settings and reset

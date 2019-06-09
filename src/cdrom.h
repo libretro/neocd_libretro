@@ -1,21 +1,24 @@
 #ifndef CDROM_H
 #define CDROM_H
 
-#include "trackindex.h"
-#include "flacfile.h"
-#include "oggfile.h"
-#include "wavfile.h"
-#include "circularbuffer.h"
-#include "datapacker.h"
-
+#include <condition_variable>
+#include <cstdint>
 #include <fstream>
 #include <map>
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <thread>
 #include <mutex>
-#include <condition_variable>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "cdromtoc.h"
+#include "chdfile.h"
+#include "circularbuffer.h"
+#include "datapacker.h"
+#include "file.h"
+#include "flacfile.h"
+#include "oggfile.h"
+#include "trackindex.h"
+#include "wavfile.h"
 
 /**
  * @class Cdrom
@@ -25,56 +28,6 @@
 class Cdrom
 {
 public:
-    /// Enum representing all track types supported by the emulator
-    enum class TrackType
-    {
-        Mode1_2352,  /// Raw track (2352 bytes per sector)
-        Mode1_2048,  /// ISO track (2048 bytes per sector)
-        Silence,     /// Audio silence (no associated data)
-        AudioPCM,    /// PCM audio (raw track)
-        AudioFlac,   /// FLAC audio
-        AudioOgg,    /// Ogg audio
-        AudioWav     /// WAV audio
-    };
-
-    /**
-     * @class TocEntry
-     * @brief Structure holding information about a TOC entry
-     */
-    class TocEntry
-    {
-    public:
-        TocEntry(const std::string& f, const TrackIndex& ti, TrackType tt, uint32_t p, uint32_t o, uint32_t l) :
-            file(f),
-            trackIndex(ti),
-            trackType(tt),
-            lba(p),
-            offset(o),
-            entryLength(l)
-        {}
-
-        /// File associated to this TOC entry
-        std::string file;
-        
-        /// Track index
-        TrackIndex trackIndex;
-        
-        /**
-         * Track type
-         * @sa Cdrom::TrackType
-         */
-        TrackType trackType;
-        
-        /// Starting sector
-        uint32_t lba;
-        
-        /// Start offset of the track in the file (in bytes)
-        uint32_t offset;
-        
-        /// Track length (in sectors)
-        uint32_t entryLength;
-    };
-
     Cdrom();
     ~Cdrom();
     
@@ -105,31 +58,16 @@ public:
     void reset();
 
     /**
-     * @brief Determine the length of a file, in bytes and in sectors. 
-     * @note If the file is compressed audio, the values are calculated from the uncompressed size.
-     * @param[in] filename Name of the file for which we need the length
-     * @param[out] length Will contain the length in bytes
-     * @param[out] sectorSize Will contain the length in sectors
-     */
-    bool findFileLength(const std::string& filename, size_t& length, uint32_t& sectorSize);
-
-    /**
-     * @brief Load a cue sheet file
-     * @param cueFile File to load the CD-ROM TOC from
+     * @brief Load a CD image
+     * @param imageFile CD-ROM image file
      * @return true if loading succeeded
      */
-    bool loadCue(const std::string& cueFile);
-
-    /**
-     * @brief Get the CD-ROM table of contents
-     * @return Map of TocEntry sorted by TrackIndex
-     */
-    const std::map<TrackIndex, const TocEntry*>& toc() const;
+    bool loadCd(const std::string& imageFile);
 
     /**
      * @brief Get a pointer to the TocEntry of the current track
      */
-    const TocEntry* currentTrack() const;
+    const CdromToc::Entry* currentTrack() const;
     
     /**
      * @brief Get the TrackIndex of the current track
@@ -263,51 +201,7 @@ public:
      */
     static inline constexpr uint8_t toBCD(uint8_t value)
     {
-        return (((value / 10) << 4) | (value % 10));
-    }
-
-    /**
-     * @brief Convert a logical block address to sector number.
-     * @param lba Logical Block Address.
-     */
-    static inline constexpr uint32_t fromLBA(uint32_t lba)
-    {
-        return (lba + 150);
-    }
-
-    /**
-     * @brief Convert a sector number to logical block address.
-     * @param position Sector number.
-     */
-    static inline constexpr uint32_t toLBA(uint32_t position)
-    {
-        return (position - 150);
-    }
-
-    /**
-     * @brief Convert a sector number to minutes, seconds, frames.
-     * @param[in] position The position to convert.
-     * @param[out] m Minutes.
-     * @param[out] s Seconds.
-     * @param[out] f Frames.
-     */
-    static inline void toMSF(uint32_t position, uint8_t& m, uint8_t& s, uint8_t& f)
-    {
-        m = position / 4500;
-        s = (position / 75) % 60;
-        f = position % 75;
-    }
-
-    /**
-     * @brief Convert a position in minutes, seconds, frames to a sector number
-     * @param m Minutes.
-     * @param s Seconds.
-     * @param f Frames.
-     * @return Sector Number.
-     */
-    static inline constexpr uint32_t fromMSF(uint8_t m, uint8_t s, uint8_t f)
-    {
-        return (m * 4500) + (s * 75) + f;
+        return static_cast<uint8_t>(((value / 10) << 4) | (value % 10));
     }
 
 protected:
@@ -321,7 +215,7 @@ protected:
      * @brief Returns true if the file corresponding to the TocEntry is different from the one currently open.
      * @param current The TocEntry 
      */
-    bool hasFileChanged(const TocEntry* current) const;
+    bool hasFileChanged(const CdromToc::Entry* current) const;
     
     
     /**
@@ -340,31 +234,62 @@ protected:
      */
     void audioBufferWorker();
 
+    /**
+     * @brief Returns true if the filename is a CHD file
+     * @param filename
+     * @return True if the filename is a CHD file
+     */
+    static bool filenameIsChd(const std::string& path);
+
     // **** START Variables to save in savestate
     
-    uint32_t    m_currentPosition;  /// The sector being played / decoded
-    bool        m_isPlaying;        /// True if the CD-ROM is playing
+    /// The sector being played / decoded
+    uint32_t m_currentPosition;
+
+    /// True if the CD-ROM is playing
+    bool m_isPlaying;
     
     // **** END Variables to save in savestate
 
-    const TocEntry*         m_currentTrack;             /// TocEntry pointer to the current track
+    /// TocEntry pointer to the current track
+    const CdromToc::Entry* m_currentTrack;
 
-    CircularBuffer<char>    m_circularBuffer;           /// Circular buffer to store decoded audio
-    bool                    m_audioWorkerThreadCreated; /// True is the audio decoder thread has been created
-    bool                    m_exitFlag;                 /// Set to true to have the audio thread stop
-    std::thread             m_workerThread;             /// Audio decoder worker thread
-    std::mutex              m_workerMutex;              /// Mutex to access the circular buffer
-    std::condition_variable m_workerConditionVariable;  /// Condition variable to notify when more data is available
+    /// Circular buffer to store decoded audio
+    CircularBuffer<char> m_circularBuffer;
 
-    std::ifstream           m_file;                     /// The currently opened image cd image file
-    FlacFile                m_flacFile;                 /// FLAC file decoder
-    OggFile                 m_oggFile;                  /// OGG file decoder
-    WavFile                 m_wavFile;                  /// WAV file decoder
+    /// True is the audio decoder thread has been created
+    bool m_audioWorkerThreadCreated;
 
-    uint32_t                                m_leadout;      /// Sector number of the lead out area (end of the CD)
-    std::vector<TocEntry>                   m_toc;          /// CD-ROM table of contents
-    std::map<TrackIndex, const TocEntry*>   m_tocByTrack;   /// Pointers to the TOC entries, sorted by track index
-    std::map<uint32_t, const TocEntry*>     m_tocByLBA;     /// Pointers to the TOC entries, sorted by logical block address
+    /// Set to true to have the audio thread stop
+    bool m_exitFlag;
+
+    /// Audio decoder worker thread
+    std::thread m_workerThread;
+
+    /// Mutex to access the circular buffer
+    std::mutex m_workerMutex;
+
+    /// Condition variable to notify when more data is available
+    std::condition_variable m_workerConditionVariable;
+
+    /// The currently opened image cd image file
+    AbstractFile* m_file;
+
+    File m_imageFile;
+
+    ChdFile m_chdFile;
+
+    /// FLAC file decoder
+    FlacFile m_flacFile;
+
+    /// OGG file decoder
+    OggFile m_oggFile;
+
+    /// WAV file decoder
+    WavFile m_wavFile;
+
+    /// CD-ROM table of contents
+    CdromToc m_toc;
 
     friend DataPacker& operator<<(DataPacker& out, const Cdrom& cdrom);
     friend DataPacker& operator>>(DataPacker& in, Cdrom& cdrom);

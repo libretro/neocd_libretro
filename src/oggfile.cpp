@@ -4,44 +4,37 @@
 size_t ogg_read_cb(void *ptr, size_t size, size_t nmemb, void *datasource)
 {
     OggFile* oggFile = reinterpret_cast<OggFile*>(datasource);
-    std::ifstream* file = oggFile->m_file;
-    if ((!file) || (!file->is_open()))
+    AbstractFile* file = oggFile->m_file;
+    if ((!file) || (!file->isOpen()))
         return 0;
 
-    file->read(static_cast<char*>(ptr), size * nmemb);
-
-    // Fix ifstream stupidity: eof is not a failure condition
-    if (file->fail() && file->eof())
-        file->clear();
-
-    return static_cast<size_t>(file->gcount());
+    return file->readData(ptr, size * nmemb);
 }
 
 // Ogg seek callback
 int ogg_seek_cb(void *datasource, ogg_int64_t offset, int whence)
 {
     OggFile* oggFile = reinterpret_cast<OggFile*>(datasource);
-    std::ifstream* file = oggFile->m_file;
-    if ((!file) || (!file->is_open()))
+    AbstractFile* file = oggFile->m_file;
+    if ((!file) || (!file->isOpen()))
         return -1;
 
-    std::ios::seekdir seekdir;
+    bool success = false;
 
     switch (whence)
     {
     case SEEK_CUR:
-        seekdir = std::ios::cur;
+        success = file->seek(static_cast<size_t>(file->pos() + offset));
         break;
     case SEEK_END:
-        seekdir = std::ios::end;
+        success = file->seek(file->size() + static_cast<size_t>(offset));
         break;
     default:
-        seekdir = std::ios::beg;
+        success = file->seek(static_cast<size_t>(offset));
         break;
     }
 
-    file->seekg(offset, seekdir);
-    if (file->fail())
+    if (!success)
         return -1;
 
     return 0;
@@ -51,11 +44,11 @@ int ogg_seek_cb(void *datasource, ogg_int64_t offset, int whence)
 long ogg_tell_cb(void *datasource)
 {
     OggFile* oggFile = reinterpret_cast<OggFile*>(datasource);
-    std::ifstream* file = oggFile->m_file;
-    if ((!file) || (!file->is_open()))
+    AbstractFile* file = oggFile->m_file;
+    if ((!file) || (!file->isOpen()))
         return -1;
 
-    return static_cast<long>(file->tellg());
+    return static_cast<long>(file->pos());
 }
 
 static const ov_callbacks ogg_callbacks = {
@@ -66,9 +59,9 @@ static const ov_callbacks ogg_callbacks = {
 };
 
 OggFile::OggFile() :
-    m_isOpen(false),
+    m_vorbisFile(),
     m_file(nullptr),
-    m_vorbisFile()
+    m_isOpen(false)
 {
 }
 
@@ -77,7 +70,7 @@ OggFile::~OggFile()
     cleanup();
 }
 
-bool OggFile::initialize(std::ifstream *file)
+bool OggFile::initialize(AbstractFile* file)
 {
     cleanup();
 
@@ -101,7 +94,7 @@ size_t OggFile::read(char *data, size_t size)
 
     while (size)
     {
-        result = ov_read(&m_vorbisFile, data, static_cast<int>(size), 0, 2, 1, &bitstream);
+        result = static_cast<size_t>(ov_read(&m_vorbisFile, data, static_cast<int>(size), 0, 2, 1, &bitstream));
         if (result <= 0)
             return done;
 

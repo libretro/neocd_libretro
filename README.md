@@ -21,6 +21,7 @@ NeoCD would not have been possible without the following people generously shari
 * Juergen Buchmueller - Z80 Emulation Core
 * Jarek Burczynski & Tatsuyuki Satoh - YM2610 Emulation Core
 * [The MAME Development Team](http://www.mamedev.org/) - MAME, an invaluable source of knowledge about arcade machines.
+* Romain Tisserand - libchdr (https://github.com/rtissera/libchdr)
 
 ## Installation
 
@@ -35,6 +36,8 @@ Copy `neocd_libretro.info` to folder `RetroArch/info`
 ### Required BIOS Files
 
 To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder.
+
+The hashes are given to help you verify the files have not been tampered with, the emulator doesn't verify them.
 
 The needed files are:
 
@@ -67,9 +70,7 @@ The files will be automatically byte swapped if needed.
 
 In the era of modern computers and portable devices, CD-ROMs are no longer convenient. Additionally I believe it is not possible to read the TOC of protected games without special drivers. As a result, NeoCD now exclusively run using CD-ROM images.
 
-> **&#128211; Note:** The copy protection mechanism is now emulated and functional. You will need a CD image with correct TOC information or patched images. The easiest way to create CD Images is probably to use **CloneCD** type software. If you find yourself unable to image your games correctly, there are archives with correct CUE files for all known games floating around the net. To tell if a copy protected CD image is correctly made open the CUE file, track 01 should have something very special about it.
-
-NeoCD accepts as input a cue sheet file (CUE). The image can be either of "single file" type (CUE, BIN) or "multiple files" type (CUE,ISO,[WAV/FLAC/OGG]).
+NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. The image can be either of "single file" type (CUE, BIN) or "multiple files" type (CUE,ISO,[WAV/FLAC/OGG]).
 
 > **&#127926; Supported audio formats are:** Wave (.wav), FLAC (.flac) or Ogg Vorbis (.ogg)
 
@@ -77,7 +78,7 @@ NeoCD accepts as input a cue sheet file (CUE). The image can be either of "singl
 
 * **Region:** Change your Neo Geo CD's region. (changing this will reset the machine)
 * **BIOS Select:** Select the BIOS to use here if you have several (changing this will reset the machine)
-* **CD Speed Hack:** This will replace the BIOS CD-ROM busy loop with a STOP instruction, making emulation more efficient (optional, changing this will reset the machine)
+* **CD Speed Hack:** This will replace the BIOS CD-ROM busy loop with a STOP instruction, to help low powered platforms (like RPi) load faster (optional, changing this will reset the machine)
 * **Skip CD Loading:** Settings this to ON makes the emulator auto fast forward CD loading sequences.
 
 ## For Developers
@@ -95,6 +96,7 @@ The project uses custom cmake finders in the folder `cmakescripts` to locate the
 
 ### Compiling
 
+* Don't forget to --recurse-submodules when cloning
 * Make sure the development packages for libFLAC, libogg and libvorbis are installed.
 * Eventually, edit the CFLAGS in CMakeLists.txt to suit your platform (Raspberry Pi...)
 * Invoke CMake: `cmake -G "Unix Makefiles" .` or `cmake -G "MSYS Makefiles" .` (Windows)
