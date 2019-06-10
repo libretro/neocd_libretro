@@ -111,14 +111,12 @@ set ( C_SRCS
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/CpuArch.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Delta.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzFind.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzFindMt.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Lzma86Dec.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Lzma86Enc.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzmaDec.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzmaEnc.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzmaLib.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Sort.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Threads.c
 )
 
 # Find the required libraries
@@ -140,6 +138,9 @@ INCLUDE_DIRECTORIES(
 set(LINK_OPTIONS ${LINK_OPTIONS} Threads::Threads ${ZLIB_LIBRARIES} ${FLAC_LIBRARY} ${VORBISFILE_LIBRARY} ${VORBIS_LIBRARY} ${OGG_LIBRARY})
 
 add_library(${PROJECT_NAME} SHARED ${CXX_SRCS} ${C_SRCS})
+
+# Private LZMA flag for libchdr 
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_7ZIP_ST")
 
 target_link_libraries(${PROJECT_NAME} ${LINK_OPTIONS})
 
