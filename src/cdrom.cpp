@@ -227,10 +227,13 @@ void Cdrom::readData(char* buffer)
 
     uint32_t trackOffset = m_currentPosition - m_currentTrack->startSector;
 
-    if (m_file->isChd())
-        trackOffset *= 2352;
-    else if (m_currentTrack->trackType == CdromToc::TrackType::Mode1_2048)
-        trackOffset *= 2048;
+    if (m_currentTrack->trackType == CdromToc::TrackType::Mode1_2048)
+    {
+        if (m_file->isChd())
+            trackOffset *= 2352;
+        else
+            trackOffset *= 2048;
+    }
     else if (m_currentTrack->trackType == CdromToc::TrackType::Mode1_2352)
         trackOffset = (trackOffset * 2352) + 16;
 

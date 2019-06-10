@@ -1,39 +1,40 @@
-#include "neogeocd.h"
-#include "timeprofiler.h"
-
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <initializer_list>
 #include <vector>
 
-class BiosListEntry
-{
-public:
-    BiosListEntry(const std::string& f, const std::string& d, NeoGeoCD::BiosType t) :
-        filename(f),
-        description(d),
-        type(t)
-    { }
+#include "neogeocd.h"
+#include "timeprofiler.h"
 
-    std::string         filename;
-    std::string         description;
+struct BiosListEntry
+{
+    const char* filename;
+    const char* description;
     NeoGeoCD::BiosType type;
+    bool isSMKDan;
+    bool isUniverse;
 };
 
-static const char* BIOS_F_FILENAME = "neocd_f.rom";
-static const char* BIOS_F_DESCRIPTION = "Front Loader";
-static const char* BIOS_SF_FILENAME = "neocd_sf.rom";
-static const char* BIOS_SF_DESCRIPTION = "Front Loader (SMKDAN)";
-static const char* BIOS_T_FILENAME = "neocd_t.rom";
-static const char* BIOS_T_DESCRIPTION = "Top Loader";
-static const char* BIOS_ST_FILENAME = "neocd_st.rom";
-static const char* BIOS_ST_DESCRIPTION = "Top Loader (SMKDAN)";
-static const char* BIOS_Z_FILENAME = "neocd_z.rom";
-static const char* BIOS_Z_DESCRIPTION = "CDZ";
-static const char* BIOS_SZ_FILENAME = "neocd_sz.rom";
-static const char* BIOS_SZ_DESCRIPTION = "CDZ (SMKDAN)";
+static const std::initializer_list<BiosListEntry> KNOWN_BIOSES{
+    { "neocd_f.rom", "Front Loader", NeoGeoCD::FrontLoader, false, false },
+    { "neocd_sf.rom", "Front Loader (SMKDAN)", NeoGeoCD::FrontLoader, true, false },
+    { "front-sp1.bin", "Front Loader (MAME)", NeoGeoCD::FrontLoader, false, false },
+    { "neocd_t.rom", "Top Loader", NeoGeoCD::TopLoader, false, false },
+    { "neocd_st.rom", "Top Loader (SMKDAN)", NeoGeoCD::TopLoader, true, false },
+    { "top-sp1.bin", "Top Loader (MAME)", NeoGeoCD::TopLoader, false, false },
+    { "neocd_z.rom", "CDZ", NeoGeoCD::CDZ, false, false },
+    { "neocd_sz.rom", "CDZ (SMKDAN)", NeoGeoCD::CDZ, true, false },
+    { "neocd.bin", "CDZ (MAME)", NeoGeoCD::CDZ, false, false },
+    { "uni-bioscd.rom", "Universe 3.2", NeoGeoCD::CDZ, false, true }
+};
+
+static const std::initializer_list<const char*> KNOWN_ZOOM_ROMS{
+    { "ng-lo.rom" },
+    { "000-lo.lo" }
+};
 
 static const char* REGION_VARIABLE = "neocd_region";
 static const char* BIOS_VARIABLE = "neocd_bios";
@@ -122,23 +123,11 @@ static void lookForBIOS()
 {
     biosList.clear();
 
-    if (fileExists(makeSystemPath(BIOS_F_FILENAME)))
-        biosList.emplace_back(BiosListEntry(BIOS_F_FILENAME, BIOS_F_DESCRIPTION, NeoGeoCD::FrontLoader));
-
-    if (fileExists(makeSystemPath(BIOS_SF_FILENAME)))
-        biosList.emplace_back(BiosListEntry(BIOS_SF_FILENAME, BIOS_SF_DESCRIPTION, NeoGeoCD::FrontLoader));
-
-    if (fileExists(makeSystemPath(BIOS_T_FILENAME)))
-        biosList.emplace_back(BiosListEntry(BIOS_T_FILENAME, BIOS_T_DESCRIPTION, NeoGeoCD::TopLoader));
-
-    if (fileExists(makeSystemPath(BIOS_ST_FILENAME)))
-        biosList.emplace_back(BiosListEntry(BIOS_ST_FILENAME, BIOS_ST_DESCRIPTION, NeoGeoCD::TopLoader));
-
-    if (fileExists(makeSystemPath(BIOS_Z_FILENAME)))
-        biosList.emplace_back(BiosListEntry(BIOS_Z_FILENAME, BIOS_Z_DESCRIPTION, NeoGeoCD::CDZ));
-
-    if (fileExists(makeSystemPath(BIOS_SZ_FILENAME)))
-        biosList.emplace_back(BiosListEntry(BIOS_SZ_FILENAME, BIOS_SZ_DESCRIPTION, NeoGeoCD::CDZ));
+    for(const BiosListEntry& entry : KNOWN_BIOSES)
+    {
+        if (fileExists(makeSystemPath(entry.filename)))
+            biosList.push_back(entry);
+    }
 }
 
 static bool loadYZoomROM()
@@ -146,11 +135,17 @@ static bool loadYZoomROM()
     std::ifstream file;
     std::string filename;
 
-    filename = makeSystemPath("ng-lo.rom");
-    file.open(filename, std::ios::in | std::ios::binary);
+    for(const char* rom_name : KNOWN_ZOOM_ROMS)
+    {
+        filename = makeSystemPath(rom_name);
+        file.open(filename, std::ios::in | std::ios::binary);
+        if (file.is_open())
+            break;
+    }
+
     if (!file.is_open())
     {
-        LOG(LOG_ERROR, "Could not load Y Zoom ROM %s\n", filename.c_str());
+        LOG(LOG_ERROR, "Could not load Y Zoom ROM\n");
         return false;
     }
 
@@ -158,7 +153,7 @@ static bool loadYZoomROM()
 
     if (file.gcount() < Memory::YZOOMROM_SIZE)
     {
-        LOG(LOG_ERROR, "ng-lo.rom should be exactly 65536 bytes!\n");
+        LOG(LOG_ERROR, "Y ZOOM ROM should be at least 65536 bytes!\n");
         return false;
     }
 
@@ -195,12 +190,13 @@ static void disableSMKDANChecksum(uint32_t address)
 
 static void patchBIOS()
 {
-    bool isSMKDan = (biosList[biosIndex].filename == BIOS_SZ_FILENAME)
-                    || (biosList[biosIndex].filename == BIOS_SF_FILENAME)
-                    || (biosList[biosIndex].filename == BIOS_ST_FILENAME);
+    const BiosListEntry& entry = biosList[biosIndex];
 
     if (neocd.biosType == NeoGeoCD::FrontLoader)
     {
+        // Patch the CD Recognition
+        patchROM_16(0xC10B64, 0x4E71);
+
         // Speed hacks to avoid busy looping
         if (cdSpeedHack)
         {
@@ -211,11 +207,14 @@ static void patchBIOS()
         }
 
         // If SMKDan, disable the BIOS checksum
-        if (isSMKDan)
+        if (entry.isSMKDan)
             disableSMKDANChecksum(0xC23EBE);
     }
     else if (neocd.biosType == NeoGeoCD::TopLoader)
     {
+        // Patch the CD Recognition
+        patchROM_16(0xC10436, 0x4E71);
+        
         // Speed hacks to avoid busy looping
         if (cdSpeedHack)
         {         
@@ -226,12 +225,13 @@ static void patchBIOS()
         }
 
         // If SMKDan, disable the BIOS checksum
-        if (isSMKDan)
+        if (entry.isSMKDan)
             disableSMKDANChecksum(0xC23FBE);
     }
     else if (neocd.biosType == NeoGeoCD::CDZ)
     {
-        // Patch the CD Recognition (It's done in the CD-ROM firmware, can't emulate)
+        // Patch the CD Recognition
+        patchROM_16(0xC0EB82, 0x4E71);
         patchROM_16(0xC0D280, 0x4E71);
 
         // Speed hacks to avoid busy looping
@@ -245,7 +245,7 @@ static void patchBIOS()
         }
 
         // If SMKDan, disable the BIOS checksum
-        if (isSMKDan)
+        if (entry.isSMKDan)
             disableSMKDANChecksum(0xC62BF4);
     }
 }
@@ -301,7 +301,7 @@ static int biosDescriptionToIndex(const char* description)
 {
     for (int result = 0; result < biosList.size(); ++result)
     {
-        if (!strcmp(description, biosList[result].description.c_str()))
+        if (!strcmp(description, biosList[result].description))
             return result;
     }
 

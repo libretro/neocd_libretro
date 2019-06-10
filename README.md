@@ -1,3 +1,4 @@
+
 # NeoCD-Libretro
 
 ## Introduction
@@ -37,40 +38,40 @@ Copy `neocd_libretro.info` to folder `RetroArch/info`
 
 To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder.
 
-The hashes are given to help you verify the files have not been tampered with, the emulator doesn't verify them.
+> **&#128211; Note:** The hashes are given to help you verify the files have not been tampered with, the emulator doesn't verify them.
 
-The needed files are:
+#### Zoom ROM
 
-|Description | Filename  | SHA1                                     |
-|------------|-----------|------------------------------------------|
-| Y Zoom ROM | ng-lo.rom | 2b1c719531dac9bb503f22644e6e4236b91e7cfc |
+> **&#128211; Note:** Need one in the following table
+
+|Description        | Filename  | SHA1                                     |
+|-------------------|-----------|------------------------------------------|
+| Y Zoom ROM        | ng-lo.rom | 2b1c719531dac9bb503f22644e6e4236b91e7cfc |
+| Y Zoom ROM (MAME) | 000-lo.lo | 5992277debadeb64d1c1c64b0a92d9293eaf7e4a |
+
+#### BIOS
 
 > **&#128211; Note:** You need at least one in the following table. If several BIOSes are available, it will be possible to choose which to run in the Core Options Menu.
 The files will be automatically byte swapped if needed. 
 
-| Description                | Filename     | SHA1                                     |
-|----------------------------|--------------|------------------------------------------|
-| Front Loader BIOS          | neocd_f.rom  | a5f4a7a627b3083c979f6ebe1fabc5d2df6d083b |
-| Front Loader BIOS (SMKDAN) | neocd_sf.rom | c99c44a43bded1bff4570b30b74975601bd3f94e |
-| Top Loader BIOS            | neocd_t.rom  | cc92b54a18a8bff6e595aabe8e5c360ba9e62eb5 |
-| Top Loader BIOS (SMKDAN)   | neocd_st.rom | d463b3a322b9674f9e227a21e43898019ce0e642 |
-| CDZ BIOS                   | neocd_z.rom  | b0f1c4fa8d4492a04431805f6537138b842b549f |
-| CDZ BIOS (SMKDAN)          | neocd_sz.rom | 41ca1c031b844a46387be783ac862c76e65afbb3 |
-
-| Description                | Filename     | Byte Swapped SHA1                        |
-|----------------------------|--------------|------------------------------------------|
-| Front Loader BIOS          | neocd_f.rom  | 53bc1f283cdf00fa2efbb79f2e36d4c8038d743a |
-| Front Loader BIOS (SMKDAN) | neocd_sf.rom | 4a94719ee5d0e3f2b981498f70efc1b8f1cef325 |
-| Top Loader BIOS            | neocd_t.rom  | 235f4d1d74364415910f73c10ae5482d90b4274f |
-| Top Loader BIOS (SMKDAN)   | neocd_st.rom | 19729b51bdab60c42aafef6e20ea9234c7eb8410 |
-| CDZ BIOS                   | neocd_z.rom  | 7bb26d1e5d1e930515219cb18bcde5b7b23e2eda |
-| CDZ BIOS (SMKDAN)          | neocd_sz.rom | 6a947457031dd3a702a296862446d7485aa89dbb |
+| Description                | Filename       | SHA1                                     |
+|----------------------------|----------------|------------------------------------------|
+| Front Loader BIOS          | neocd_f.rom    | a5f4a7a627b3083c979f6ebe1fabc5d2df6d083b |
+| Front Loader BIOS (SMKDAN) | neocd_sf.rom   | c99c44a43bded1bff4570b30b74975601bd3f94e |
+| Top Loader BIOS            | neocd_t.rom    | cc92b54a18a8bff6e595aabe8e5c360ba9e62eb5 |
+| Top Loader BIOS (SMKDAN)   | neocd_st.rom   | d463b3a322b9674f9e227a21e43898019ce0e642 |
+| CDZ BIOS                   | neocd_z.rom    | b0f1c4fa8d4492a04431805f6537138b842b549f |
+| CDZ BIOS (SMKDAN)          | neocd_sz.rom   | 41ca1c031b844a46387be783ac862c76e65afbb3 |
+| Front Loader BIOS (MAME)   | front-sp1.bin  | 53bc1f283cdf00fa2efbb79f2e36d4c8038d743a |
+| Top Loader BIOS (MAME)     | top-sp1.bin    | 235f4d1d74364415910f73c10ae5482d90b4274f |
+| CDZ BIOS (MAME)            | neocd.bin      | 7bb26d1e5d1e930515219cb18bcde5b7b23e2eda |
+| Universe 3.2               | uni-bioscd.rom | 5158b728e62b391fb69493743dcf7abbc62abc82 |
 
 ### CD Images
 
 In the era of modern computers and portable devices, CD-ROMs are no longer convenient. Additionally I believe it is not possible to read the TOC of protected games without special drivers. As a result, NeoCD now exclusively run using CD-ROM images.
 
-NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. The image can be either of "single file" type (CUE, BIN) or "multiple files" type (CUE,ISO,[WAV/FLAC/OGG]).
+NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can be either of "single file" type (CUE, BIN) or "multiple files" type (CUE,ISO,[WAV/FLAC/OGG]).
 
 > **&#127926; Supported audio formats are:** Wave (.wav), FLAC (.flac) or Ogg Vorbis (.ogg)
 
@@ -90,6 +91,7 @@ NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. The image can 
 * libFLAC
 * libogg
 * libvorbis
+* zlib
 * MSYS (Windows)
 
 The project uses custom cmake finders in the folder `cmakescripts` to locate the libraries.
@@ -106,8 +108,8 @@ The project uses custom cmake finders in the folder `cmakescripts` to locate the
 
 ## Tested platforms
 
-* x64 / Windows / GCC 8.2
-* x64 / Arch Linux / GCC 8.2
+* x64 / Windows / GCC 9.1
+* x64 / Arch Linux / GCC 9.1
 * Raspberry Pi 3 / Arch Linux / GCC 8.2
 
 ## Known problems

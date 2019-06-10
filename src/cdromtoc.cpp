@@ -432,6 +432,9 @@ bool  CdromToc::loadChd(const std::string& filename)
     // Current position on the CD
     uint32_t cdPosition = 0;
 
+    // Used to fix some weird CHD behavior
+    bool previousWasData = true;
+
     // Scan metadata
     for(uint32_t idx = 0; idx < 99; ++idx)
     {
@@ -449,9 +452,6 @@ bool  CdromToc::loadChd(const std::string& filename)
 
         // Length of the postgap (index 2)
         uint32_t postgapLength;
-
-        // True is pregap / postgap have associated data in the data file, otherwise they're just silence
-        bool gapsInDataFile = false;
 
         // True if the metadata is in V2 format
         bool v2Metadata = true;
@@ -489,17 +489,12 @@ bool  CdromToc::loadChd(const std::string& filename)
             // Get pre / post gap length from metadata
             pregapLength = std::stoul(match[5].str());
             postgapLength = std::stoul(match[8].str());
-
-            // If PGTYPE starts with 'V' the pregap data is in the CHD
-            std::string pgType = match[6];
-            gapsInDataFile = !pgType.empty() && (pgType[0] == 'V');
         }
         else
         {
             // Old metadata don't have pre / post gap info so set it to zero
             pregapLength = 0;
             postgapLength = 0;
-            gapsInDataFile = false;
         }
 
         //Get the track number and length from metadata
@@ -532,13 +527,16 @@ bool  CdromToc::loadChd(const std::string& filename)
         // Create the pregap entry (index 0)
         if (pregapLength)
         {
-            if (gapsInDataFile)
+            m_toc.push_back({ -1, { static_cast<uint8_t>(trackNumber), 0 }, TrackType::Silence, 0, cdPosition, 0, pregapLength });
+            
+            // CHD WEIRDNESS: If the previous track was data don't move the chd position
+            if (!previousWasData)
             {
-                m_toc.push_back({ 0, { static_cast<uint8_t>(trackNumber), 0 }, TrackType::AudioPCM, 0, cdPosition, static_cast<size_t>(chdPosition) * 2352, pregapLength });
                 chdPosition += pregapLength;
+                
+                // Shorten the track accordingly
+                trackLength -= pregapLength;
             }
-            else
-                m_toc.push_back({ -1, { static_cast<uint8_t>(trackNumber), 0 }, TrackType::Silence, 0, cdPosition, 0, pregapLength });
 
             cdPosition += pregapLength;
         }
@@ -551,16 +549,11 @@ bool  CdromToc::loadChd(const std::string& filename)
         // Create the post gap entry (index 2)
         if (postgapLength)
         {
-            if (gapsInDataFile)
-            {
-                m_toc.push_back({ 0, { static_cast<uint8_t>(trackNumber), 2 }, TrackType::AudioPCM, 0, cdPosition, static_cast<size_t>(chdPosition) * 2352, postgapLength });
-                chdPosition += postgapLength;
-            }
-            else
-                m_toc.push_back({ -1, { static_cast<uint8_t>(trackNumber), 2 }, TrackType::Silence, 0, cdPosition, 0, postgapLength });
-
+            m_toc.push_back({ -1, { static_cast<uint8_t>(trackNumber), 2 }, TrackType::Silence, 0, cdPosition, 0, postgapLength });
             cdPosition += postgapLength;
         }
+
+        previousWasData = !(trackType == TrackType::AudioPCM);
     }
 
     m_totalSectors = cdPosition;
