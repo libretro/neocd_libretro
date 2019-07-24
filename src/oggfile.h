@@ -1,7 +1,6 @@
 #ifndef OGGFILE_H
 #define OGGFILE_H
 
-#include <fstream>
 #include <cstdint>
 
 #include "abstractfile.h"

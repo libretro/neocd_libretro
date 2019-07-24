@@ -2,8 +2,8 @@
 #define CHDFILE_H 1
 
 #include <cstdint>
+#include <libchdr/chd.h>
 
-#include "3rdparty/libchdr/src/chd.h"
 #include "abstractfile.h"
 
 class ChdFile : public AbstractFile
@@ -33,6 +33,8 @@ public:
     size_t readData(void* data, size_t size) override;
 
     size_t readAudio(void* data, size_t size) override;
+    
+    std::string readLine() override;
 
     std::string metadata(uint32_t searchTag, uint32_t searchIndex);
 

@@ -1,10 +1,11 @@
 #include <algorithm>
+#include <retro_miscellaneous.h>
 
 #include "file.h"
 
 File::File() :
     AbstractFile(),
-    m_stream(),
+    m_stream(nullptr),
     m_fileSize(0)
 {
 }
@@ -18,23 +19,30 @@ bool File::open(const std::string& filename)
 {
     close();
 
-    m_stream.open(filename, std::ios::in | std::ios::binary);
-    if (m_stream.is_open())
-    {
-        std::ifstream::pos_type currentPos = m_stream.tellg();
-        m_stream.seekg(0, std::ios::end);
-        m_fileSize = static_cast<size_t>(m_stream.tellg());
-        m_stream.seekg(currentPos, std::ios::beg);
+    m_stream = filestream_open(filename.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 
-        return true;
+    if (!isOpen())
+        return false;
+
+    filestream_seek(m_stream, 0, SEEK_END);
+
+    int64_t fileSize = filestream_tell(m_stream);
+    if (fileSize <= 0)
+    {
+        close();
+        return false;
     }
 
-    return false;
+    m_fileSize = static_cast<size_t>(fileSize);
+
+    filestream_seek(m_stream, 0, SEEK_SET);
+
+    return true;
 }
 
 bool File::isOpen() const
 {
-    return m_stream.is_open();
+    return (m_stream != nullptr);
 }
 
 bool File::isChd() const
@@ -44,9 +52,11 @@ bool File::isChd() const
 
 void File::close()
 {
-    if (isOpen())
-        m_stream.close();
+    if (!isOpen())
+        return;
 
+    filestream_close(m_stream);
+    m_stream = nullptr;
     m_fileSize = 0;
 }
 
@@ -57,18 +67,24 @@ size_t File::size() const
 
 int64_t File::pos() const
 {
-    return static_cast<int64_t>(m_stream.tellg());
+    if (!isOpen())
+        return 0;
+
+    return filestream_tell(m_stream);
 }
 
 bool File::seek(size_t pos)
 {
     if (!isOpen())
         return false;
+    
+    int64_t expectedPos = static_cast<int64_t>(pos);
 
-    m_stream.clear();
-    std::streamoff destination = static_cast<std::streamoff>(pos);
-    m_stream.seekg(std::min(destination, static_cast<std::streamoff>(m_fileSize)), std::ios::beg);
-    return (m_stream.tellg() == destination);
+    filestream_seek(m_stream, expectedPos, SEEK_SET);
+
+    int64_t resultPos = filestream_tell(m_stream);
+
+    return (expectedPos == resultPos);
 }
 
 bool File::skip(size_t off)
@@ -78,7 +94,10 @@ bool File::skip(size_t off)
 
 bool File::eof() const
 {
-    return m_stream.eof();
+    if (!isOpen())
+        return true;
+
+    return filestream_eof(m_stream) ? true : false;
 }
 
 size_t File::readData(void* data, size_t size)
@@ -86,13 +105,41 @@ size_t File::readData(void* data, size_t size)
     if (!isOpen())
         return size_t(0);
 
-    m_stream.clear();
-    m_stream.read(reinterpret_cast<char*>(data), static_cast<std::streamsize>(size));
+    int64_t reallyRead = filestream_read(m_stream, data, static_cast<int64_t>(size));
 
-    return static_cast<size_t>(m_stream.gcount());
+    return static_cast<size_t>(reallyRead);
 }
 
 size_t File::readAudio(void* data, size_t size)
 {
     return readData(data, size);
+}
+
+std::string File::readLine()
+{
+    if (!isOpen())
+        return std::string();
+        
+    char buffer[PATH_MAX_LENGTH];
+    
+    int c;
+    int len = sizeof(buffer) - 1;
+    char* p = buffer;
+
+    for(len--; len > 0; len--)
+    {
+        do
+        {
+            c = filestream_getc(m_stream);
+        } while(c == '\r');
+                   
+        if ((c == EOF) || (c == '\n'))
+            break;
+
+        *p++ = c;
+    }
+
+    *p++ = 0;
+
+    return std::string(buffer);
 }

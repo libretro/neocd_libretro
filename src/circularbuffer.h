@@ -9,7 +9,12 @@ template<class T>
 class CircularBuffer
 {
 public:
-    explicit CircularBuffer() : m_frontIndex(0), m_backIndex(0), m_capacity(0), m_dataSize(0), m_buffer(nullptr)
+    explicit CircularBuffer() : 
+        m_capacity(0), 
+        m_dataSize(0), 
+        m_frontIndex(0), 
+        m_backIndex(0), 
+        m_buffer(nullptr)
     {}
 
     virtual ~CircularBuffer()

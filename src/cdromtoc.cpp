@@ -28,17 +28,27 @@ void CdromToc::clear()
 
 bool CdromToc::loadCueSheet(const std::string &filename)
 {
+/*
     static const std::regex FILE_REGEX("^\\s*FILE\\s+\"(.*)\"\\s+(\\S+)\\s*$", std::regex_constants::icase);
     static const std::regex TRACK_REGEX("^\\s*TRACK\\s+([0-9]+)\\s+(\\S*)\\s*$", std::regex_constants::icase);
     static const std::regex PREGAP_REGEX("^\\s*PREGAP\\s+([0-9]+):([0-9]+):([0-9]+)\\s*$", std::regex_constants::icase);
     static const std::regex INDEX_REGEX("^\\s*INDEX\\s+([0-9]+)\\s+([0-9]+):([0-9]+):([0-9]+)\\s*$", std::regex_constants::icase);
     static const std::regex POSTGAP_REGEX("^\\s*POSTGAP\\s+([0-9]+):([0-9]+):([0-9]+)\\s*$", std::regex_constants::icase);
+*/
+
+    // Regexes modified to work around a bug where \s mysteriously fails to match under Linux, and only under Retroarch
+    // (Works when compiled as a standalone program)
+    // \s replaced with [ \\t] and \S with [^ \\t]
+    static const std::regex FILE_REGEX("^[ \\t]*FILE[ \\t]+\"(.*)\"[ \\t]+([^ \\t]+)[ \\t]*$", std::regex_constants::icase);
+    static const std::regex TRACK_REGEX("^[ \\t]*TRACK[ \\t]+([0-9]+)[ \\t]+([^ \\t]*)[ \\t]*$", std::regex_constants::icase);
+    static const std::regex PREGAP_REGEX("^[ \\t]*PREGAP[ \\t]+([0-9]+):([0-9]+):([0-9]+)[ \\t]*$", std::regex_constants::icase);
+    static const std::regex INDEX_REGEX("^[ \\t]*INDEX[ \\t]+([0-9]+)[ \\t]+([0-9]+):([0-9]+):([0-9]+)[ \\t]*$", std::regex_constants::icase);
+    static const std::regex POSTGAP_REGEX("^[ \\t]*POSTGAP[ \\t]+([0-9]+):([0-9]+):([0-9]+)[ \\t]*$", std::regex_constants::icase);
 
     clear();
 
-    std::ifstream in;
-    in.open(filename, std::ios::in);
-    if (!in.is_open())
+    File in;
+    if (!in.open(filename))
     {
         LOG(LOG_ERROR, "Could not open CUE file: %s\n", filename.c_str());
         return false;
@@ -65,13 +75,13 @@ bool CdromToc::loadCueSheet(const std::string &filename)
 
     while(!in.eof())
     {
-        std::string line;
-        std::getline(in, line);
+        std::string line = in.readLine();
+
         std::smatch match;
 
         if (std::regex_match(line, match, FILE_REGEX))
         {
-            currentFile = path_replace_filename(filename, match[1].str());
+            currentFile = path_replace_filename(filename.c_str(), match[1].str().c_str());
             currentTrack = -1;
             currentIndex = -1;
             currentType = TrackType::Silence;
@@ -80,8 +90,8 @@ bool CdromToc::loadCueSheet(const std::string &filename)
             trackHasIndexOne = false;
 
             std::string type = match[2].str();
-            bool isBinary = string_compare_insensitive(type, "BINARY");
-            bool isWave = string_compare_insensitive(type, "WAVE");
+            bool isBinary = string_compare_insensitive(type.c_str(), "BINARY");
+            bool isWave = string_compare_insensitive(type.c_str(), "WAVE");
 
             if (!isBinary && !isWave)
             {
@@ -126,7 +136,7 @@ bool CdromToc::loadCueSheet(const std::string &filename)
         {
             if (currentFileIndex < 0)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Track directive without file!");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Track directive without file!\n");
                 return false;
             }
 
@@ -134,19 +144,19 @@ bool CdromToc::loadCueSheet(const std::string &filename)
 
             if ((newTrack < 1) || (newTrack > 99))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Track numbers should be between 1 and 99.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Track numbers should be between 1 and 99.\n");
                 return false;
             }
 
             if ((currentTrack != -1) && (newTrack - currentTrack != 1))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Track numbers should be contiguous and increasing.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Track numbers should be contiguous and increasing.\n");
                 return false;
             }
 
             if ((currentTrack != -1) && (!trackHasIndexOne))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Track %02d has no index 01.", currentTrack);
+                LOG(LOG_ERROR, "Invalid CUE sheet: Track %02d has no index 01.\n", currentTrack);
                 return false;
             }
 
@@ -158,21 +168,21 @@ bool CdromToc::loadCueSheet(const std::string &filename)
 
             std::string mode = match[2].str();
 
-            if (string_compare_insensitive(mode, "MODE1/2048"))
+            if (string_compare_insensitive(mode.c_str(), "MODE1/2048"))
                 currentType = TrackType::Mode1_2048;
-            else if (string_compare_insensitive(mode, "MODE1/2352"))
+            else if (string_compare_insensitive(mode.c_str(), "MODE1/2352"))
                 currentType = TrackType::Mode1_2352;
-            else if (string_compare_insensitive(mode, "AUDIO"))
+            else if (string_compare_insensitive(mode.c_str(), "AUDIO"))
                 currentType = currentFileAudioType;
             else
             {
-                LOG(LOG_ERROR, "Track mode %s is not supported.", match[2].str().c_str());
+                LOG(LOG_ERROR, "Track mode %s is not supported.\n", match[2].str().c_str());
                 return false;
             }
 
             if (((currentType == TrackType::Mode1_2048) || (currentType == TrackType::Mode1_2352)) && (currentFileAudioType != TrackType::AudioPCM))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Data track defined when current source file is audio type.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Data track defined when current source file is audio type.\n");
                 return false;
             }
 
@@ -183,19 +193,19 @@ bool CdromToc::loadCueSheet(const std::string &filename)
         {
             if (currentTrack < 0)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Pregap directive with no track defined.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Pregap directive with no track defined.\n");
                 return false;
             }
 
             if (trackHasPregap)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: A track can have only one pregap.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: A track can have only one pregap.\n");
                 return false;
             }
 
             if (currentIndex >= 0)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Pregap directive must come before any indexes.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Pregap directive must come before any indexes.\n");
                 return false;
             }
 
@@ -215,13 +225,13 @@ bool CdromToc::loadCueSheet(const std::string &filename)
         {
             if (currentTrack < 0)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Index directive with no track defined.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Index directive with no track defined.\n");
                 return false;
             }
 
             if (trackHasPostgap)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Index directive must come before postgap.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Index directive must come before postgap.\n");
                 return false;
             }
 
@@ -229,19 +239,19 @@ bool CdromToc::loadCueSheet(const std::string &filename)
 
             if ((newIndex < 0) || (newIndex > 99))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Index numbers should be between 0 and 99.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Index numbers should be between 0 and 99.\n");
                 return false;
             }
 
             if (trackHasPregap && (newIndex == 0))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Index 0 is not allowed with pregap.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Index 0 is not allowed with pregap.\n");
                 return false;
             }
 
             if ((currentIndex != -1) && (newIndex - currentIndex != 1))
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Index numbers should be contiguous and increasing.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Index numbers should be contiguous and increasing.\n");
                 return false;
             }
 
@@ -264,19 +274,19 @@ bool CdromToc::loadCueSheet(const std::string &filename)
         {
             if (currentTrack < 0)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Postgap directive with no track defined.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Postgap directive with no track defined.\n");
                 return false;
             }
 
             if (currentIndex < 0)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: Postgap directive must come after all indexes.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: Postgap directive must come after all indexes.\n");
                 return false;
             }
 
             if (trackHasPostgap)
             {
-                LOG(LOG_ERROR, "Invalid CUE sheet: A track can have only one postgap.");
+                LOG(LOG_ERROR, "Invalid CUE sheet: A track can have only one postgap.\n");
                 return false;
             }
 
@@ -298,13 +308,13 @@ bool CdromToc::loadCueSheet(const std::string &filename)
 
     if (currentTrack == -1)
     {
-        LOG(LOG_ERROR, "Invalid CUE sheet: Should define at least one track.");
+        LOG(LOG_ERROR, "Invalid CUE sheet: Should define at least one track.\n");
         return false;
     }
 
     if ((currentTrack != -1) && (!trackHasIndexOne))
     {
-        LOG(LOG_ERROR, "Invalid CUE sheet: Track %02d  has no index 01.", currentTrack);
+        LOG(LOG_ERROR, "Invalid CUE sheet: Track %02d  has no index 01.\n", currentTrack);
         return false;
     }
 
@@ -504,15 +514,15 @@ bool  CdromToc::loadChd(const std::string& filename)
         // Find the track type
         std::string trackTypeStr = match[2];
 
-        if (string_compare_insensitive(trackTypeStr, "MODE1"))
+        if (string_compare_insensitive(trackTypeStr.c_str(), "MODE1"))
             trackType = TrackType::Mode1_2048;
-        else if (string_compare_insensitive(trackTypeStr, "MODE1/2048"))
+        else if (string_compare_insensitive(trackTypeStr.c_str(), "MODE1/2048"))
             trackType = TrackType::Mode1_2048;
-        else if (string_compare_insensitive(trackTypeStr, "MODE1_RAW"))
+        else if (string_compare_insensitive(trackTypeStr.c_str(), "MODE1_RAW"))
             trackType = TrackType::Mode1_2352;
-        else if (string_compare_insensitive(trackTypeStr, "MODE1/2352"))
+        else if (string_compare_insensitive(trackTypeStr.c_str(), "MODE1/2352"))
             trackType = TrackType::Mode1_2352;
-        else if (string_compare_insensitive(trackTypeStr, "AUDIO"))
+        else if (string_compare_insensitive(trackTypeStr.c_str(), "AUDIO"))
             trackType = TrackType::AudioPCM;
         else
         {
@@ -556,6 +566,12 @@ bool  CdromToc::loadChd(const std::string& filename)
         previousWasData = !(trackType == TrackType::AudioPCM);
     }
 
+    if (m_toc.empty())
+    {
+        LOG(LOG_ERROR, "Invalid CHD: TOC is empty!\n");
+        return false;
+    }
+
     m_totalSectors = cdPosition;
     m_firstTrack = m_toc.front().trackIndex.track();
     m_lastTrack = m_toc.back().trackIndex.track();
@@ -591,16 +607,10 @@ const CdromToc::Entry* CdromToc::findTocEntry(uint32_t sector) const
 
 bool CdromToc::findAudioFileSize(const std::string& path, File &file, int64_t &fileSize, TrackType &trackType)
 {
-    std::string filename;
-    std::string extension;
+    std::string filename = path_get_filename(path.c_str());
+    std::string extension = path_get_extension(path.c_str());
 
-    if (!split_path(path, filename, extension))
-    {
-        LOG(LOG_ERROR, "Filename did not match path split regex. (This is not supposed to happen)");
-        return false;
-    }
-    
-    if (string_compare_insensitive(extension, ".WAV"))
+    if (string_compare_insensitive(extension.c_str(), "WAV"))
     {
         WavFile wavFile;
 
@@ -617,7 +627,7 @@ bool CdromToc::findAudioFileSize(const std::string& path, File &file, int64_t &f
 
         return true;
     }
-    else if (string_compare_insensitive(extension, ".FLAC"))
+    else if (string_compare_insensitive(extension.c_str(), "FLAC"))
     {
         FlacFile flacFile;
 
@@ -634,7 +644,7 @@ bool CdromToc::findAudioFileSize(const std::string& path, File &file, int64_t &f
 
         return true;
     }
-    else if (string_compare_insensitive(extension, ".OGG"))
+    else if (string_compare_insensitive(extension.c_str(), "OGG"))
     {
         OggFile oggFile;
 

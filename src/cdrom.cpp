@@ -266,16 +266,7 @@ void Cdrom::audioBufferWorker()
 
 bool Cdrom::filenameIsChd(const std::string &path)
 {
-    std::string filename;
-    std::string extension;
-
-    if (!split_path(path, filename, extension))
-    {
-        LOG(LOG_ERROR, "Filename did not match path split regex. (This is not supposed to happen)");
-        return false;
-    }
-
-    return (string_compare_insensitive(extension, ".CHD"));
+    return (string_compare_insensitive(path_get_extension(path.c_str()), "CHD"));
 }
 
 void Cdrom::readAudio(char* buffer, size_t size)

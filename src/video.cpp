@@ -1,11 +1,11 @@
-#include "neogeocd.h"
-#include "video.h"
-#include "endian.h"
-#include "always_inline.h"
-
 #include <cstring>
 #include <algorithm>
 #include <array>
+
+#include "neogeocd.h"
+#include "video.h"
+#include "endian.h"
+#include "inline.h"
 
 static const std::array<uint32_t, 256> SPR_DECODE_TABLE {
     0x00000000, 0x00000001, 0x00000010, 0x00000011,
@@ -99,8 +99,8 @@ Video::Video() :
     frameBuffer(nullptr),
     activePaletteBank(0),
     autoAnimationCounter(0),
-    autoAnimationFrameCounter(0),
     autoAnimationSpeed(0),
+    autoAnimationFrameCounter(0),
     autoAnimationDisabled(false),
     sprDisable(true),
     fixDisable(true),
@@ -176,7 +176,7 @@ void Video::convertColor(uint32_t index)
 
 void Video::convertPalette()
 {
-    for (int i = 0; i < (Memory::PALETTERAM_SIZE / sizeof(uint16_t)); ++i)
+    for (uint32_t i = 0; i < (Memory::PALETTERAM_SIZE / sizeof(uint16_t)); ++i)
         convertColor(i);
 }
 

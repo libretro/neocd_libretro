@@ -17,10 +17,21 @@ extern void cdromIRQTimerCallback(Timer* timer, uint32_t userData);
 extern void cdromIRQ1TimerCDZCallback(Timer* timer, uint32_t userData);
 
 NeoGeoCD::NeoGeoCD() :
-    machineNationality(NationalityJapan),
-    cdromVector(0),
+    memory(),
+    video(),
+    cdrom(),
+    lc8951(),
+    timers(),
+    input(),
+    audio(),
     cdzIrq1Divisor(0),
     irqMasterEnable(false),
+    irqMask1(0),
+    irqMask2(0),
+    irq1EnabledThisFrame(false),
+    fastForward(false),
+    machineNationality(NationalityJapan),
+    cdromVector(0),
     pendingInterrupts(0),
     remainingCyclesThisFrame(0),
     m68kCyclesThisFrame(0),
@@ -29,20 +40,9 @@ NeoGeoCD::NeoGeoCD() :
     z80Disable(true),
     z80NMIDisable(true),
     currentTimeSeconds(0.0),
-    fastForward(false),
-    irq1EnabledThisFrame(false),
     audioCommand(0),
     audioResult(0),
-    biosType(FrontLoader),
-    irqMask1(0),
-    irqMask2(0),
-    memory(),
-    video(),
-    cdrom(),
-    lc8951(),
-    timers(),
-    input(),
-    audio()
+    biosType(FrontLoader)
 {
 }
 

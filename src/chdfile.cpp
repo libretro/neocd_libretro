@@ -197,24 +197,24 @@ void ChdFile::swab(void* data, size_t size)
     });
 }
 
+std::string ChdFile::readLine()
+{
+    return std::string();
+}
+
 std::string ChdFile::metadata(uint32_t searchTag, uint32_t searchIndex)
 {
-
     if (!m_file)
         return std::string();
 
+    char buffer[256];
     uint32_t metadataLength;
 
-    chd_error err = chd_get_metadata(m_file, searchTag, searchIndex, nullptr, 0, &metadataLength, nullptr, nullptr);
+    chd_error err = chd_get_metadata(m_file, searchTag, searchIndex, buffer, 255, &metadataLength, nullptr, nullptr);
     if (err != CHDERR_NONE)
         return std::string();
 
-    std::string result;
-    result.assign(metadataLength, '\0');
+    buffer[metadataLength] = 0;
 
-    err = chd_get_metadata(m_file, searchTag, searchIndex, &result[0], metadataLength, nullptr, nullptr, nullptr);
-    if (err != CHDERR_NONE)
-        return std::string();
-
-    return result;
+    return std::string(buffer);
 }

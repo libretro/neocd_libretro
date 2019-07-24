@@ -29,6 +29,8 @@ public:
     virtual size_t readData(void* data, size_t size) = 0;
 
     virtual size_t readAudio(void* data, size_t size) = 0;
+
+    virtual std::string readLine() = 0;
 };
 
 #endif

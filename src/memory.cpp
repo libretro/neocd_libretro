@@ -41,8 +41,18 @@ extern "C" {
 */
 
 Memory::Memory() :
+    yZoomRom(nullptr),
+    backupRam(nullptr),
     vectorsMappedToRom(false),
-    regionLookupTable(nullptr),
+    dmaConfig(),
+    dmaSource(0),
+    dmaDestination(0),
+    dmaLength(0),
+    dmaPattern(0),
+    sprBankSelect(0),
+    pcmBankSelect(0),
+    busRequest(0),
+    areaSelect(0),
     ram(nullptr),
     rom(nullptr),
     sprRam(nullptr),
@@ -50,17 +60,8 @@ Memory::Memory() :
     pcmRam(nullptr),
     videoRam(nullptr),
     paletteRam(nullptr),
-    yZoomRom(nullptr),
     z80Ram(nullptr),
-    backupRam(nullptr),
-    sprBankSelect(0),
-    pcmBankSelect(0),
-    busRequest(0),
-    areaSelect(0),
-    dmaSource(0),
-    dmaDestination(0),
-    dmaLength(0),
-    dmaPattern(0),
+    regionLookupTable(nullptr),
     memoryRegions(),
     vectorRegions()
 {
@@ -561,6 +562,7 @@ void Memory::dmaOpFillOddBytes(void)
     }
 }
 
+/*
 void Memory::dumpDebugState()
 {
     std::ofstream file;
@@ -596,7 +598,7 @@ void Memory::dumpDebugState()
     file.write(reinterpret_cast<const char *>(ram), Memory::RAM_SIZE);
     file.close();
 }
-
+*/
 
 DataPacker& operator<<(DataPacker& out, const Memory& memory)
 {

@@ -3,18 +3,12 @@
 
 #include <stdint.h>
 
+#include "inline.h"
+
 #define Uint8 uint8_t
 #define Sint8 int8_t
 #define Uint16 uint16_t
 #define Uint32 uint32_t
-
-#ifndef INLINE
-#ifdef _MSC_VER
-#define INLINE static __inline
-#else
-#define INLINE static __inline__
-#endif /* _MSC_VER */
-#endif /* INLINE */
 
 #ifdef __cplusplus
 extern "C" {

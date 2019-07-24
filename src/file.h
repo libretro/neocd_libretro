@@ -1,7 +1,7 @@
 #ifndef FILE_H
 #define FILE_H 1
 
-#include <fstream>
+#include <streams/file_stream.h>
 
 #include "abstractfile.h"
 
@@ -33,8 +33,10 @@ public:
 
     size_t readAudio(void* data, size_t size) override;
 
+    std::string readLine() override;
+
 protected:
-    mutable std::ifstream m_stream;
+    RFILE* m_stream;
     size_t m_fileSize;
 };
 

@@ -24,20 +24,22 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 ################################################################
 #                       Compiler options                       #
-# Uncomment one line suitable for your system or make your own #
 ################################################################
 
 # Set to "-march=native" on non x86 platforms
 set(MACHINE_OPTIONS "-march=x86-64 -mtune=generic")
 
 # Base options
-set(BASE_OPTIONS "-Ofast -fomit-frame-pointer -ffast-math")
+set(BASE_OPTIONS "-Ofast -fomit-frame-pointer -ffast-math -Wall")
+
+# C Defines
+set(C_DEFINES "-DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC")
 
 # C++ specific options
 set(CXX_OPTIONS "-std=c++11 -fno-exceptions -fno-rtti")
 
 # Set CFLAGS
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${MACHINE_OPTIONS} ${BASE_OPTIONS}")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${MACHINE_OPTIONS} ${BASE_OPTIONS} ${C_DEFINES}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${MACHINE_OPTIONS} ${BASE_OPTIONS} ${CXX_OPTIONS}")
 
 # Generate profile guided optimization files
@@ -92,31 +94,53 @@ set ( CXX_SRCS
 
 # Define the C sources
 set ( C_SRCS
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopdm.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopac.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/compat/compat_posix_string.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/compat/compat_strcasestr.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/compat/compat_strl.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/compat/fopen_utf8.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/encodings/encoding_crc32.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/encodings/encoding_utf.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/archive_file.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/archive_file_7z.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/archive_file_zlib.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/file_path.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/file_path.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/retro_dirent.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_bitstream.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_cdrom.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_chd.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_flac.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_flac_codec.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_huffman.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_lzma.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_zlib.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/lists/dir_list.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/lists/file_list.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/lists/string_list.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/streams/file_stream.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/streams/trans_stream.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/streams/trans_stream_pipe.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/streams/trans_stream_zlib.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/vfs/vfs_implementation.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zBuf.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zCrc.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zCrcOpt.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zDec.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zFile.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zIn.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/7zStream.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/Bcj2.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/Bra.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/Bra86.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/LzFind.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/Lzma2Dec.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/LzmaDec.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip/LzmaEnc.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kcpu.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopac.c
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopdm.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kopnz.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/musashi/m68kops.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/src/bitstream.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/src/cdrom.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/src/chd.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/src/flac.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/src/huffman.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/crypto/md5.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/crypto/sha1.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Alloc.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Bra86.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Bra.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/BraIA64.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/CpuArch.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Delta.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzFind.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Lzma86Dec.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Lzma86Enc.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzmaDec.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzmaEnc.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/LzmaLib.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C/Sort.c
 )
 
 # Find the required libraries
@@ -127,8 +151,10 @@ FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(ZLIB REQUIRED)
 
 INCLUDE_DIRECTORIES(
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/lzma-16.04/C
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libchdr/deps/crypto
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/include
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps
+    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-deps/7zip
     ${FLAC_INCLUDE_DIR}
     ${OGG_INCLUDE_DIR}
     ${VORBIS_INCLUDE_DIR}
@@ -138,9 +164,6 @@ INCLUDE_DIRECTORIES(
 set(LINK_OPTIONS ${LINK_OPTIONS} Threads::Threads ${ZLIB_LIBRARIES} ${FLAC_LIBRARY} ${VORBISFILE_LIBRARY} ${VORBIS_LIBRARY} ${OGG_LIBRARY})
 
 add_library(${PROJECT_NAME} SHARED ${CXX_SRCS} ${C_SRCS})
-
-# Private LZMA flag for libchdr 
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_7ZIP_ST")
 
 target_link_libraries(${PROJECT_NAME} ${LINK_OPTIONS})
 
