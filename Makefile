@@ -121,8 +121,8 @@ ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g -DDEBUG
    CXXFLAGS += -O0 -g -DDEBUG
 else
-   CFLAGS += -O3
-   CXXFLAGS += -O3
+   CFLAGS += -Ofast -fomit-frame-pointer -ffast-math -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
+   CXXFLAGS += -Ofast -fomit-frame-pointer -ffast-math -std=c++11 -fno-exceptions -fno-rtti
 endif
 
 include Makefile.common
