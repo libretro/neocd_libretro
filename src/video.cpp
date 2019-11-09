@@ -4,7 +4,7 @@
 
 #include "neogeocd.h"
 #include "video.h"
-#include "endian.h"
+#include "neocd_endian.h"
 #include "inline.h"
 
 static const std::array<uint32_t, 256> SPR_DECODE_TABLE {

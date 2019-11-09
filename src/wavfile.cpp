@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include "endian.h"
+#include "neocd_endian.h"
 #include "wavfile.h"
 #include "wavstruct.h"
 

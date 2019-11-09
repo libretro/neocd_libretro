@@ -73,6 +73,7 @@ SRC_LIBRETRO_COMMON := \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_pipe.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_zlib.c \
+	$(LIBRETRO_COMMON_DIR)/string/stdstring.c \
 	$(LIBRETRO_COMMON_DIR)/vfs/vfs_implementation.c
 
 SRC_EXTERNAL_C = \

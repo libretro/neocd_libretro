@@ -2,7 +2,7 @@
 #include <cstring>
 
 #include "chdfile.h"
-#include "endian.h"
+#include "neocd_endian.h"
 
 constexpr int CHD_SECTOR_SIZE = 2352 + 96;
 constexpr int CD_SECTOR_SIZE = 2352;

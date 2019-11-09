@@ -95,7 +95,7 @@
 
 #include "z80.h"
 #include "z80daisy.h"
-#include "../../endian.h"
+#include "../../neocd_endian.h"
 #include "../../z80intf.h"
 #include <string.h>
 #include <stdlib.h>

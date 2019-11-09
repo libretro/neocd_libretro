@@ -1,7 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "endian.h"
+#include "neocd_endian.h"
 #include "datapacker.h"
 
 #include <cstddef>

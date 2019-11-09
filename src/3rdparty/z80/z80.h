@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "../../endian.h"
+#include "../../neocd_endian.h"
 
 #include <stdint.h>
 
