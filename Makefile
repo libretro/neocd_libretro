@@ -121,8 +121,8 @@ ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g -DDEBUG
    CXXFLAGS += -O0 -g -DDEBUG
 else
-   CFLAGS += -Ofast -fomit-frame-pointer -ffast-math -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
-   CXXFLAGS += -Ofast -fomit-frame-pointer -ffast-math -std=c++11 -fno-exceptions -fno-rtti
+   CFLAGS += -Ofast -fomit-frame-pointer -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
+   CXXFLAGS += -Ofast -fomit-frame-pointer -std=c++11 -fno-exceptions -fno-rtti
 endif
 
 include Makefile.common
@@ -149,7 +149,7 @@ endif
 
 %.o: %.cpp
 	@$(if $(Q), $(shell echo echo CXX $<),)
-	$(Q)$(CXX) $(CFLAGS) $(fpic) -c -o $@ $<
+	$(Q)$(CXX) $(CXXFLAGS) $(fpic) -c -o $@ $<
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
