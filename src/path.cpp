@@ -1,4 +1,5 @@
 #include <retro_miscellaneous.h>
+#include <string/stdstring.h>
 
 #include "path.h"
 
@@ -90,6 +91,6 @@ std::string make_path(const char* path, const char* filename)
 
 bool string_compare_insensitive(const char* a, const char* b)
 {
-    return (strcasecmp(a, b) == 0);
+    return string_is_equal_case_insensitive(a, b);
 }
 
