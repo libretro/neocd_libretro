@@ -56,6 +56,7 @@ static const char* REGION_VARIABLE = "neocd_region";
 static const char* BIOS_VARIABLE = "neocd_bios";
 static const char* SPEEDHACK_VARIABLE = "neocd_cdspeedhack";
 static const char* LOADSKIP_VARIABLE = "neocd_loadskip";
+static const char* PER_CONTENT_SAVES_VARIABLE = "neocd_per_content_saves";
 
 // Definition of the Neo Geo arcade stick
 static const struct retro_input_descriptor neogeoCDPadDescriptors[] = {
@@ -105,6 +106,12 @@ static const uint8_t padMap2[] = {
 
 // Retroarch's system directory
 const char* systemDirectory = nullptr;
+
+// Retroarch's save directory
+const char* saveDirectory = nullptr;
+
+// Path to the srm file
+static std::string srmFilename;
 
 // Collection of callbacks to the things we need
 LibretroCallbacks libretro = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
@@ -432,14 +439,28 @@ static void buildVariableList()
 
     variables.emplace_back(retro_variable{ LOADSKIP_VARIABLE, "Skip CD Loading; On|Off" });
 
+    variables.emplace_back(retro_variable{ PER_CONTENT_SAVES_VARIABLE, "Per-Game Saves (Restart); Off|On" });
+
     variables.emplace_back(retro_variable{ nullptr, nullptr });
+}
+
+static void setBackupRamFilename(const char* content_path)
+{
+    bool per_content_saves = false;
+    struct retro_variable var;
+
+    var.value = NULL;
+    var.key = PER_CONTENT_SAVES_VARIABLE;
+
+    if (libretro.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        per_content_saves = strcmp(var.value, "On") ? false : true;
+
+    srmFilename = make_srm_path(per_content_saves, content_path);
 }
 
 static void loadBackupRam()
 {
-    std::string filename = make_system_path("neocd.srm");
-
-    RFILE* file = filestream_open(filename.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+    RFILE* file = filestream_open(srmFilename.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
     if (!file)
         return;
 
@@ -449,9 +470,7 @@ static void loadBackupRam()
 
 static void saveBackupRam()
 {
-    std::string filename = make_system_path("neocd.srm");
-
-    RFILE* file = filestream_open(filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+    RFILE* file = filestream_open(srmFilename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
     if (!file)
         return;
 
@@ -637,6 +656,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+    setBackupRamFilename(info->path);
     loadBackupRam();
 
     libretro.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, (void*)neogeoCDPadDescriptors);
@@ -774,6 +794,9 @@ void retro_init(void)
     
     // Get the system directory 
     libretro.environment(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &systemDirectory);
+
+    // Get the save directory
+    libretro.environment(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &saveDirectory);
 
     // Initialize the CPU cores
     neocd.initialize();
