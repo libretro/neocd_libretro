@@ -80,7 +80,7 @@ void ChdFile::close()
 
     if (m_hunkData)
     {
-        std::free(m_hunkData);
+        free(m_hunkData);
         m_hunkData = nullptr;
     }
 
