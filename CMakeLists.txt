@@ -104,7 +104,6 @@ set ( C_SRCS
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/archive_file_7z.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/archive_file_zlib.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/file_path.c
-    ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/file_path.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/file/retro_dirent.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_bitstream.c
     ${CMAKE_SOURCE_DIR}/src/3rdparty/libretro-common/formats/libchdr/libchdr_cdrom.c
