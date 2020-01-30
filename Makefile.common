@@ -2,8 +2,8 @@ LIBRETRO_COMMON_DIR  = $(CORE_DIR)/src/3rdparty/libretro-common
 LIBRETRO_DEPS_DIR    = $(CORE_DIR)/src/3rdparty/libretro-deps
 
 INCLUDES   :=  \
-    $(CORE_DIR)/src \
-    $(CORE_DIR)/src/3rdparty/zlib \
+	$(CORE_DIR)/src \
+	$(CORE_DIR)/src/3rdparty/zlib \
 	$(LIBRETRO_COMMON_DIR)/include \
 	$(LIBRETRO_DEPS_DIR)/ \
 	$(LIBRETRO_DEPS_DIR)/7zip \
@@ -16,7 +16,7 @@ INCFLAGS   := $(foreach dir,$(INCLUDES), -I$(dir))
 
 SRC_CORE	:=\
 	$(CORE_DIR)/src/audio.cpp \
-    $(CORE_DIR)/src/cdrom.cpp \
+	$(CORE_DIR)/src/cdrom.cpp \
 	$(CORE_DIR)/src/cdromtoc.cpp \
 	$(CORE_DIR)/src/chdfile.cpp \
 	$(CORE_DIR)/src/datapacker.cpp \
@@ -26,9 +26,9 @@ SRC_CORE	:=\
 	$(CORE_DIR)/src/lc8951.cpp \
 	$(CORE_DIR)/src/libretro.cpp \
 	$(CORE_DIR)/src/m68kintf.cpp \
+	$(CORE_DIR)/src/memory.cpp \
 	$(CORE_DIR)/src/memory_backupram.cpp \
 	$(CORE_DIR)/src/memory_cdintf.cpp \
-	$(CORE_DIR)/src/memory.cpp \
 	$(CORE_DIR)/src/memory_input.cpp \
 	$(CORE_DIR)/src/memory_mapped.cpp \
 	$(CORE_DIR)/src/memory_paletteram.cpp \
@@ -57,6 +57,7 @@ SRC_LIBRETRO_COMMON := \
 	$(LIBRETRO_COMMON_DIR)/file/archive_file_7z.c \
 	$(LIBRETRO_COMMON_DIR)/file/archive_file_zlib.c \
 	$(LIBRETRO_COMMON_DIR)/file/file_path.c \
+	$(LIBRETRO_COMMON_DIR)/file/file_path_io.c \
 	$(LIBRETRO_COMMON_DIR)/file/retro_dirent.c \
 	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_bitstream.c \
 	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_cdrom.c \
@@ -84,7 +85,7 @@ SRC_EXTERNAL_C = \
 	$(CORE_DIR)/src/3rdparty/zlib
 
 SRC_EXTERNAL_LIBFLAC = \
-    $(LIBRETRO_DEPS_DIR)/libFLAC/bitmath.c \
+	$(LIBRETRO_DEPS_DIR)/libFLAC/bitmath.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/bitreader.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/bitwriter.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/cpu.c \
@@ -102,8 +103,8 @@ SRC_EXTERNAL_LIBFLAC = \
 
 SRC_EXTERNAL_CXX = \
 	${CORE_DIR}/src/3rdparty/ym/ym2610.cpp \
-    ${CORE_DIR}/src/3rdparty/z80/z80.cpp \
-    ${CORE_DIR}/src/3rdparty/z80/z80daisy.cpp
+	${CORE_DIR}/src/3rdparty/z80/z80.cpp \
+	${CORE_DIR}/src/3rdparty/z80/z80daisy.cpp
 	
 DIRS_SRC_EXTERNAL_C  := $(foreach dir,$(SRC_EXTERNAL_C), $(wildcard $(dir)/*.c))
 
