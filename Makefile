@@ -116,8 +116,8 @@ else ifeq ($(platform), vita)
    CC = arm-vita-eabi-gcc
    CXX = arm-vita-eabi-g++
    AR = arm-vita-eabi-ar
-   CFLAGS += -DVITA
-   CXXFLAGS += -DVITA -Wl,-q -Wall -O3
+   CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard -DSYNC_CDROM=1
+   CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations -DSYNC_CDROM=1
 	STATIC_LINKING = 1
 else
    CC = gcc
@@ -131,9 +131,12 @@ ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g -DDEBUG
    CXXFLAGS += -O0 -g -DDEBUG
 else
-   CFLAGS += -Ofast -fomit-frame-pointer -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
-   CXXFLAGS += -Ofast -fomit-frame-pointer -std=c++11 -fno-exceptions -fno-rtti
+   CFLAGS += -Ofast -fomit-frame-pointer
+   CXXFLAGS += -Ofast -fomit-frame-pointer
 endif
+
+CFLAGS += -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
+CXXFLAGS += -std=c++11 -fno-exceptions -fno-rtti
 
 include Makefile.common
 
