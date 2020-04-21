@@ -116,8 +116,8 @@ else ifeq ($(platform), vita)
    CC = arm-vita-eabi-gcc
    CXX = arm-vita-eabi-g++
    AR = arm-vita-eabi-ar
-   CFLAGS += -DVITA
-   CXXFLAGS += -DVITA -Wl,-q -Wall -O3
+   CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard
+   CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations
 	STATIC_LINKING = 1
 else
    CC = gcc
