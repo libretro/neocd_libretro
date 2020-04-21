@@ -13,8 +13,12 @@
 #define STATIC_INLINE
 #endif
 
+#if defined(__has_attribute)
 #if __has_attribute(always_inline)
 #define ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define ALWAYS_INLINE
+#endif
 #else
 #define ALWAYS_INLINE
 #endif
