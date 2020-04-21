@@ -112,10 +112,12 @@ else ifeq ($(platform), libnx)
    CXXFLAGS := $(ASFLAGS) $(CFLAGS)
    STATIC_LINKING = 1
 else ifeq ($(platform), vita)
-   TARGET := $(TARGET_NAME)_vita.a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = arm-vita-eabi-gcc
+   CXX = arm-vita-eabi-g++
    AR = arm-vita-eabi-ar
-   CXXFLAGS += -Wl,-q -Wall -O3
+   CFLAGS += -DVITA
+   CXXFLAGS += -DVITA -Wl,-q -Wall -O3
 	STATIC_LINKING = 1
 else
    CC = gcc

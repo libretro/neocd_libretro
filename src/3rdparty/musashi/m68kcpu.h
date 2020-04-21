@@ -78,7 +78,11 @@ extern "C" {
 
 /* signed and unsigned int must be at least 32 bits wide */
 #define sint   int32_t
+#ifdef VITA
+#include <sys/types.h>
+#else
 #define uint   uint32_t
+#endif
 
 #if M68K_USE_64_BIT
 #define sint64 int64_t

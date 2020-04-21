@@ -17,6 +17,10 @@
 #include "stringlist.h"
 #include "timeprofiler.h"
 
+#ifdef VITA
+#include <psp2/kernel/threadmgr.h>
+#endif
+
 enum RetroMapIndex
 {
     RAM,
@@ -882,3 +886,19 @@ void retro_deinit(void)
     g_profilingAccumulatorsInitialized = false;
 #endif
 }
+
+// stdlibc++ on VITA references usleep but it's not available.
+// This is a workaround
+#ifdef VITA
+extern "C" int usleep(useconds_t usec)
+{
+   sceKernelDelayThread(usec);
+   return 0;
+}
+
+extern "C" unsigned int sleep(unsigned int seconds)
+{
+   sceKernelDelayThread(seconds * 1000000LL);
+   return 0;
+}
+#endif
