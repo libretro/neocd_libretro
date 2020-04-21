@@ -92,7 +92,7 @@ void Audio::initFrame()
 
 void Audio::updateCurrentSample()
 {
-    currentSample = static_cast<uint32_t>(std::round(static_cast<double>(Timer::CYCLES_PER_FRAME - std::max(0, neocd.remainingCyclesThisFrame)) * (samplesThisFrame - 1) / Timer::CYCLES_PER_FRAME));
+    currentSample = static_cast<uint32_t>(std::round(static_cast<double>(Timer::CYCLES_PER_FRAME - std::max<int32_t>(0, neocd.remainingCyclesThisFrame)) * (samplesThisFrame - 1) / Timer::CYCLES_PER_FRAME));
 }
 
 void Audio::finalize()
