@@ -79,7 +79,12 @@ public:
     {
         return (irqMask2 & 0x030) == 0x030;
     }
-    
+
+    inline bool isHBLEnabled() const
+    {
+        return (irqMask2 & 0x700) == 0x700;
+    }
+
     bool saveState(DataPacker& out) const;
     bool restoreState(DataPacker& in);
 

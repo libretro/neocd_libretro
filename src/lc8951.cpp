@@ -655,12 +655,12 @@ void LC8951::processCdCommand()
         break;
 
     default:
-/*      CDROM_LOG(LOG_INFO, "COMMAND %02X%02X%02X%02X%02X\n",
+      CDROM_LOG(LOG_INFO, "COMMAND Received unknown command %02X%02X%02X%02X%02X\n",
             commandPacket[0],
             commandPacket[1],
             commandPacket[2],
             commandPacket[3],
-            commandPacket[4]);*/
+            commandPacket[4]);
         responsePacket[0] = status;
         responsePacket[1] = 0x00;
         responsePacket[2] = 0x00;

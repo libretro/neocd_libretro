@@ -48,7 +48,8 @@ void vblTimerCallback(Timer* timer, uint32_t userData)
 void hirqTimerCallback(Timer* timer, uint32_t userData)
 {
     // Trigger horizontal interrupt if enabled
-    if (neocd.video.hirqControl & Video::HIRQ_CTRL_ENABLE)
+    if ((neocd.video.hirqControl & Video::HIRQ_CTRL_ENABLE)
+        && neocd.isHBLEnabled())
     {
 /*		LOG(LOG_INFO, "Horizontal IRQ.@ (%d,%d), next drawline in : %d\n",
             neocd.getScreenX(),

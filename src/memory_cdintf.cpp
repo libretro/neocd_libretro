@@ -318,7 +318,7 @@ static void cdInterfaceWriteWord(uint32_t address, uint32_t data)
     case 0x0004:    /*
                         FF0004: VBL Interrupt Mask
                         0x731
-                        0x700   Unknown.
+                        0x700   HBL
                         0x030   VBL
                         0x001   Unknown, writing zero causes a hard reset.
                     
