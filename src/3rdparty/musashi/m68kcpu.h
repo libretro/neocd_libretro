@@ -78,7 +78,7 @@ extern "C" {
 
 /* signed and unsigned int must be at least 32 bits wide */
 #define sint   int32_t
-#ifdef VITA
+#if defined (VITA) || defined (_3DS)
 #include <sys/types.h>
 #else
 #define uint   uint32_t
