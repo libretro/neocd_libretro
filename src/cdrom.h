@@ -48,6 +48,11 @@ public:
     void endWorkerThread();
 
     /**
+     * @brief Audio worker thread step: fill some data in circular buffer
+     */
+    void fillCircularBuffer();
+
+    /**
      * @brief Initialize all members to a known state
      */
     void initialize();
@@ -263,6 +268,7 @@ protected:
     /// Set to true to have the audio thread stop
     bool m_exitFlag;
 
+#ifndef SYNC_CDROM
     /// Audio decoder worker thread
     std::thread m_workerThread;
 
@@ -271,6 +277,7 @@ protected:
 
     /// Condition variable to notify when more data is available
     std::condition_variable m_workerConditionVariable;
+#endif
 
     /// The currently opened image cd image file
     AbstractFile* m_file;
