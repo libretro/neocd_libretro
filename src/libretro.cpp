@@ -408,13 +408,13 @@ static bool loadBIOS()
     neocd.biosType = biosList[biosIndex].biosEntry->type;
 
     // Swap the BIOS if needed
-    if (*reinterpret_cast<uint16_t*>(&neocd.memory.rom[0]) == 0x0010)
+    if (*reinterpret_cast<uint16_t*>(&neocd.memory.rom[0]) == LITTLE_ENDIAN_WORD(0x0010))
     {
         uint16_t* start = reinterpret_cast<uint16_t*>(&neocd.memory.rom[0]);
         uint16_t* end = reinterpret_cast<uint16_t*>(&neocd.memory.rom[Memory::ROM_SIZE]);
 
         std::for_each(start, end, [](uint16_t& data) {
-            data = BIG_ENDIAN_WORD(data);
+            data = BYTE_SWAP_16(data);
         });
     }
 
