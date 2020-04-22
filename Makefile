@@ -119,6 +119,15 @@ else ifeq ($(platform), vita)
    CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard -DSYNC_CDROM=1
    CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations -DSYNC_CDROM=1
 	STATIC_LINKING = 1
+# Nintendo WiiU
+else ifeq ($(platform), wiiu)
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
+   CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
+   CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
+   AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
+   CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1
+   CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1
+   STATIC_LINKING=1
 else ifeq ($(platform), ctr)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = $(DEVKITARM)/bin/arm-none-eabi-gcc$(EXE_EXT)
