@@ -12,9 +12,11 @@ extern const char* saveDirectory;
 
 static void system_path_internal(char* buffer, size_t len)
 {
-    if (path_is_empty(systemDirectory))
-        snprintf(buffer, 3, ".%s", path_default_slash());
-    else
+    if (path_is_empty(systemDirectory)) {
+	buffer[0] = '.';
+	buffer[1] = path_default_slash_c();
+	buffer[2] = '\0';
+    } else
         strlcpy(buffer, systemDirectory, len);
     
     if (!path_ends_with_slash(buffer))

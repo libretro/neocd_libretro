@@ -135,6 +135,16 @@ else ifeq ($(platform), ctr)
    AR = $(DEVKITARM)/bin/arm-none-eabi-ar$(EXE_EXT)
    CFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
    CXXFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
+# Lightweight PS3 Homebrew SDK
+else ifeq ($(platform), psl1ght)
+   EXT=a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
+   CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   CXX = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
+   CC_AS = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
+   CFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
+   CXXFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell -DDISABLE_AUDIO_THREAD=1 -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
    STATIC_LINKING = 1
 else
    CC = gcc
