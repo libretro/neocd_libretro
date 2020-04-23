@@ -4,6 +4,7 @@
 #include "cdrom.h"
 #include "misc.h"
 #include "path.h"
+#include "neocd_endian.h"
 
 Cdrom::Cdrom() :
     m_currentPosition(0),
@@ -326,6 +327,17 @@ void Cdrom::readAudioDirect(char* buffer, size_t size)
     {
         done = static_cast<size_t>(m_wavFile.read(buffer, static_cast<int64_t>(size)));
     }
+
+#ifdef BIG_ENDIAN_MACHINE
+    if (m_currentTrack->trackType == CdromToc::TrackType::AudioPCM ||
+	m_currentTrack->trackType == CdromToc::TrackType::AudioWav) {
+        int i;
+	uint16_t *buffer16 = (uint16_t *) buffer;
+	for (i = 0; i < size / 2; i++) {
+	  buffer16[i] = BYTE_SWAP_16(buffer16[i]);
+	}
+    }
+#endif
 
     if (done < size)
     {

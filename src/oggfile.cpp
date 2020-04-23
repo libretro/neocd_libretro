@@ -1,4 +1,11 @@
 #include "oggfile.h"
+#include "neocd_endian.h"
+
+#ifdef BIG_ENDIAN_MACHINE
+#define VORBIS_NATIVE_ENDIAN 1
+#else
+#define VORBIS_NATIVE_ENDIAN 0
+#endif
 
 // Ogg read callback
 size_t ogg_read_cb(void *ptr, size_t size, size_t nmemb, void *datasource)
@@ -94,7 +101,7 @@ size_t OggFile::read(char *data, size_t size)
 
     while (size)
     {
-        result = static_cast<size_t>(ov_read(&m_vorbisFile, data, static_cast<int>(size), 0, 2, 1, &bitstream));
+        result = static_cast<size_t>(ov_read(&m_vorbisFile, data, static_cast<int>(size), VORBIS_NATIVE_ENDIAN, 2, 1, &bitstream));
         if (result <= 0)
             return done;
 

@@ -119,6 +119,15 @@ else ifeq ($(platform), vita)
    CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard -DSYNC_CDROM=1
    CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations -DSYNC_CDROM=1
 	STATIC_LINKING = 1
+# Nintendo WiiU
+else ifeq ($(platform), wiiu)
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
+   CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
+   CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
+   AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
+   CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1
+   CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1
+   STATIC_LINKING=1
 else ifeq ($(platform), ctr)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = $(DEVKITARM)/bin/arm-none-eabi-gcc$(EXE_EXT)
@@ -126,6 +135,16 @@ else ifeq ($(platform), ctr)
    AR = $(DEVKITARM)/bin/arm-none-eabi-ar$(EXE_EXT)
    CFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
    CXXFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
+# Lightweight PS3 Homebrew SDK
+else ifeq ($(platform), psl1ght)
+   EXT=a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
+   CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   CXX = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
+   CC_AS = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
+   CFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
+   CXXFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell -DDISABLE_AUDIO_THREAD=1 -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
    STATIC_LINKING = 1
 else
    CC = gcc

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <regex>
+#include <string.h>
 
 #include "cdromtoc.h"
 #include "chdfile.h"
@@ -25,6 +26,18 @@ void CdromToc::clear()
     m_lastTrack = 0;
     m_totalSectors = 0;
 }
+
+#ifdef __PSL1GHT__
+namespace std
+{
+    long stol (const std::string& str) {
+	return strtol(str.c_str(), NULL, 10);
+    }
+    unsigned long stoul (const std::string& str) {
+        return strtoul(str.c_str(), NULL, 10);
+    }
+}
+#endif
 
 bool CdromToc::loadCueSheet(const std::string &filename)
 {

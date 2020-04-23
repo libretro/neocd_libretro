@@ -7,7 +7,8 @@
     #include <stdint.h>
 #endif
 
-#if defined(__ppc__) || defined(__POWERPC__) || defined(_M_PPC)
+#if defined(__ppc__) || defined(__POWERPC__) || defined(_M_PPC) || defined (__BYTE_ORDER__) && defined (__ORDER_BIG_ENDIAN__) &&  __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+
     #ifndef BIG_ENDIAN_MACHINE
         #define BIG_ENDIAN_MACHINE
     #endif
