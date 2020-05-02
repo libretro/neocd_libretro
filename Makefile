@@ -135,6 +135,7 @@ else ifeq ($(platform), ctr)
    AR = $(DEVKITARM)/bin/arm-none-eabi-ar$(EXE_EXT)
    CFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
    CXXFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
+   STATIC_LINKING = 1
 # Lightweight PS3 Homebrew SDK
 else ifeq ($(platform), psl1ght)
    EXT=a
