@@ -163,7 +163,7 @@ else
    CXXFLAGS += -Ofast -fomit-frame-pointer
 endif
 
-CFLAGS += -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
+CFLAGS += -std=c99 -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
 CXXFLAGS += -std=c++11 -fno-exceptions -fno-rtti
 
 include Makefile.common
