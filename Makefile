@@ -102,7 +102,10 @@ else ifneq (,$(findstring qnx,$(platform)))
 else ifeq ($(platform), emscripten)
    TARGET := $(TARGET_NAME)_libretro_emscripten.bc
    fpic := -fPIC
-   SHARED := -shared -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
+   SHARED := 
+   CFLAGS += -DSYNC_CDROM=1
+   CXXFLAGS += -DSYNC_CDROM=1
+   STATIC_LINKING = 1
 else ifeq ($(platform), libnx)
    include $(DEVKITPRO)/libnx/switch_rules
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
@@ -158,6 +161,9 @@ LDFLAGS += $(LIBM)
 ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g -DDEBUG
    CXXFLAGS += -O0 -g -DDEBUG
+else ifeq ($(platform), emscripten)
+   CFLAGS += -O2 -fomit-frame-pointer
+   CXXFLAGS += -O2 -fomit-frame-pointer
 else
    CFLAGS += -Ofast -fomit-frame-pointer
    CXXFLAGS += -Ofast -fomit-frame-pointer
@@ -176,7 +182,10 @@ CXXFLAGS += -Wall -D__LIBRETRO__ $(fpic) $(INCFLAGS)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-ifeq ($(STATIC_LINKING), 1)
+ifeq ($(platform), emscripten)
+	@$(if $(Q), $(shell echo echo LD $@),)
+	$(CXX) $(fpic) -r $(SHARED) -o $@ $(OBJECTS) $(LIBS) $(LDFLAGS)
+else ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
 	@$(if $(Q), $(shell echo echo LD $@),)
