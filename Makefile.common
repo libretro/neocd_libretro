@@ -45,6 +45,16 @@ SRC_CORE	:=\
 	$(CORE_DIR)/src/wavfile.cpp \
 	$(CORE_DIR)/src/z80intf.cpp
 
+SRC_LIBRETRO_CHD := \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_bitstream.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_cdrom.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_chd.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_flac.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_flac_codec.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_huffman.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_lzma.c \
+	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_zlib.c \
+
 	
 SRC_LIBRETRO_COMMON := \
 	$(LIBRETRO_COMMON_DIR)/compat/compat_posix_string.c \
@@ -59,14 +69,6 @@ SRC_LIBRETRO_COMMON := \
 	$(LIBRETRO_COMMON_DIR)/file/file_path.c \
 	$(LIBRETRO_COMMON_DIR)/file/file_path_io.c \
 	$(LIBRETRO_COMMON_DIR)/file/retro_dirent.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_bitstream.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_cdrom.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_chd.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_flac.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_flac_codec.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_huffman.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_lzma.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_zlib.c \
 	$(LIBRETRO_COMMON_DIR)/lists/dir_list.c \
 	$(LIBRETRO_COMMON_DIR)/lists/file_list.c \
 	$(LIBRETRO_COMMON_DIR)/lists/string_list.c \
@@ -114,6 +116,11 @@ SOURCES_CXX	:=\
 	
 
 SOURCES_C	:=\
-	$(SRC_LIBRETRO_COMMON) \
 	$(SRC_EXTERNAL_LIBFLAC) \
-	$(DIRS_SRC_EXTERNAL_C)
+	$(DIRS_SRC_EXTERNAL_C) \
+	$(SRC_LIBRETRO_CHD)
+
+ifneq ($(STATIC_LINKING),1)
+SOURCES_C +=	$(SRC_LIBRETRO_COMMON)
+endif
+
