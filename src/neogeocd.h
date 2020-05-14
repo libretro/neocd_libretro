@@ -3,16 +3,17 @@
 
 #include <cstddef>
 
-#include "memory.h"
-#include "video.h"
-#include "cdrom.h"
-#include "lc8951.h"
-#include "timergroup.h"
-#include "input.h"
 #include "audio.h"
-#include "libretro.h"
-#include "misc.h"
+#include "bios.h"
+#include "cdrom.h"
 #include "datapacker.h"
+#include "input.h"
+#include "lc8951.h"
+#include "libretro.h"
+#include "memory.h"
+#include "misc.h"
+#include "timergroup.h"
+#include "video.h"
 
 class NeoGeoCD
 {
@@ -24,12 +25,6 @@ public:
         NationalityUSA = 1,
         NationalityEurope = 2,
         NationalityPortugal = 3
-    };
-
-    enum BiosType {
-        FrontLoader = 0,
-        TopLoader = 1,
-        CDZ = 2
     };
 
     enum Interrupt {
@@ -72,7 +67,7 @@ public:
 
     inline bool isCDZ() const
     {
-        return biosType == NeoGeoCD::CDZ;
+        return biosType == Bios::CDZ;
     }
 
     inline bool isVBLEnabled() const
@@ -115,7 +110,7 @@ public:
     double      currentTimeSeconds;
     uint32_t    audioCommand;
     uint32_t    audioResult;
-    BiosType    biosType;
+    uint32_t    biosType;
     
     // End variables to save in savestate
 };

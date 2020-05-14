@@ -42,7 +42,7 @@ NeoGeoCD::NeoGeoCD() :
     currentTimeSeconds(0.0),
     audioCommand(0),
     audioResult(0),
-    biosType(FrontLoader)
+    biosType(Bios::Unknown)
 {
 }
 

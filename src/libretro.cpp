@@ -12,6 +12,7 @@
 #include <lists/string_list.h>
 #include <vector>
 
+#include "bios.h"
 #include "neogeocd.h"
 #include "path.h"
 #include "stringlist.h"
@@ -31,40 +32,15 @@ enum RetroMapIndex
     COUNT
 };
 
-struct KnownBiosListEntry
-{
-    const char* filename;
-    const char* description;
-    NeoGeoCD::BiosType type;
-    bool isSMKDan;
-    bool isUniverse;
-};
-
 struct BiosListEntry
 {
     std::string filename;
-    const KnownBiosListEntry* biosEntry;
+    std::string description;
+    Bios::Type type;
 };
 
-// List of all known BIOS filenames
-static const std::initializer_list<KnownBiosListEntry> KNOWN_BIOSES{
-    { "neocd_f.rom", "Front Loader", NeoGeoCD::FrontLoader, false, false },
-    { "neocd_sf.rom", "Front Loader (SMKDAN)", NeoGeoCD::FrontLoader, true, false },
-    { "front-sp1.bin", "Front Loader (MAME)", NeoGeoCD::FrontLoader, false, false },
-    { "neocd_t.rom", "Top Loader", NeoGeoCD::TopLoader, false, false },
-    { "neocd_st.rom", "Top Loader (SMKDAN)", NeoGeoCD::TopLoader, true, false },
-    { "top-sp1.bin", "Top Loader (MAME)", NeoGeoCD::TopLoader, false, false },
-    { "neocd_z.rom", "CDZ", NeoGeoCD::CDZ, false, false },
-    { "neocd_sz.rom", "CDZ (SMKDAN)", NeoGeoCD::CDZ, true, false },
-    { "neocd.bin", "CDZ (MAME)", NeoGeoCD::CDZ, false, false },
-    { "uni-bioscd.rom", "Universe 3.2", NeoGeoCD::CDZ, false, true }
-};
-
-// List of all known zoom ROMs
-static const std::initializer_list<const char*> KNOWN_ZOOM_ROMS{
-    { "ng-lo.rom" },
-    { "000-lo.lo" }
-};
+// Valid extensions for BIOS files
+static const char* const BIOS_EXTS = "rom|bin";
 
 // Variable names for the settings
 static const char* REGION_VARIABLE = "neocd_region";
@@ -158,88 +134,7 @@ static std::array<retro_memory_descriptor, RetroMapIndex::COUNT> memoryDescripto
 // Memory map for cheats, achievements, etc...
 static retro_memory_map memoryMap;
 
-static void searchForBIOSInternal(const char* path, const StringList& file_list)
-{
-    for(const string_list_elem& elem : file_list)
-    {
-        const char* filename = path_basename(elem.data);
-
-        // Check the filename against all known BIOS filenames
-        for(const KnownBiosListEntry& entry : KNOWN_BIOSES)
-        {
-            if (string_compare_insensitive(filename, entry.filename))
-            {
-                BiosListEntry newEntry;
-
-                // When scanning an archive, path will be non null. 
-                // We want something of the form archive.zip#file.bin
-                if (path)
-                    newEntry.filename = make_path_separator(path, "#", elem.data);
-                else
-                    newEntry.filename = elem.data;
-
-                newEntry.biosEntry = &entry;
-                biosList.push_back(newEntry);
-
-                break;
-            }
-        }
-
-        // Look for a suitable zoom ROM too
-        if (zoomRomFilename.empty())
-        {
-            for(const char* fname : KNOWN_ZOOM_ROMS)
-            {
-                if (string_compare_insensitive(fname, filename))
-                {
-                    if (path)
-                        zoomRomFilename = make_path_separator(path, "#", elem.data);
-                    else
-                        zoomRomFilename = elem.data;
-
-                    break;
-                }
-            }
-        }
-    }
-}
-
-static void lookForBIOS()
-{
-    const char* const valid_exts = "rom|bin|lo";
-
-    // Clear everything
-    biosList.clear();
-    zoomRomFilename.clear();
-
-    // Get the system path
-    std::string systemPath = system_path();
-
-    // Scan the system directory
-    StringList file_list(dir_list_new(systemPath.c_str(), valid_exts, false, false, false, true));
-    searchForBIOSInternal(nullptr, file_list);
-
-    // Get a list of all archives present in the system directory...
-    StringList archive_list(dir_list_new(systemPath.c_str(), "", false, false, true, true));
-    for(const string_list_elem& elem : archive_list)
-    {
-        // ...and scan them too
-        file_list = file_archive_get_file_list(elem.data, nullptr);
-        searchForBIOSInternal(elem.data, file_list);
-    }
-
-    // Sort the list
-    std::sort(biosList.begin(), biosList.end(), [](const BiosListEntry& a, const BiosListEntry& b) {
-        return strcmp(a.biosEntry->description, b.biosEntry->description) < 0;
-    });
-
-    // Make the list unique
-    auto i = std::unique(biosList.begin(), biosList.end(), [](const BiosListEntry& a, const BiosListEntry& b) {
-        return strcmp(a.biosEntry->description, b.biosEntry->description) == 0;
-    });
-    biosList.erase(i, biosList.end());
-}
-
+// Load a (possibly compressed) file
 static bool fileRead(const std::string& path, void* buffer, size_t maximumSize, size_t* reallyRead)
 {
     size_t wasRead = 0;
@@ -275,114 +170,76 @@ static bool fileRead(const std::string& path, void* buffer, size_t maximumSize, 
     return true;
 }
 
-static bool loadYZoomROM()
+// Load each file from the list and test for validity
+static void searchForBIOSInternal(const char* path, const StringList& file_list)
 {
-    size_t reallyRead;
-
-    if (!fileRead(zoomRomFilename, neocd.memory.yZoomRom, Memory::YZOOMROM_SIZE, &reallyRead))
+    for(const string_list_elem& elem : file_list)
     {
-        LOG(LOG_ERROR, "Could not load Y Zoom ROM\n");
-        return false;
-    }
+        BiosListEntry newEntry;
 
-    if (reallyRead < Memory::YZOOMROM_SIZE)
-    {
-        LOG(LOG_ERROR, "Y ZOOM ROM should be at least 65536 bytes!\n");
-        return false;
-    }
-
-    return true;
-}
-
-static void patchROM_16(uint32_t address, uint16_t data)
-{
-    *reinterpret_cast<uint16_t*>(&neocd.memory.rom[address & 0x7FFFF]) = BIG_ENDIAN_WORD(data);
-}
-
-/*static void patchROM_32(uint32_t address, uint32_t data)
-{
-    *reinterpret_cast<uint32_t*>(&neocd.memory.rom[address & 0x7FFFF]) = BIG_ENDIAN_DWORD(data);
-}*/
-
-static void patchROM_48(uint32_t address, uint32_t data1, uint16_t data2)
-{
-    *reinterpret_cast<uint32_t*>(&neocd.memory.rom[address & 0x7FFFF]) = BIG_ENDIAN_DWORD(data1);
-    address += 4;
-    *reinterpret_cast<uint16_t*>(&neocd.memory.rom[address & 0x7FFFF]) = BIG_ENDIAN_WORD(data2);
-}
-
-static void installSpeedHack(uint32_t address)
-{
-    patchROM_48(address, 0xFABE4E71, 0x4E71);
-}
-
-static void disableSMKDANChecksum(uint32_t address)
-{
-    patchROM_48(address, 0x22004E71, 0x4E71);
-}
-
-static void patchBIOS()
-{
-    const KnownBiosListEntry* entry = biosList[biosIndex].biosEntry;
-
-    if (neocd.biosType == NeoGeoCD::FrontLoader)
-    {
-        // Patch the CD Recognition
-        patchROM_16(0xC10B64, 0x4E71);
-
-        // Speed hacks to avoid busy looping
-        if (cdSpeedHack)
+        // When scanning an archive, path will be non null.
+        // We want something of the form archive.zip#file.bin
+        if (path)
         {
-            installSpeedHack(0xC10716);
-            installSpeedHack(0xC10758);
-            installSpeedHack(0xC10798);
-            installSpeedHack(0xC10864);
+            newEntry.filename = make_path_separator(path, "#", elem.data);
+            newEntry.description = make_path_separator(path_basename(path), "#", elem.data);
         }
-
-        // If SMKDan, disable the BIOS checksum
-        if (entry->isSMKDan)
-            disableSMKDANChecksum(0xC23EBE);
-    }
-    else if (neocd.biosType == NeoGeoCD::TopLoader)
-    {
-        // Patch the CD Recognition
-        patchROM_16(0xC10436, 0x4E71);
-        
-        // Speed hacks to avoid busy looping
-        if (cdSpeedHack)
-        {         
-            installSpeedHack(0xC0FFCA); // b
-            installSpeedHack(0xC1000E); // a
-            installSpeedHack(0xC1004E); // b
-            installSpeedHack(0xC10120); // b
-        }
-
-        // If SMKDan, disable the BIOS checksum
-        if (entry->isSMKDan)
-            disableSMKDANChecksum(0xC23FBE);
-    }
-    else if (neocd.biosType == NeoGeoCD::CDZ)
-    {
-        // Patch the CD Recognition
-        patchROM_16(0xC0EB82, 0x4E71);
-        patchROM_16(0xC0D280, 0x4E71);
-
-        // Speed hacks to avoid busy looping
-        if (cdSpeedHack)
+        else
         {
-            installSpeedHack(0xC0E6E0);
-            installSpeedHack(0xC0E724);
-            installSpeedHack(0xC0E764);
-            installSpeedHack(0xC0E836);
-            installSpeedHack(0xC0E860);
+            newEntry.filename = elem.data;
+            newEntry.description = path_basename(elem.data);
         }
 
-        // If SMKDan, disable the BIOS checksum
-        if (entry->isSMKDan)
-            disableSMKDANChecksum(0xC62BF4);
+        std::unique_ptr<uint8_t[]> buffer(new uint8_t[Memory::ROM_SIZE]);
+        size_t reallyRead;
+
+        if (fileRead(newEntry.filename, buffer.get(), Memory::ROM_SIZE, &reallyRead))
+        {
+            Bios::autoByteSwap(buffer.get());
+
+            newEntry.type = Bios::identify(buffer.get());
+
+            if (newEntry.type.first != Bios::Family::Invalid)
+            {
+                newEntry.description.append(" (");
+                newEntry.description.append(Bios::description(newEntry.type));
+                newEntry.description.append(")");
+
+                biosList.push_back(newEntry);
+            }
+        }
     }
 }
 
+// Search for BIOS files
+static void lookForBIOS()
+{
+    // Clear everything
+    biosList.clear();
+
+    // Get the system path
+    std::string systemPath = system_path();
+
+    // Scan the system directory
+    StringList file_list(dir_list_new(systemPath.c_str(), BIOS_EXTS, false, false, false, true));
+    searchForBIOSInternal(nullptr, file_list);
+
+    // Get a list of all archives present in the system directory...
+    StringList archive_list(dir_list_new(systemPath.c_str(), "", false, false, true, true));
+    for(const string_list_elem& elem : archive_list)
+    {
+        // ...and scan them too
+        file_list = file_archive_get_file_list(elem.data, nullptr);
+        searchForBIOSInternal(elem.data, file_list);
+    }
+
+    // Sort the list
+    std::sort(biosList.begin(), biosList.end(), [](const BiosListEntry& a, const BiosListEntry& b) {
+        return strcmp(a.description.c_str(), b.description.c_str()) < 0;
+    });
+}
+
+// Load, byte swap and patch BIOS
 static bool loadBIOS()
 {
     if (!biosList.size())
@@ -399,26 +256,11 @@ static bool loadBIOS()
         return false;
     }
 
-    if (reallyRead < Memory::ROM_SIZE)
-    {
-        LOG(LOG_ERROR, "neocd.rom should be exactly 524288 bytes!\n");
-        return false;
-    }
+    neocd.biosType = biosList[biosIndex].type.first;
 
-    neocd.biosType = biosList[biosIndex].biosEntry->type;
+    Bios::autoByteSwap(neocd.memory.rom);
 
-    // Swap the BIOS if needed
-    if (*reinterpret_cast<uint16_t*>(&neocd.memory.rom[0]) == LITTLE_ENDIAN_WORD(0x0010))
-    {
-        uint16_t* start = reinterpret_cast<uint16_t*>(&neocd.memory.rom[0]);
-        uint16_t* end = reinterpret_cast<uint16_t*>(&neocd.memory.rom[Memory::ROM_SIZE]);
-
-        std::for_each(start, end, [](uint16_t& data) {
-            data = BYTE_SWAP_16(data);
-        });
-    }
-
-    patchBIOS();
+    Bios::patch(neocd.memory.rom, biosList[biosIndex].type, cdSpeedHack);
 
     return true;
 }
@@ -427,7 +269,7 @@ static size_t biosDescriptionToIndex(const char* description)
 {
     for (size_t result = 0; result < biosList.size(); ++result)
     {
-        if (!strcmp(description, biosList[result].biosEntry->description))
+        if (!strcmp(description, biosList[result].description.c_str()))
             return result;
     }
 
@@ -445,12 +287,12 @@ static void buildVariableList()
     if (biosList.size())
     {
         biosChoices = "BIOS Select; ";
-        biosChoices.append(biosList[0].biosEntry->description);
+        biosChoices.append(biosList[0].description);
 
         for (size_t i = 1; i < biosList.size(); ++i)
         {
             biosChoices.append("|");
-            biosChoices.append(biosList[i].biosEntry->description);
+            biosChoices.append(biosList[i].description);
         }
 
         variables.emplace_back(retro_variable{ BIOS_VARIABLE, biosChoices.c_str() });
@@ -706,9 +548,6 @@ bool retro_load_game(const struct retro_game_info *info)
         return false;
     }
     
-    if (!loadYZoomROM())
-        return false;
-
     if (!loadBIOS())
         return false;
 

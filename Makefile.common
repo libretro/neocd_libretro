@@ -16,7 +16,9 @@ INCFLAGS   := $(foreach dir,$(INCLUDES), -I$(dir))
 
 SRC_CORE	:=\
 	$(CORE_DIR)/src/audio.cpp \
+	$(CORE_DIR)/src/bios.cpp \
 	$(CORE_DIR)/src/cdrom.cpp \
+	$(CORE_DIR)/src/cdromcontroller.cpp \
 	$(CORE_DIR)/src/cdromtoc.cpp \
 	$(CORE_DIR)/src/chdfile.cpp \
 	$(CORE_DIR)/src/datapacker.cpp \
@@ -26,7 +28,6 @@ SRC_CORE	:=\
 	$(CORE_DIR)/src/lc8951.cpp \
 	$(CORE_DIR)/src/libretro.cpp \
 	$(CORE_DIR)/src/m68kintf.cpp \
-	$(CORE_DIR)/src/memory.cpp \
 	$(CORE_DIR)/src/memory_backupram.cpp \
 	$(CORE_DIR)/src/memory_cdintf.cpp \
 	$(CORE_DIR)/src/memory_input.cpp \
@@ -35,6 +36,7 @@ SRC_CORE	:=\
 	$(CORE_DIR)/src/memory_switches.cpp \
 	$(CORE_DIR)/src/memory_video.cpp \
 	$(CORE_DIR)/src/memory_z80comm.cpp \
+	$(CORE_DIR)/src/memory.cpp \
 	$(CORE_DIR)/src/neogeocd.cpp \
 	$(CORE_DIR)/src/oggfile.cpp \
 	$(CORE_DIR)/src/path.cpp \

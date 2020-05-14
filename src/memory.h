@@ -111,6 +111,7 @@ public:
 protected:
     void buildMemoryMap();
     void initializeRegionLookupTable();
+    void generateYZoomData();
 
     const Memory::Region* dmaFindRegion(uint32_t address);
     uint16_t dmaFetchNextWord(const Memory::Region* region, uint32_t& offset);

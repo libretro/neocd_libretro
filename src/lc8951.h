@@ -1,27 +1,14 @@
 #ifndef LC8951_H
 #define LC8951_H
 
-//#define CDROM_LOG(x, ...) LOG(x, __VA_ARGS__)
-#define CDROM_LOG(x, ...)
+#include <cstdint>
 
 #include "datapacker.h"
-
-#include <stdint.h>
+#include "cdromcontroller.h"
 
 class LC8951
 {
 public:
-    enum Status
-    {
-        CdIdle      = 0x00,
-        CdPlaying   = 0x10,
-        CdSeeking   = 0x20,
-        CdScanning  = 0x30,
-        CdPaused    = 0x40,
-        CdStopped   = 0x90,
-        CdEndOfDisc = 0xC0
-    };
-    
     enum IFCTRL_BITS
     {
         CMDIEN      = 0x80,
@@ -33,7 +20,7 @@ public:
         DOUTEN      = 0x02,
         SOUTEN      = 0x01
     };
-    
+
     enum IFSTAT_BITS
     {
         CMDI        = 0x80,
@@ -75,8 +62,6 @@ public:
         CRCOK       = 0x80
     };
 
-    static const uint32_t SCAN_SPEED = 30;
-
     LC8951();
 
     void reset();
@@ -93,27 +78,25 @@ public:
     void increasePacketPointer(uint8_t data);
     void resetPacketPointers();
 
-    void processCdCommand();
-
     inline uint16_t wordRegister(const uint8_t& low, const uint8_t& high) const
     {
          return (static_cast<uint16_t>(high) << 8) | static_cast<uint16_t>(low);
     }
-    
+
     inline void setWordRegister(uint8_t& low, uint8_t& high, const uint16_t& value)
     {
         high = value >> 8;
         low = value;
     }
-    
+
     inline void addWordRegister(uint8_t& low, uint8_t& high, uint16_t value)
     {
         value += wordRegister(low, high);
         setWordRegister(low, high, value);
     }
-    
+
     void sectorDecoded();
-    
+
     void endTransfer();
 
     static uint8_t calculatePacketChecksum(const uint8_t* packet);
@@ -123,14 +106,14 @@ public:
     friend DataPacker& operator>>(DataPacker& in, LC8951& lc8951);
 
     // Variables to save in savestate
-    uint8_t     status;
+    CdromController controller;
     uint32_t    registerPointer;
     uint8_t     commandPacket[5];
     uint32_t    commandPointer;
     uint8_t     responsePacket[5];
     uint32_t    responsePointer;
     uint32_t    strobe;
-    
+
     uint8_t     SBOUT;      // Status Byte Output
     uint8_t     IFCTRL;     // Interface Control ?
     uint8_t     DBCL;       // Data Byte Count Low
@@ -145,7 +128,7 @@ public:
     uint8_t     CTRL1;      // Control 1
     uint8_t     PTL;        // Pointer Low
     uint8_t     PTH;        // Pointer High
-    
+
     uint8_t     COMIN;      // Command Input Register
     uint8_t     IFSTAT;     // Interface Status ?
     uint8_t     HEAD0;      // Minutes
@@ -156,7 +139,7 @@ public:
     uint8_t     STAT1;      // Status 1
     uint8_t     STAT2;      // Status 2
     uint8_t     STAT3;      // Status 3
-    
+
     uint8_t     buffer[2048];
     // End variables to save in savestate
 };

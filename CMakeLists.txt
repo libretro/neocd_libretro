@@ -62,7 +62,9 @@ set ( CXX_SRCS
     ${CMAKE_SOURCE_DIR}/src/3rdparty/z80/z80.cpp
     ${CMAKE_SOURCE_DIR}/src/3rdparty/z80/z80daisy.cpp
     ${CMAKE_SOURCE_DIR}/src/audio.cpp
+    ${CMAKE_SOURCE_DIR}/src/bios.cpp
     ${CMAKE_SOURCE_DIR}/src/cdrom.cpp
+    ${CMAKE_SOURCE_DIR}/src/cdromcontroller.cpp
     ${CMAKE_SOURCE_DIR}/src/cdromtoc.cpp
     ${CMAKE_SOURCE_DIR}/src/chdfile.cpp
     ${CMAKE_SOURCE_DIR}/src/datapacker.cpp
@@ -72,7 +74,6 @@ set ( CXX_SRCS
     ${CMAKE_SOURCE_DIR}/src/lc8951.cpp
     ${CMAKE_SOURCE_DIR}/src/libretro.cpp
     ${CMAKE_SOURCE_DIR}/src/m68kintf.cpp
-    ${CMAKE_SOURCE_DIR}/src/memory.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_backupram.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_cdintf.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_input.cpp
@@ -81,6 +82,7 @@ set ( CXX_SRCS
     ${CMAKE_SOURCE_DIR}/src/memory_switches.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_video.cpp
     ${CMAKE_SOURCE_DIR}/src/memory_z80comm.cpp
+    ${CMAKE_SOURCE_DIR}/src/memory.cpp
     ${CMAKE_SOURCE_DIR}/src/neogeocd.cpp
     ${CMAKE_SOURCE_DIR}/src/oggfile.cpp
     ${CMAKE_SOURCE_DIR}/src/path.cpp

@@ -14,6 +14,9 @@ extern "C" {
 
 #include <cstring>
 #include <algorithm>
+#include <array>
+
+static const std::array<uint8_t, 16> YZOOM_ORDER = { 0x8, 0x0, 0xC, 0x4, 0xA, 0x2, 0xE, 0x6, 0x9, 0x1, 0xD, 0x5, 0xB, 0x3, 0xF, 0x7 };
 
 /*
     What you see on a real Neo Geo CD:
@@ -97,7 +100,8 @@ Memory::Memory() :
 
     // Backup RAM: 8KiB
     backupRam = reinterpret_cast<uint8_t*>(std::malloc(BACKUPRAM_SIZE));
-
+    
+    generateYZoomData();
     buildMemoryMap();
     initializeRegionLookupTable();
     mapVectorsToRom();
@@ -213,6 +217,36 @@ void Memory::initializeRegionLookupTable()
             ptr <= &regionLookupTable[memoryRegions[i].endAddress / MEMORY_GRANULARITY];
             ++ptr)
             *ptr = &memoryRegions[i];
+    }
+}
+
+void Memory::generateYZoomData()
+{
+    // Generate Y Zoom data instead of loading it from a file, 100% identical to a real machine.
+    // For verification, generated data should have a CRC32 of E09E253C
+
+    uint8_t* out = yZoomRom;
+
+    std::array<bool, 256> table;
+    std::fill(table.begin(), table.end(), false);
+
+    for(int z = 0; z < 16; ++z)
+    {
+        for(int y = 0; y < 16; ++y)
+        {
+            table[(YZOOM_ORDER[y] << 4) | YZOOM_ORDER[z]] = true;
+
+            uint8_t* end = out + 256;
+
+            for(int t = 0; t < 256; ++t)
+            {
+                if (table[t])
+                    *out++ = t;
+            }
+
+            std::fill(out, end, 0xFF);
+            out = end;
+        }
     }
 }
 
