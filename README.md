@@ -65,7 +65,7 @@ The files will be automatically byte swapped if needed.
 | Front Loader BIOS (MAME)   | front-sp1.bin  | 53bc1f283cdf00fa2efbb79f2e36d4c8038d743a |
 | Top Loader BIOS (MAME)     | top-sp1.bin    | 235f4d1d74364415910f73c10ae5482d90b4274f |
 | CDZ BIOS (MAME)            | neocd.bin      | 7bb26d1e5d1e930515219cb18bcde5b7b23e2eda |
-| Universe 3.2               | uni-bioscd.rom | 5158b728e62b391fb69493743dcf7abbc62abc82 |
+| Universe 3.3               | uni-bioscd.rom | 5142f205912869b673a71480c5828b1eaed782a8 |
 
 ### CD Images
 
