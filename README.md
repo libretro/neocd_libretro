@@ -46,7 +46,7 @@ To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. 
 
 |Description        | Filename  | SHA1                                     |
 |-------------------|-----------|------------------------------------------|
-| Y Zoom ROM        | ng-lo.rom | 2b1c719531dac9bb503f22644e6e4236b91e7cfc |
+| Y Zoom ROM (Bad dump - MAME 0.127)       | ng-lo.rom | 2b1c719531dac9bb503f22644e6e4236b91e7cfc |
 | Y Zoom ROM (MAME) | 000-lo.lo | 5992277debadeb64d1c1c64b0a92d9293eaf7e4a |
 
 #### BIOS
@@ -57,15 +57,15 @@ The files will be automatically byte swapped if needed.
 | Description                | Filename       | SHA1                                     |
 |----------------------------|----------------|------------------------------------------|
 | Front Loader BIOS          | neocd_f.rom    | a5f4a7a627b3083c979f6ebe1fabc5d2df6d083b |
-| Front Loader BIOS (SMKDAN) | neocd_sf.rom   | c99c44a43bded1bff4570b30b74975601bd3f94e |
+| Front Loader BIOS (SMKDAN 0.7b DEC 2010) | neocd_sf.rom   | 4a94719ee5d0e3f2b981498f70efc1b8f1cef325 |
 | Top Loader BIOS            | neocd_t.rom    | cc92b54a18a8bff6e595aabe8e5c360ba9e62eb5 |
-| Top Loader BIOS (SMKDAN)   | neocd_st.rom   | d463b3a322b9674f9e227a21e43898019ce0e642 |
+| Top Loader BIOS (SMKDAN 0.7b DEC 2010) | neocd_st.rom   | 19729b51bdab60c42aafef6e20ea9234c7eb8410 |
 | CDZ BIOS                   | neocd_z.rom    | b0f1c4fa8d4492a04431805f6537138b842b549f |
-| CDZ BIOS (SMKDAN)          | neocd_sz.rom   | 41ca1c031b844a46387be783ac862c76e65afbb3 |
+| CDZ BIOS (SMKDAN 0.7b DEC 2010) | neocd_sz.rom   | 6a947457031dd3a702a296862446d7485aa89dbb |
 | Front Loader BIOS (MAME)   | front-sp1.bin  | 53bc1f283cdf00fa2efbb79f2e36d4c8038d743a |
 | Top Loader BIOS (MAME)     | top-sp1.bin    | 235f4d1d74364415910f73c10ae5482d90b4274f |
 | CDZ BIOS (MAME)            | neocd.bin      | 7bb26d1e5d1e930515219cb18bcde5b7b23e2eda |
-| Universe 3.3               | uni-bioscd.rom | 5142f205912869b673a71480c5828b1eaed782a8 |
+| Universe BIOS CD 3.3       | uni-bioscd.rom | 5142f205912869b673a71480c5828b1eaed782a8 |
 
 ### CD Images
 
