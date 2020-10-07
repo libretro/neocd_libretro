@@ -21,6 +21,8 @@ else ifneq ($(findstring Darwin,$(shell uname -a)),)
    platform = osx
 else ifneq ($(findstring win,$(shell uname -a)),)
    platform = win
+else ifneq ($(findstring MSYS,$(MSYSTEM)),)
+   platform = win
 endif
 endif
 
@@ -151,7 +153,7 @@ else ifeq ($(platform), psl1ght)
    CXXFLAGS += -D__CELLOS_LV2__ -D__PSL1GHT__ -mcpu=cell -DDISABLE_AUDIO_THREAD=1 -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
    STATIC_LINKING = 1
 else
-   CC = gcc
+   CC ?= gcc
    TARGET := $(TARGET_NAME)_libretro.dll
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
 endif
