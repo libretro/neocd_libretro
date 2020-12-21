@@ -74,6 +74,7 @@ SRC_LIBRETRO_COMMON := \
 	$(LIBRETRO_COMMON_DIR)/lists/dir_list.c \
 	$(LIBRETRO_COMMON_DIR)/lists/file_list.c \
 	$(LIBRETRO_COMMON_DIR)/lists/string_list.c \
+	$(LIBRETRO_COMMON_DIR)/time/rtime.c \
 	$(LIBRETRO_COMMON_DIR)/streams/file_stream.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_pipe.c \
