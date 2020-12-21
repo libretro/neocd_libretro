@@ -14,13 +14,13 @@ static void system_path_internal(char* buffer, size_t len)
 {
     if (path_is_empty(systemDirectory)) {
 	buffer[0] = '.';
-	buffer[1] = path_default_slash_c();
+	buffer[1] = PATH_DEFAULT_SLASH_C();
 	buffer[2] = '\0';
     } else
         strlcpy(buffer, systemDirectory, len);
     
     if (!path_ends_with_slash(buffer))
-        strlcat(buffer, path_default_slash(), len);
+        strlcat(buffer, PATH_DEFAULT_SLASH(), len);
 
     strlcat(buffer, NEOCD_SYSTEM_SUBDIR, len);
 }
@@ -113,7 +113,7 @@ std::string make_system_path(const char* filename)
 
     system_path_internal(buffer, sizeof(buffer) - 1);
 
-    strlcat(buffer, path_default_slash(), sizeof(buffer) - 1);
+    strlcat(buffer, PATH_DEFAULT_SLASH(), sizeof(buffer) - 1);
     if (!path_is_empty(filename))
         strlcat(buffer, filename, sizeof(buffer) - 1);
 
@@ -127,7 +127,7 @@ std::string make_save_path(const char* filename)
 
     save_path_internal(buffer, sizeof(buffer) - 1);
 
-    strlcat(buffer, path_default_slash(), sizeof(buffer) - 1);
+    strlcat(buffer, PATH_DEFAULT_SLASH(), sizeof(buffer) - 1);
     if (!path_is_empty(filename))
         strlcat(buffer, filename, sizeof(buffer) - 1);
 
@@ -186,7 +186,7 @@ std::string make_path_separator(const char* path, const char* separator, const c
 
 std::string make_path(const char* path, const char* filename)
 {
-    return make_path_separator(path, path_default_slash(), filename);
+    return make_path_separator(path, PATH_DEFAULT_SLASH(), filename);
 }
 
 bool string_compare_insensitive(const char* a, const char* b)
