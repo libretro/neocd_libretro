@@ -39,10 +39,6 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/android-jni.yml'
 
-  # iOS 9
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/ios9.yml'
-
   ################################## CONSOLES ################################
   # Nintendo 3DS
   - project: 'libretro-infrastructure/ci-templates'
@@ -120,12 +116,6 @@ android-x86_64:
 android-x86:
   extends:
     - .libretro-android-jni-x86
-    - .core-defs
-
-# iOS 9
-libretro-build-ios-9:
-  extends:
-    - .libretro-ios9-make-default
     - .core-defs
 
 ################################### CONSOLES #################################
