@@ -34,6 +34,9 @@ ifeq ($(shell uname -a),)
 else ifneq ($(findstring Darwin,$(shell uname -a)),)
 	system_platform = osx
 	arch = intel
+ifeq ($(shell uname -p),arm64)
+	arch = arm
+endif
 ifeq ($(shell uname -p),powerpc)
 	arch = ppc
 endif
@@ -44,21 +47,6 @@ endif
 CORE_DIR    += .
 TARGET_NAME := neocd
 LIBM		    = -lm
-
-ifeq ($(ARCHFLAGS),)
-ifeq ($(archs),ppc)
-   ARCHFLAGS = -arch ppc -arch ppc64
-else
-   ARCHFLAGS = -arch i386 -arch x86_64
-endif
-endif
-
-ifeq ($(platform), osx)
-ifndef ($(NOUNIVERSAL))
-   CXXFLAGS += $(ARCHFLAGS)
-   LFLAGS += $(ARCHFLAGS)
-endif
-endif
 
 ifeq ($(STATIC_LINKING), 1)
 EXT := a
@@ -79,6 +67,32 @@ else ifneq (,$(findstring osx,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC
    SHARED := -dynamiclib
+
+ifeq ($(ARCHFLAGS),)
+ARCHFLAGS = -arch i386 -arch x86_64
+ifeq ($(shell uname -p),powerpc)
+   ARCHFLAGS = -arch ppc -arch ppc64
+endif
+ifeq ($(shell uname -p),arm)
+   ARCHFLAGS = -arch arm64
+endif
+endif
+
+   ifeq ($(CROSS_COMPILE),1)
+		TARGET_RULE   = -target $(LIBRETRO_APPLE_PLATFORM) -isysroot $(LIBRETRO_APPLE_ISYSROOT)
+		CFLAGS   += $(TARGET_RULE)
+		CPPFLAGS += $(TARGET_RULE)
+		CXXFLAGS += $(TARGET_RULE)
+		LDFLAGS  += $(TARGET_RULE)
+   endif
+
+
+ifndef ($(NOUNIVERSAL))
+   CFLAGS += $(ARCHFLAGS)
+   CXXFLAGS += $(ARCHFLAGS)
+   LFLAGS += $(ARCHFLAGS)
+endif
+
 else ifneq (,$(findstring ios,$(platform)))
    TARGET := $(TARGET_NAME)_libretro_ios.dylib
 	fpic := -fPIC
@@ -86,6 +100,13 @@ else ifneq (,$(findstring ios,$(platform)))
 
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
+endif
+ifeq ($(platform),ios-arm64)
+  CC = cc -arch arm64 -isysroot $(IOSSDK)
+  CXX = c++ -arch arm64 -isysroot $(IOSSDK)
+else
+  CC = cc -arch armv7 -isysroot $(IOSSDK)
+  CXX = c++ -arch armv7 -isysroot $(IOSSDK)
 endif
 
 	DEFINES := -DIOS
@@ -164,11 +185,11 @@ ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g -DDEBUG
    CXXFLAGS += -O0 -g -DDEBUG
 else ifeq ($(platform), emscripten)
-   CFLAGS += -O2 -fomit-frame-pointer
-   CXXFLAGS += -O2 -fomit-frame-pointer
+   CFLAGS += -O2
+   CXXFLAGS += -O2
 else
-   CFLAGS += -Ofast -fomit-frame-pointer
-   CXXFLAGS += -Ofast -fomit-frame-pointer
+   CFLAGS += -Ofast -DNDEBUG
+   CXXFLAGS += -Ofast -DNDEBUG
 endif
 
 CFLAGS += -DHAVE_COMPRESSION -DHAVE_ZLIB -DHAVE_7ZIP -D_7ZIP_ST -DHAVE_FLAC
@@ -196,17 +217,12 @@ endif
 
 
 %.o: %.c
-	@$(if $(Q), $(shell echo echo CC $<),)
-	$(Q)$(CC) $(CFLAGS) $(fpic) -c -o $@ $<
+	$(CC) $(CFLAGS) $(fpic) -c -o $@ $<
 
 %.o: %.cpp
-	@$(if $(Q), $(shell echo echo CXX $<),)
-	$(Q)$(CXX) $(CXXFLAGS) $(fpic) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(fpic) -c -o $@ $<
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
 
 .PHONY: clean
-
-print-%:
-	@echo '$*=$($*)'
