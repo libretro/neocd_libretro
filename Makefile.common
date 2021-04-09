@@ -12,8 +12,6 @@ INCFLAGS   :=  \
 	-I$(LIBRETRO_DEPS_DIR)/libvorbis/include \
 	-I$(LIBRETRO_DEPS_DIR)/libvorbis/lib
 
-SOURCES_C   :=
-
 SOURCES_CXX	:=\
 	$(CORE_DIR)/src/audio.cpp \
 	$(CORE_DIR)/src/bios.cpp \
@@ -47,7 +45,12 @@ SOURCES_CXX	:=\
 	$(CORE_DIR)/src/wavfile.cpp \
 	$(CORE_DIR)/src/z80intf.cpp
 
-SOURCES_C += \
+SOURCES_CXX += \
+	${CORE_DIR}/src/3rdparty/ym/ym2610.cpp \
+	${CORE_DIR}/src/3rdparty/z80/z80.cpp \
+	${CORE_DIR}/src/3rdparty/z80/z80daisy.cpp
+
+SOURCES_C := \
 	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_bitstream.c \
 	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_cdrom.c \
 	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_chd.c \
@@ -94,14 +97,7 @@ SOURCES_C += \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/md5.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/memory.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/stream_decoder.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/stream_encoder.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/stream_encoder_framing.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/window.c
-
-SOURCES_CXX += \
-	${CORE_DIR}/src/3rdparty/ym/ym2610.cpp \
-	${CORE_DIR}/src/3rdparty/z80/z80.cpp \
-	${CORE_DIR}/src/3rdparty/z80/z80daisy.cpp
 
 SOURCES_C  += \
 	$(LIBRETRO_DEPS_DIR)/7zip/7zBuf.c \
@@ -139,7 +135,6 @@ SOURCES_C  += \
 	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/sharedbook.c \
 	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/smallft.c \
 	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/synthesis.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/vorbisenc.c \
 	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/vorbisfile.c \
 	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/window.c \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kcpu.c \
@@ -148,21 +143,13 @@ SOURCES_C  += \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kopnz.c \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c \
 	$(CORE_DIR)/src/3rdparty/zlib/adler32.c \
-	$(CORE_DIR)/src/3rdparty/zlib/compress.c \
 	$(CORE_DIR)/src/3rdparty/zlib/crc32.c \
 	$(CORE_DIR)/src/3rdparty/zlib/deflate.c \
-	$(CORE_DIR)/src/3rdparty/zlib/gzclose.c \
-	$(CORE_DIR)/src/3rdparty/zlib/gzlib.c \
-	$(CORE_DIR)/src/3rdparty/zlib/gzread.c \
-	$(CORE_DIR)/src/3rdparty/zlib/gzwrite.c \
 	$(CORE_DIR)/src/3rdparty/zlib/infback.c \
 	$(CORE_DIR)/src/3rdparty/zlib/inffast.c \
 	$(CORE_DIR)/src/3rdparty/zlib/inflate.c \
 	$(CORE_DIR)/src/3rdparty/zlib/inftrees.c \
-	$(CORE_DIR)/src/3rdparty/zlib/ioapi.c \
 	$(CORE_DIR)/src/3rdparty/zlib/trees.c \
-	$(CORE_DIR)/src/3rdparty/zlib/uncompr.c \
-	$(CORE_DIR)/src/3rdparty/zlib/unzip.c \
 	$(CORE_DIR)/src/3rdparty/zlib/zutil.c
 
 ifneq ($(STATIC_LINKING),1)
