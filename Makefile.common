@@ -1,4 +1,4 @@
-LIBRETRO_COMMON_DIR  = $(CORE_DIR)/src/3rdparty/libretro-common
+LIBRETRO_COMMON_DIR  = $(CORE_DIR)/deps/libretro-common
 LIBRETRO_DEPS_DIR    = $(CORE_DIR)/src/3rdparty/libretro-deps
 
 INCFLAGS   :=  \
