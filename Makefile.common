@@ -85,7 +85,6 @@ SOURCES_C += \
 	$(LIBRETRO_COMMON_DIR)/vfs/vfs_implementation.c
 
 SOURCES_C += \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/bitmath.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/bitreader.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/cpu.c \
 	$(LIBRETRO_DEPS_DIR)/libFLAC/crc.c \
