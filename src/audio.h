@@ -1,11 +1,12 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-#include "timer.h"
-#include "3rdparty/ym/ym2610.h"
-#include "datapacker.h"
-
 #include <cstdint>
+
+#include "3rdparty/ym/ym2610.h"
+#include "audiobuffer.h"
+#include "datapacker.h"
+#include "timer.h"
 
 extern void YM2610UpdateRequest(void);
 extern void YM2610TimerHandler(int channel, int count, double steptime);
@@ -45,35 +46,15 @@ public:
     void initFrame();
 
     /**
-     * @brief Calculate the sample number corresponding to the current execution time.
-     */
-    void updateCurrentSample();
-
-    /**
      * @brief Generate YM2610 samples for this frame and mix with CD audio if needed
      */
     void finalize();
 
-    /// This bool is true if there is cd audio to mix for this frame
-    bool        hasCdAudioThisFrame;
-    
-    /// Buffer for the generated audio
-    int16_t     cdAudioBuffer[BUFFER_SIZE * 2];
-    
-    /// Buffer for the generated audio
-    int16_t     audioBuffer[BUFFER_SIZE * 2];
-    
     /// How many samples to generate this frame (this can vary because of rounding)
-    double      samplesThisFrameF;
-    
-    /// How many samples to generate this frame (this can vary because of rounding)
-    uint32_t    samplesThisFrame;
-    
-    /// The index of the sample corresponding to the current emulated time
-    uint32_t    currentSample;
-    
-    /// Write index for audio data
-    uint32_t    audioWritePointer;
+    double samplesThisFrameF;
+
+    /// Buffer to store ym audio and cd audio
+    AudioBuffer buffer;
 };
 
 /**

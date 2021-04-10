@@ -1,6 +1,7 @@
-#include <cstring>
 #include <algorithm>
+#include <cstring>
 
+#include "clamp.h"
 #include "datapacker.h"
 
 DataPacker::DataPacker() : 
@@ -186,9 +187,7 @@ void DataPacker::seekp(const size_t &offset, std::ios_base::seekdir way)
         break;
     }
 
-    newOffset = std::max(
-        static_cast<int64_t>(std::numeric_limits<size_t>::min()),
-        std::min(newOffset, static_cast<int64_t>(std::numeric_limits<size_t>::max())));
+    newOffset = std::clamp(newOffset, static_cast<int64_t>(0), static_cast<int64_t>(m_size));
 
     m_readPosition = static_cast<size_t>(newOffset);
 }

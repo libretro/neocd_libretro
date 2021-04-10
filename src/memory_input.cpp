@@ -33,12 +33,12 @@ static uint32_t controller1ReadWord(uint32_t address)
 static void controller1WriteByte(uint32_t address, uint32_t data)
 {
     if (address & 1)
-        neocd.timers.watchdogTimer->setDelay(Timer::WATCHDOG_DELAY);
+        neocd.timers.timer<TimerGroup::Watchdog>().setDelay(Timer::WATCHDOG_DELAY);
 }
 
 static void controller1WriteWord(uint32_t address, uint32_t data)
 {
-    neocd.timers.watchdogTimer->setDelay(Timer::WATCHDOG_DELAY);
+    neocd.timers.timer<TimerGroup::Watchdog>().setDelay(Timer::WATCHDOG_DELAY);
 }
 
 const Memory::Handlers controller1Handlers = {

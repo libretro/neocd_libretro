@@ -69,7 +69,7 @@ static void videoRamWriteWord(uint32_t address, uint32_t data)
             // A<--t-><--hirqReg-->B Correct.
             uint32_t timesliceElapsed = Timer::m68kToMaster(m68k_cycles_run());
             uint32_t delay = Timer::pixelToMaster(neocd.video.hirqRegister + 1);
-            neocd.timers.hirqTimer->arm(timesliceElapsed + delay);
+            neocd.timers.timer<TimerGroup::Hbl>().arm(timesliceElapsed + delay);
         }
         break;
     case    0xC:    // $3C000C: IRQ Acknowledge

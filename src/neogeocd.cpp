@@ -13,7 +13,7 @@ extern "C" {
 
 NeoGeoCD neocd;
 
-extern void cdromIRQTimerCallback(Timer* timer, uint32_t userData);
+extern void cdrom75HzTimerCallback(Timer* timer, uint32_t userData);
 extern void cdromIRQ1TimerCDZCallback(Timer* timer, uint32_t userData);
 
 NeoGeoCD::NeoGeoCD() :
@@ -25,7 +25,7 @@ NeoGeoCD::NeoGeoCD() :
     input(),
     audio(),
     cdzIrq1Divisor(0),
-    irqMasterEnable(false),
+    cdCommunicationNReset(false),
     irqMask1(0),
     irqMask2(0),
     irq1EnabledThisFrame(false),
@@ -34,8 +34,6 @@ NeoGeoCD::NeoGeoCD() :
     cdromVector(0),
     pendingInterrupts(0),
     remainingCyclesThisFrame(0),
-    m68kCyclesThisFrame(0),
-    z80CyclesThisFrame(0),
     z80TimeSlice(0),
     z80Disable(true),
     z80NMIDisable(true),
@@ -79,14 +77,12 @@ void NeoGeoCD::reset()
     audio.reset();
 
     cdromVector = 0;
-    irqMasterEnable = false;
+    cdCommunicationNReset = false;
     cdzIrq1Divisor = 0;
     pendingInterrupts = 0;
     irqMask1 = 0;
     irqMask2 = 0;
     remainingCyclesThisFrame = 0;
-    m68kCyclesThisFrame = 0;
-    z80CyclesThisFrame = 0;
     z80TimeSlice = 0;
     z80Disable = true;
     z80NMIDisable = true;
@@ -118,8 +114,6 @@ void NeoGeoCD::runOneFrame()
         uint32_t elapsed = Timer::m68kToMaster(m68k_execute(Timer::masterToM68k(timeSlice)));
         PROFILE_END(p_m68k);
 
-        m68kCyclesThisFrame += elapsed;
-
         z80TimeSlice += elapsed;
         if (z80TimeSlice > 0)
         {
@@ -131,16 +125,13 @@ void NeoGeoCD::runOneFrame()
             {
                 PROFILE(p_z80, ProfilingCategory::CpuZ80);
                 z80Elapsed = Timer::z80ToMaster(z80_execute(Timer::masterToZ80(z80TimeSlice)));
+                PROFILE_END(p_z80);
             }
 
-            z80CyclesThisFrame += z80Elapsed;
             z80TimeSlice -= z80Elapsed;
         }
 
-        remainingCyclesThisFrame -= elapsed;
-
-        audio.updateCurrentSample();
-
+        remainingCyclesThisFrame -= elapsed;       
         currentTimeSeconds += Timer::masterToSeconds(elapsed);
 
         PROFILE(p_videoIRQ, ProfilingCategory::VideoAndIRQ);
@@ -151,9 +142,6 @@ void NeoGeoCD::runOneFrame()
     PROFILE(p_audioYM2610, ProfilingCategory::AudioYM2610);
     audio.finalize();
     PROFILE_END(p_audioYM2610);
-
-    m68kCyclesThisFrame -= Timer::CYCLES_PER_FRAME;
-    z80CyclesThisFrame -= Timer::CYCLES_PER_FRAME;
 }
 
 void NeoGeoCD::setInterrupt(NeoGeoCD::Interrupt interrupt)
@@ -166,6 +154,29 @@ void NeoGeoCD::clearInterrupt(NeoGeoCD::Interrupt interrupt)
     pendingInterrupts &= ~interrupt;
 }
 
+/**
+ * Interrupt levels have been determined by hooking each interrupt and writing SR somewhere in memory.
+ * VBL              -> SR=2100
+ * CD Communication -> SR=2200
+ * CD Decoder       -> SR=2200 
+ * HBL              -> SR=2300
+ * 
+ * The CD communication interrupt frequency changes:
+ * It happens at about 64Hz if the CD-ROM is idle, or exactly 75Hz if the CD-ROM is reading.
+ * 
+ * Timings
+ * =======
+ * 
+ * Measured by hooking the interrupt and incrementing a memory location.
+ * 10 minutes measured with a stopwatch (tried to be as accurate as possible)
+ * 
+ * VBL
+ * 10 minutes = 35759 interrupts -> ~59.5983Hz
+ * 
+ * CD Communication (Nothing playing)
+ * 10 minutes = 38788 interrupts -> ~64.6466Hz
+ * 
+ */
 int NeoGeoCD::updateInterrupts(void)
 {
     int level = 0;
@@ -193,21 +204,31 @@ int NeoGeoCD::updateInterrupts(void)
     return level;
 }
 
-int NeoGeoCD::getScreenX() const
+int32_t NeoGeoCD::m68kMasterCyclesThisFrame() const
 {
-    return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) % Timer::SCREEN_WIDTH);
+    return Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame + Timer::m68kToMaster(m68k_cycles_run());
 }
 
-int NeoGeoCD::getScreenY() const
+int32_t NeoGeoCD::z80CyclesRun() const
 {
-    return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) / Timer::SCREEN_WIDTH);
+   return z80TimeSlice - Timer::z80ToMaster(z80_ICount);
+}
+
+double NeoGeoCD::z80CurrentTimeSeconds() const
+{
+    return currentTimeSeconds + Timer::masterToSeconds(z80CyclesRun());
+}
+
+int32_t NeoGeoCD::z80CyclesThisFrame() const
+{
+    return Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame + z80CyclesRun();
 }
 
 bool NeoGeoCD::saveState(DataPacker& out) const
 {
     // General machine state
     out << cdzIrq1Divisor;
-    out << irqMasterEnable;
+    out << cdCommunicationNReset;
     out << irqMask1;
     out << irqMask2;
     out << irq1EnabledThisFrame;
@@ -216,8 +237,6 @@ bool NeoGeoCD::saveState(DataPacker& out) const
     out << cdromVector;
     out << pendingInterrupts;
     out << remainingCyclesThisFrame;
-    out << m68kCyclesThisFrame;
-    out << z80CyclesThisFrame;
     out << z80TimeSlice;
     out << z80Disable;
     out << z80NMIDisable;
@@ -260,7 +279,7 @@ bool NeoGeoCD::restoreState(DataPacker& in)
 {
     // General machine state
     in >> cdzIrq1Divisor;
-    in >> irqMasterEnable;
+    in >> cdCommunicationNReset;
     in >> irqMask1;
     in >> irqMask2;
     in >> irq1EnabledThisFrame;
@@ -269,8 +288,6 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     in >> cdromVector;
     in >> pendingInterrupts;
     in >> remainingCyclesThisFrame;
-    in >> m68kCyclesThisFrame;
-    in >> z80CyclesThisFrame;
     in >> z80TimeSlice;
     in >> z80Disable;
     in >> z80NMIDisable;

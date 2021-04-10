@@ -54,6 +54,8 @@ typedef struct
 	int(*irq_callback)(int irqline);
 }	Z80_Regs;
 
+extern int z80_ICount;
+
 extern Z80_Regs Z80;
 
 void z80_init ( int index, int clock, const void *config, int ( *irqcallback ) ( int ) );

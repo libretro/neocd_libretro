@@ -52,6 +52,17 @@ static const uint8_t bitReverseTable[] = {
     0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff,
 };
 
+inline bool isCdAudioPlaying()
+{
+    return neocd.cdrom.isPlaying() && neocd.cdrom.isAudio();
+}
+
+inline const AudioBuffer::Sample& currentCdAudioSample()
+{
+    const int32_t currentSample = neocd.audio.buffer.masterCyclesThisFrameToSampleClamped(neocd.m68kMasterCyclesThisFrame());
+    return neocd.audio.buffer.cdSamples[currentSample];
+}
+
 inline uint16_t reverseBits(uint16_t value)
 {
     return (bitReverseTable[value & 0xFF] << 8) | (bitReverseTable[value >> 8]);
@@ -101,14 +112,14 @@ static uint32_t cdInterfaceReadWord(uint32_t address)
         return ((~neocd.machineNationality & 7) << 8) | 0x1000;
 
     case 0x0188:    // FF0188: Current CD-Audio Sample: Left Channel, bits are reversed
-        if (neocd.cdrom.isPlaying() && neocd.cdrom.isAudio())
-            return reverseBits((uint16_t)neocd.audio.cdAudioBuffer[neocd.audio.currentSample * 2]);
+        if (isCdAudioPlaying())
+            return reverseBits(currentCdAudioSample().left);
 
         return 0x0000;
 
     case 0x018A:    // FF018A: Current CD-Audio Sample: Right Channel, bits are reversed
-        if (neocd.cdrom.isPlaying() && neocd.cdrom.isAudio())
-            return reverseBits((uint16_t)neocd.audio.cdAudioBuffer[neocd.audio.currentSample * 2 + 1]);
+        if (isCdAudioPlaying())
+            return reverseBits(currentCdAudioSample().right);
 
         return 0x0000;
 
@@ -235,25 +246,29 @@ static void cdInterfaceWriteByte(uint32_t address, uint32_t data)
         neocd.lc8951.writeCommandPacket(data);
         break;
 
-    case 0x0165:    // FF0165: CDROM Communication, Access Pointer Increment + "Data Strobe" */
+    case 0x0165:    // FF0165: CDROM Communication, Access Pointer Increment + "Data Clock" */
         neocd.lc8951.increasePacketPointer(data);
         break;
 
     case 0x016F:    // FF016F: Watchdog Timer $00 Enable / $01 Disable
         if (data)
-            neocd.timers.watchdogTimer->setState(Timer::Stopped);
+            neocd.timers.timer<TimerGroup::Watchdog>().setState(Timer::Stopped);
         else
-            neocd.timers.watchdogTimer->setState(Timer::Active);
+            neocd.timers.timer<TimerGroup::Watchdog>().setState(Timer::Active);
         break;
 
     case 0x0181:    /*
-                        FF0181: CD IRQ Master Enable (+Communication Reset ?)
-                        When data = 0, CD communication IRQ is disabled
-                        When data = 1, CD communication IRQ is enabled
-                        Not sure if CD decoder IRQ is affected too
+                        FF0181: CD Communication Reset (Active Low)
+                        When data = 0, CD communication is disabled (and no IRQ will trigger)
+                        When data = 1, CD communication is enabled
+                        
+                        This is evidenced by the fact that if a communication timeout is detected (flag $76DB(A5))
+                        this register will be set to zero during the next VBL then back to 1 four frames later.
+
+                        This register has no influence whatsoever on the decoder IRQ (Verified on real hardware)
                     */
 //      LOG(LOG_INFO, "FF0181: %02X\n", data);
-        neocd.irqMasterEnable = (data != 0);
+        neocd.cdCommunicationNReset = (data != 0);
         neocd.lc8951.resetPacketPointers();
         break;
 
@@ -311,7 +326,7 @@ static void cdInterfaceWriteWord(uint32_t address, uint32_t data)
 //      LOG(LOG_INFO, "IRQ MASK1=%04X MASK2=%04X\n", neocd.irqMask1, neocd.irqMask2);
 
         // Used to detect disc activity in the main loop
-        if (neocd.isIRQ1Enabled())
+        if (neocd.isCdDecoderIRQEnabled())
             neocd.irq1EnabledThisFrame = true;
         break;
 

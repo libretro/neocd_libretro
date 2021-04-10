@@ -1435,7 +1435,7 @@ INLINE void refresh_fc_eg_slot(FM_SLOT *SLOT ,int fc ,int kc)
 /* update phase increment counters */
 INLINE void refresh_fc_eg_chan(FM_CH *CH)
 {
-	if (CH->SLOT[SLOT1].Incr == -1)
+	if (CH->SLOT[SLOT1].Incr == UINT32(-1))
 	{
 		int fc = CH->fc;
 		int kc = CH->kcode;
@@ -2763,7 +2763,7 @@ void YM2610Update(int length)
 	if (OPN->ST.mode & 0xc0)
 	{
 		/* 3SLOT MODE */
-		if (cch[1]->SLOT[SLOT1].Incr == -1)
+		if (cch[1]->SLOT[SLOT1].Incr == UINT32(-1))
 		{
 			/* 3 slot mode */
 			refresh_fc_eg_slot(&cch[1]->SLOT[SLOT1], OPN->SL3.fc[1], OPN->SL3.kcode[1]);
@@ -2885,9 +2885,7 @@ void YM2610Update(int length)
 		Limit(lt, MAXOUT, MINOUT);
 		Limit(rt, MAXOUT, MINOUT);
 
-		neocd.audio.audioBuffer[neocd.audio.audioWritePointer * 2] = lt;
-		neocd.audio.audioBuffer[neocd.audio.audioWritePointer * 2 + 1] = rt;
-		neocd.audio.audioWritePointer++;
+		neocd.audio.buffer.appendSample({ static_cast<int16_t>(lt), static_cast<int16_t>(rt) });
 	}
 }
 

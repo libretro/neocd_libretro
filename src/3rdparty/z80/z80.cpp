@@ -203,7 +203,7 @@ enum {
 #define IFF2 Z80.iff2
 #define HALT Z80.halt
 
-static int z80_ICount;
+int z80_ICount;
 Z80_Regs Z80;
 static Uint32 EA;
 

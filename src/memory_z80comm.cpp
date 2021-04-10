@@ -21,10 +21,10 @@ static void z80CommunicationWriteByte(uint32_t address, uint32_t data)
 {
     if (!address)
     {
-        neocd.timers.audioCommandTimer->setUserData(data);
+        neocd.timers.timer<TimerGroup::AudioCommand>().setUserData(data);
 
         // 1 here, not zero otherwise the callback would be called immediately
-        neocd.timers.audioCommandTimer->arm(1);
+        neocd.timers.timer<TimerGroup::AudioCommand>().arm(1);
 
         // End the 68K timeslice here so the Z80 can run up to the current point, then the pseudo audio command timer will trigger the IRQ
         m68k_end_timeslice();
@@ -33,10 +33,10 @@ static void z80CommunicationWriteByte(uint32_t address, uint32_t data)
 
 static void z80CommunicationWriteWord(uint32_t address, uint32_t data)
 {
-    neocd.timers.audioCommandTimer->setUserData(data >> 8);
+    neocd.timers.timer<TimerGroup::AudioCommand>().setUserData(data >> 8);
 
     // 1 here, not zero otherwise the callback would be called immediately
-    neocd.timers.audioCommandTimer->arm(1);
+    neocd.timers.timer<TimerGroup::AudioCommand>().arm(1);
 
     // End the 68K timeslice here so the Z80 can run up to the current point, then the pseudo audio command timer will trigger the IRQ
     m68k_end_timeslice();

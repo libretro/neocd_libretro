@@ -9,19 +9,31 @@
 class Timer
 {
 public:
-    static constexpr double MASTER_CLOCK = 24000000.0; //24167828.0;
-    static constexpr double M68K_CLOCK = 12000000.0; //12083914.0;
-    static constexpr double Z80_CLOCK = 4000000.0; //4027971.0;
-    static constexpr double PIXEL_CLOCK = 6000000.0; //6041957.0;
+    static constexpr double MASTER_CLOCK = 24168000.0;
+    static constexpr double M68K_CLOCK = 12084000.0;
+    static constexpr double Z80_CLOCK = 4028000.0;
+    static constexpr double PIXEL_CLOCK = 6042000.0;
+    
     static constexpr int32_t SCREEN_WIDTH = 384;
     static constexpr int32_t SCREEN_HEIGHT = 264;
-    static constexpr int32_t FIRST_LINE = 16;
-    static constexpr int32_t VBLANK_LINE = FIRST_LINE + 224; // 240
-    static constexpr int32_t HS_START = 30;
+    
+    static constexpr int32_t ACTIVE_AREA_TOP = 16;
+    static constexpr int32_t ACTIVE_AREA_BOTTOM = ACTIVE_AREA_TOP + 224; // 240
+    static constexpr int32_t ACTIVE_AREA_LEFT = 28;
+    static constexpr int32_t ACTIVE_AREA_RIGHT = ACTIVE_AREA_LEFT + 320;
+
+    static constexpr int32_t VBL_IRQ_X = ACTIVE_AREA_LEFT / 2;
+    static constexpr int32_t VBL_IRQ_Y = ACTIVE_AREA_BOTTOM;
+
+    static constexpr int32_t VBL_RELOAD_X = ACTIVE_AREA_RIGHT - 63;
+    static constexpr int32_t VBL_RELOAD_Y = ACTIVE_AREA_BOTTOM;
+
     static constexpr int32_t WATCHDOG_DELAY = round<int32_t>(MASTER_CLOCK * 0.13516792);
-    static constexpr int32_t CDROM_DELAY = round<int32_t>(MASTER_CLOCK / 75.0);
+    static constexpr int32_t CDROM_64HZ_DELAY = round<int32_t>(MASTER_CLOCK / 64.64);
+    static constexpr int32_t CDROM_75HZ_DELAY = round<int32_t>(MASTER_CLOCK / 75.0);
+
+    static constexpr double FRAME_RATE = PIXEL_CLOCK / static_cast<double>(SCREEN_WIDTH * SCREEN_HEIGHT);
     static constexpr int32_t CYCLES_PER_FRAME = round<int32_t>((MASTER_CLOCK / PIXEL_CLOCK) * SCREEN_WIDTH * SCREEN_HEIGHT);
-    static constexpr double FRAME_RATE = /*PIXEL_CLOCK*/ 6041957.0 / static_cast<double>(SCREEN_WIDTH * SCREEN_HEIGHT);
 
     typedef void(*Callback)(Timer* timer, uint32_t userData);
 

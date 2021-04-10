@@ -30,7 +30,7 @@ class DataPacker;
  return the present time in second unit with (double) value
  in timer.c
  */
-#define FM_GET_TIME_NOW() neocd.currentTimeSeconds
+#define FM_GET_TIME_NOW() neocd.z80CurrentTimeSeconds()
 
 typedef int16_t FMSAMPLE;
 typedef int32_t FMSAMPLE_MIX;

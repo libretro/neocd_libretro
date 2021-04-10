@@ -1,3 +1,7 @@
+#include <cstring>
+#include <algorithm>
+#include <array>
+
 #include "neogeocd.h"
 #include "memory.h"
 #include "memory_paletteram.h"
@@ -11,12 +15,6 @@
 extern "C" {
     #include "3rdparty/musashi/m68kcpu.h"
 }
-
-#include <cstring>
-#include <algorithm>
-#include <array>
-
-static const std::array<uint8_t, 16> YZOOM_ORDER = { 0x8, 0x0, 0xC, 0x4, 0xA, 0x2, 0xE, 0x6, 0x9, 0x1, 0xD, 0x5, 0xB, 0x3, 0xF, 0x7 };
 
 /*
     What you see on a real Neo Geo CD:
@@ -169,54 +167,52 @@ void Memory::reset()
 
 void Memory::mapVectorsToRam()
 {
-    regionLookupTable[0] = &vectorRegions[1];
+    regionLookupTable[0] = &vectorRegions[Vectors::RAM];
     vectorsMappedToRom = false;
 }
 
 void Memory::mapVectorsToRom()
 {
-    regionLookupTable[0] = &vectorRegions[0];
+    regionLookupTable[0] = &vectorRegions[Vectors::ROM];
     vectorsMappedToRom = true;
 }
 
 void Memory::buildMemoryMap()
 {
-    memoryRegions.clear();
-    vectorRegions.clear();
-
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadDirect | Memory::Region::WriteDirect), 0x000000, 0x1FFFFF, 0x001FFFFF, nullptr, neocd.memory.ram, neocd.memory.ram });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x300000, 0x31FFFF, 0x00000001, &controller1Handlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x320000, 0x33FFFF, 0x00000001, &z80CommunicationHandlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x340000, 0x35FFFF, 0x00000001, &controller2Handlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x380000, 0x39FFFF, 0x00000001, &controller3Handlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x3A0000, 0x3BFFFF, 0x0000001F, &switchHandlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x3C0000, 0x3DFFFF, 0x0000000F, &videoRamHandlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x400000, 0x4FFFFF, 0x00001FFF, &paletteRamHandlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0x800000, 0x8FFFFF, 0x00003FFF, &backupRamHandlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadDirect | Memory::Region::WriteNop),    0xC00000, 0xCFFFFF, 0x0007FFFF, nullptr, neocd.memory.rom, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0xE00000, 0xEFFFFF, 0x000FFFFF, &mappedRamHandlers, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0xFF0000, 0xFF01FF, 0x000001FF, &cdInterfaceHandlers, nullptr, nullptr });
+    memoryRegions[Regions::RAM] = { Memory::Region::ReadDirect | Memory::Region::WriteDirect, 0x000000, 0x1FFFFF, 0x001FFFFF, nullptr, neocd.memory.ram, neocd.memory.ram };
+    memoryRegions[Regions::Controller1] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x300000, 0x31FFFF, 0x00000001, &controller1Handlers, nullptr, nullptr };
+    memoryRegions[Regions::Z80Comm] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x320000, 0x33FFFF, 0x00000001, &z80CommunicationHandlers, nullptr, nullptr };
+    memoryRegions[Regions::Controller2] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x340000, 0x35FFFF, 0x00000001, &controller2Handlers, nullptr, nullptr };
+    memoryRegions[Regions::Controller3] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x380000, 0x39FFFF, 0x00000001, &controller3Handlers, nullptr, nullptr };
+    memoryRegions[Regions::Switches] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x3A0000, 0x3BFFFF, 0x0000001F, &switchHandlers, nullptr, nullptr };
+    memoryRegions[Regions::Video] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x3C0000, 0x3DFFFF, 0x0000000F, &videoRamHandlers, nullptr, nullptr };
+    memoryRegions[Regions::Palette] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x400000, 0x4FFFFF, 0x00001FFF, &paletteRamHandlers, nullptr, nullptr };
+    memoryRegions[Regions::Backup] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x800000, 0x8FFFFF, 0x00003FFF, &backupRamHandlers, nullptr, nullptr };
+    memoryRegions[Regions::ROM] = { Memory::Region::ReadDirect | Memory::Region::WriteNop, 0xC00000, 0xCFFFFF, 0x0007FFFF, nullptr, neocd.memory.rom, nullptr };
+    memoryRegions[Regions::MappedRAM] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0xE00000, 0xEFFFFF, 0x000FFFFF, &mappedRamHandlers, nullptr, nullptr };
+    memoryRegions[Regions::CDInterface] = { static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0xFF0000, 0xFF01FF, 0x000001FF, &cdInterfaceHandlers, nullptr, nullptr };
 
     // Non essential areas
 
     // The 0x2000000 area is normally random data (whatever is on the data bus?)
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadNop | Memory::Region::WriteNop), 0x200000, 0x2FFFFF, 0x00000000, nullptr, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadNop | Memory::Region::WriteNop), 0x360000, 0x37FFFF, 0x00000000, nullptr, nullptr, nullptr });
-    memoryRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadNop | Memory::Region::WriteNop), 0x3E0000, 0x3FFFFF, 0x00000000, nullptr, nullptr, nullptr });
+    memoryRegions[Regions::Unused20] = { Memory::Region::ReadNop | Memory::Region::WriteNop, 0x200000, 0x2FFFFF, 0x00000000, nullptr, nullptr, nullptr };
+    memoryRegions[Regions::Unused36] = { Memory::Region::ReadNop | Memory::Region::WriteNop, 0x360000, 0x37FFFF, 0x00000000, nullptr, nullptr, nullptr };
+    memoryRegions[Regions::Unused3E] = { Memory::Region::ReadNop | Memory::Region::WriteNop, 0x3E0000, 0x3FFFFF, 0x00000000, nullptr, nullptr, nullptr };
 
     // Those regions are only used to swap the first 0x80 bytes of the address map between ROM and RAM
-    vectorRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadDirect | Memory::Region::WriteNop), 0x000000, 0x00007F, 0x0000007F, nullptr, neocd.memory.rom, nullptr });
-    vectorRegions.push_back({ static_cast<Memory::Region::Flags>(Memory::Region::ReadDirect | Memory::Region::WriteDirect), 0x000000, 0x00007F, 0x0000007F, nullptr, neocd.memory.ram, neocd.memory.ram });
+    vectorRegions[Vectors::ROM] = { Memory::Region::ReadDirect | Memory::Region::WriteNop, 0x000000, 0x00007F, 0x0000007F, nullptr, neocd.memory.rom, nullptr };
+    vectorRegions[Vectors::RAM] = { Memory::Region::ReadDirect | Memory::Region::WriteDirect, 0x000000, 0x00007F, 0x0000007F, nullptr, neocd.memory.ram, neocd.memory.ram };
 }
 
 void Memory::initializeRegionLookupTable()
 {
-    for (int i = 0; i < static_cast<int>(memoryRegions.size()); ++i)
+    for(auto& memoryRegion : memoryRegions)
     {
-        for (const Memory::Region** ptr = &regionLookupTable[memoryRegions[i].startAddress / MEMORY_GRANULARITY];
-            ptr <= &regionLookupTable[memoryRegions[i].endAddress / MEMORY_GRANULARITY];
-            ++ptr)
-            *ptr = &memoryRegions[i];
+        const auto start = &regionLookupTable[memoryRegion.startAddress / MEMORY_GRANULARITY];
+        const auto end = &regionLookupTable[memoryRegion.endAddress / MEMORY_GRANULARITY];
+        
+        for (auto ptr = start; ptr <= end; ++ptr)
+            *ptr = &memoryRegion;
     }
 }
 
@@ -224,6 +220,8 @@ void Memory::generateYZoomData()
 {
     // Generate Y Zoom data instead of loading it from a file, 100% identical to a real machine.
     // For verification, generated data should have a CRC32 of E09E253C
+
+    static const std::array<uint8_t, 16> YZOOM_ORDER = { 0x8, 0x0, 0xC, 0x4, 0xA, 0x2, 0xE, 0x6, 0x9, 0x1, 0xD, 0x5, 0xB, 0x3, 0xF, 0x7 };
 
     uint8_t* out = yZoomRom;
 

@@ -1,12 +1,12 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "neocd_endian.h"
-#include "datapacker.h"
-
 #include <cstddef>
 #include <cstdint>
-#include <vector>
+#include <array>
+
+#include "neocd_endian.h"
+#include "datapacker.h"
 
 class Memory
 {
@@ -34,6 +34,41 @@ public:
         Memory::WriteHandler writeWord;
     };
 
+    class Regions
+    {
+    public:
+        enum
+        {
+            RAM,
+            Unused20,
+            Controller1,
+            Z80Comm,
+            Controller2,
+            Unused36,
+            Controller3,
+            Switches,
+            Video,
+            Unused3E,
+            Palette,
+            Backup,
+            ROM,
+            MappedRAM,
+            CDInterface,
+            Count
+        };
+    };
+
+    class Vectors
+    {
+    public:
+        enum
+        {
+            ROM,
+            RAM,
+            Count
+        };
+    };
+
     struct Region
     {
         enum Flags
@@ -46,7 +81,7 @@ public:
             WriteDirect = 0x20
         };
 
-        Memory::Region::Flags flags;
+        uint32_t flags;
         uint32_t startAddress;
         uint32_t endAddress;
         uint32_t addressMask;
@@ -126,8 +161,8 @@ protected:
 
     void dumpDebugState();
     
-    std::vector<Memory::Region> memoryRegions;
-    std::vector<Memory::Region> vectorRegions;
+    std::array<Memory::Region, Regions::Count> memoryRegions;
+    std::array<Memory::Region, Vectors::Count> vectorRegions;
 };
 
 DataPacker& operator<<(DataPacker& out, const Memory& memory);

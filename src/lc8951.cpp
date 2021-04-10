@@ -1,11 +1,11 @@
+#include <algorithm>
+#include <cstring>
+
 #include "lc8951.h"
 #include "neogeocd.h"
 extern "C" {
     #include "3rdparty/musashi/m68kcpu.h"
 }
-
-#include <algorithm>
-#include <cstring>
 
 //#define LC8951_LOG(x, ...) LOG(x, __VA_ARGS__)
 #define LC8951_LOG(x, ...)

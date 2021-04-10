@@ -1,6 +1,8 @@
 #ifndef OGGFILE_H
 #define OGGFILE_H
 
+#define OV_EXCLUDE_STATIC_CALLBACKS
+
 #include <cstdint>
 
 #include "abstractfile.h"

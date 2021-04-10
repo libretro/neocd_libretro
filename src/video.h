@@ -10,7 +10,7 @@ class Video
 public:
     static constexpr uint32_t FRAMEBUFFER_WIDTH = 320;
     static constexpr uint32_t FRAMEBUFFER_HEIGHT = 224;
-    static constexpr float ASPECT_RATIO = 4.0f / 3.0f;
+    static constexpr float ASPECT_RATIO = static_cast<float>(FRAMEBUFFER_WIDTH) / static_cast<float>(FRAMEBUFFER_HEIGHT); //4.0f / 3.0f;
     static constexpr uint16_t MAX_SPRITES_PER_SCREEN = 381;
     static constexpr uint16_t MAX_SPRITES_PER_LINE = 96;
 

@@ -52,22 +52,24 @@ public:
     void clearInterrupt(NeoGeoCD::Interrupt interrupt);
     int  updateInterrupts();
     
-    int  getScreenX() const;
-    int  getScreenY() const;
-
-    inline bool isIRQ1Enabled() const
+    inline int  getScreenX() const
     {
-        return ((irqMask1 & 0x500) == 0x500) && irqMasterEnable;
+        return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) % Timer::SCREEN_WIDTH);
+    }
+
+    inline int  getScreenY() const
+    {
+        return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) / Timer::SCREEN_WIDTH);
+    }
+
+    inline bool isCdDecoderIRQEnabled() const
+    {
+        return ((irqMask1 & 0x500) == 0x500);
     }
     
-    inline bool isIRQ2Enabled() const
+    inline bool isCdCommunicationIRQEnabled() const
     {
-        return ((irqMask1 & 0x50) == 0x50) && irqMasterEnable;
-    }
-
-    inline bool isCDZ() const
-    {
-        return biosType == Bios::CDZ;
+        return ((irqMask1 & 0x50) == 0x50) && cdCommunicationNReset;
     }
 
     inline bool isVBLEnabled() const
@@ -79,6 +81,19 @@ public:
     {
         return (irqMask2 & 0x700) == 0x700;
     }
+
+    inline bool isCDZ() const
+    {
+        return biosType == Bios::CDZ;
+    }
+
+    int32_t m68kMasterCyclesThisFrame() const;
+
+    int32_t z80CyclesRun() const;
+
+    double z80CurrentTimeSeconds() const;
+
+    int32_t z80CyclesThisFrame() const;
 
     bool saveState(DataPacker& out) const;
     bool restoreState(DataPacker& in);
@@ -93,7 +108,7 @@ public:
 
     // Variables to save in savestate
     uint32_t    cdzIrq1Divisor;
-    bool        irqMasterEnable;
+    bool        cdCommunicationNReset;
     uint32_t    irqMask1;
     uint32_t    irqMask2;
     bool        irq1EnabledThisFrame;
@@ -102,8 +117,6 @@ public:
     uint32_t    cdromVector;
     uint32_t    pendingInterrupts;
     int32_t     remainingCyclesThisFrame;
-    int32_t     m68kCyclesThisFrame;
-    int32_t     z80CyclesThisFrame;
     int32_t     z80TimeSlice;
     bool        z80Disable;
     bool        z80NMIDisable;
@@ -111,7 +124,6 @@ public:
     uint32_t    audioCommand;
     uint32_t    audioResult;
     uint32_t    biosType;
-    
     // End variables to save in savestate
 };
 
