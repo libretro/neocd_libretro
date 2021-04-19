@@ -1,304 +1,140 @@
-#include <algorithm>
 #include <cstring>
 
+//#define DR_FLAC_IMPLEMENTATION
 #include "flacfile.h"
 
-#ifndef UNUSED_ARG
-#define UNUSED_ARG(x) (void)x
-#endif
-
-// FLAC stream read callback
-FLAC__StreamDecoderReadStatus flac_read_cb(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
+size_t drflac_read_cb(void* pUserData, void* pBufferOut, size_t bytesToRead)
 {
-    UNUSED_ARG(decoder);
-
-    FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    AbstractFile *file = flacFile->m_file;
-
-    if (!file || !file->isOpen())
-        return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
-
-    *bytes = file->readData(&buffer[0], *bytes);
-
-    if (*bytes == 0)
-        return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
-
-    return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
+    auto file = reinterpret_cast<AbstractFile*>(pUserData);
+    return file->readData(pBufferOut, bytesToRead);
 }
 
-// FLAC stream seek callback
-FLAC__StreamDecoderSeekStatus flac_seek_cb(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data)
+drflac_bool32 drflac_seek_cb(void* pUserData, int offset, drflac_seek_origin origin)
 {
-    UNUSED_ARG(decoder);
+    auto file = reinterpret_cast<AbstractFile*>(pUserData);
 
-    FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    AbstractFile *file = flacFile->m_file;
+    int64_t destination;
 
-    if (!file || !file->isOpen())
-        return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+    if (origin == drflac_seek_origin_current)
+        destination = file->pos() + offset;
+    else
+        destination = offset;
 
-    if (!file->seek(absolute_byte_offset))
-        return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+    if (!file->seek(destination))
+        return DRFLAC_FALSE;
 
-    return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
-}
-
-// FLAC stream tell callback
-FLAC__StreamDecoderTellStatus flac_tell_cb(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
-{
-    UNUSED_ARG(decoder);
-
-    FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    AbstractFile *file = flacFile->m_file;
-
-    if (!file || !file->isOpen())
-        return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
-
-    *absolute_byte_offset = static_cast<FLAC__uint64>(file->pos());
-
-    return FLAC__STREAM_DECODER_TELL_STATUS_OK;
-}
-
-// FLAC stream length callback
-FLAC__StreamDecoderLengthStatus flac_length_cb(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data)
-{
-    UNUSED_ARG(decoder);
-
-    FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    AbstractFile *file = flacFile->m_file;
-
-    if (!file || !file->isOpen())
-        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
-
-    *stream_length = static_cast<FLAC__uint64>(file->size());
-
-    return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
-}
-
-// FLAC stream end of file callback
-FLAC__bool flac_eof_cb(const FLAC__StreamDecoder *decoder, void *client_data)
-{
-    UNUSED_ARG(decoder);
-
-    FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-    AbstractFile *file = flacFile->m_file;
-
-    if (!file || !file->isOpen())
-        return false;
-
-    return file->eof();
-}
-
-// FLAC stream write callback
-FLAC__StreamDecoderWriteStatus flac_write_cb(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
-{
-    UNUSED_ARG(decoder);
-
-    FlacFile* flacFile = reinterpret_cast<FlacFile*>(client_data);
-
-    // This should not be called if there bytes still left in the buffer!
-    if (flacFile->bytesAvailable())
-        return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
-
-    // Get the audio characteristics from the frame header
-    uint32_t samples = frame->header.blocksize;
-    uint32_t channels = frame->header.channels;
-    uint32_t bitsPerSample = frame->header.bits_per_sample;
-
-    // Make sure we have enough room for the samples and reset the read pointer
-    // FLAC seems to pass a constant sample size so it should not trigger too many memory allocations
-    flacFile->m_buffer.resize(samples * 4);
-    flacFile->m_readPosition = 0;
-
-    // Set up the pointers for the conversion, in case of a monaural FLAC we duplicate the channel
-    int16_t* out = reinterpret_cast<int16_t*>(&flacFile->m_buffer[0]);
-    const FLAC__int32* left = buffer[0];
-    const FLAC__int32* right = buffer[channels == 1 ? 0 : 1];
-
-    // Copy the samples in the buffer
-    if (bitsPerSample == 16)
-    {
-        while(samples >= 8)
-        {
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            samples -= 8;
-        }
-
-        while(samples)
-        {
-            *out++ = static_cast<int16_t>(*left++);
-            *out++ = static_cast<int16_t>(*right++);
-            --samples;
-        }
-    }
-    else if (bitsPerSample == 8)
-    {
-        while(samples)
-        {
-            *out++ = static_cast<int16_t>((*left++) << 8);
-            *out++ = static_cast<int16_t>((*right++) << 8);
-            --samples;
-        }
-    }
-    else if (bitsPerSample == 24)
-    {
-        while(samples)
-        {
-            *out++ = static_cast<int16_t>((*left++) >> 8);
-            *out++ = static_cast<int16_t>((*right++) >> 8);
-            --samples;
-        }
-    }
-
-    return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
-}
-
-// FLAC stream error callback
-void flac_error_cb(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
-{
-    UNUSED_ARG(decoder);
-    UNUSED_ARG(status);
-    UNUSED_ARG(client_data);
+    return DRFLAC_TRUE;
 }
 
 FlacFile::FlacFile() :
-    m_decoder(nullptr),
     m_file(nullptr),
-    m_buffer(),
-    m_readPosition(0)
+    m_flac(nullptr),
+    m_remainder(),
+    m_remainderPos(4)
 {
 }
 
 FlacFile::~FlacFile()
 {
-    if (m_decoder)
-        FLAC__stream_decoder_delete(m_decoder);
+    cleanup();
 }
 
-bool FlacFile::initialize(AbstractFile* file)
+bool FlacFile::initialize(AbstractFile *file)
 {
-    // Set the new pointer to the file stream
+    cleanup();
+
     m_file = file;
 
-    // Empty the read buffer
-    m_readPosition = m_buffer.size();
+    if (!m_file->isOpen())
+        return false;
 
-    // Create and initialize the decoder, if needed
-    if (!m_decoder)
+    m_flac = drflac_open(drflac_read_cb, drflac_seek_cb, m_file, nullptr);
+    if (m_flac == nullptr)
+        return false;
+
+    if ((m_flac->channels != 2) || (m_flac->sampleRate != 44100))
     {
-        m_decoder = FLAC__stream_decoder_new();
-        if (!m_decoder)
-            return false;
-
-        FLAC__StreamDecoderInitStatus result = FLAC__stream_decoder_init_stream(
-                    m_decoder,
-                    flac_read_cb,
-                    flac_seek_cb,
-                    flac_tell_cb,
-                    flac_length_cb,
-                    flac_eof_cb,
-                    flac_write_cb,
-                    nullptr,
-                    flac_error_cb,
-                    this);
-        if (result != FLAC__STREAM_DECODER_INIT_STATUS_OK)
-            return false;
-
-        return true;
+        cleanup();
+        return false;
     }
 
-    // If the decoder already exists, just reset it
-    return (FLAC__stream_decoder_reset(m_decoder) != 0);
-}
-
-size_t FlacFile::bytesAvailable() const
-{
-    return m_buffer.size() - m_readPosition;
+    return true;
 }
 
 size_t FlacFile::read(char *data, size_t size)
 {
-    size_t done = 0;
+    size_t result = 0;
 
-    if (!m_decoder)
-        return done;
+    auto readBytes = readRemainder(data, size);
+    data += readBytes;
+    size -= readBytes;
+    result += readBytes;
 
-    // Loop until the requested size has been read
-    while(size)
-    {
-        // Loop processing single frames until some data is available
-        while(!bytesAvailable())
-        {
-            if (!FLAC__stream_decoder_process_single(m_decoder))
-                return done;
+    if (size == 0)
+        return result;
 
-            FLAC__StreamDecoderState status = FLAC__stream_decoder_get_state(m_decoder);
-            if ((status == FLAC__STREAM_DECODER_END_OF_STREAM) || (status == FLAC__STREAM_DECODER_ABORTED))
-                return done;
-        }
+    auto readFrames = drflac_read_pcm_frames_s16(m_flac, size / 4, reinterpret_cast<drflac_int16*>(data));
+    data += readFrames * 4;
+    size -= readFrames * 4;
+    result += readFrames * 4;
 
-        // Determine the slice of data to copy
-        size_t slice = std::min(size, bytesAvailable());
+    if (size == 0)
+        return result;
 
-        // Copy the data
-        std::memcpy(data, &m_buffer[m_readPosition], slice);
+    readFrames = drflac_read_pcm_frames_s16(m_flac, 1, reinterpret_cast<drflac_int16*>(&m_remainder[0]));
+    if (readFrames != 0)
+        m_remainderPos = 0;
 
-        // Advance the pointers
-        m_readPosition += slice;
-        done += slice;
-        data += slice;
-        size -= slice;
-    }
+    readBytes = readRemainder(data, size);
+    data += readBytes;
+    size -= readBytes;
+    result += readBytes;
 
-    return done;
+    return result;
 }
 
 bool FlacFile::seek(size_t position)
 {
-    if (!m_decoder)
+    if (m_flac == nullptr)
         return false;
 
-    // Empty the read buffer
-    m_readPosition = m_buffer.size();
+    clearRemainder();
 
-    // Position is in bytes and FLAC wants samples so we divide by 4 (2 channels, 16 bits)
-    return (FLAC__stream_decoder_seek_absolute(m_decoder, static_cast<FLAC__uint64>(position / 4)) != 0);
+    return (drflac_seek_to_pcm_frame(m_flac, position / 4) == DRFLAC_TRUE);
 }
 
 size_t FlacFile::length()
 {
-    if (!m_decoder)
-        return false;
+    if (m_flac == nullptr)
+        return 0;
 
-    size_t size = static_cast<size_t>(FLAC__stream_decoder_get_total_samples(m_decoder));
-    int i = 1000;
-
-    // If the info is not available, decode stuff until it is
-    while((size == 0) && (i > 0))
-    {
-        FLAC__stream_decoder_process_single(m_decoder);
-        size = static_cast<size_t>(FLAC__stream_decoder_get_total_samples(m_decoder));
-        --i;
-    }
-
-    return size * 4;
+    return m_flac->totalPCMFrameCount * 4;
 }
 
 void FlacFile::cleanup()
 {
+    if (m_flac != nullptr)
+        drflac_close(m_flac);
+
+    m_flac = nullptr;
+    m_file = nullptr;
+    clearRemainder();
+}
+
+size_t FlacFile::readRemainder(char *data, size_t size)
+{
+    const size_t available = 4 - m_remainderPos;
+
+    if (size > available)
+        size = available;
+
+    std::memcpy(data, &m_remainder[m_remainderPos], size);
+    m_remainderPos += size;
+
+    return size;
+}
+
+void FlacFile::clearRemainder()
+{
+    m_remainderPos = 4;
 }

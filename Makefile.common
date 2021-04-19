@@ -1,18 +1,23 @@
-LIBRETRO_COMMON_DIR  = $(CORE_DIR)/deps/libretro-common
-LIBRETRO_DEPS_DIR    = $(CORE_DIR)/src/3rdparty/libretro-deps
+LIBRETRO_DEPS_DIR    = $(CORE_DIR)/deps
+LIBOGG_DIR           = $(LIBRETRO_DEPS_DIR)/libogg
+LIBVORBIS_DIR        = $(LIBRETRO_DEPS_DIR)/libvorbis
+LIBCHDR_DIR          = $(LIBRETRO_DEPS_DIR)/libchdr
+ZLIB_DIR             = $(LIBCHDR_DIR)/deps/zlib-1.2.11
+LZMA_DIR             = $(LIBCHDR_DIR)/deps/lzma-19.00
+LIBRETRO_COMMON_DIR  = $(LIBRETRO_DEPS_DIR)/libretro-common
 
-INCFLAGS   :=  \
+INCFLAGS :=  \
 	-I$(CORE_DIR)/src \
-	-I$(CORE_DIR)/src/3rdparty/zlib \
 	-I$(LIBRETRO_COMMON_DIR)/include \
 	-I$(LIBRETRO_DEPS_DIR)/ \
-	-I$(LIBRETRO_DEPS_DIR)/7zip \
-	-I$(LIBRETRO_DEPS_DIR)/libFLAC/include \
-	-I$(LIBRETRO_DEPS_DIR)/libogg/include \
-	-I$(LIBRETRO_DEPS_DIR)/libvorbis/include \
-	-I$(LIBRETRO_DEPS_DIR)/libvorbis/lib
+	-I$(LIBCHDR_DIR)/include \
+	-I$(LZMA_DIR)/include \
+	-I$(LIBOGG_DIR)/include \
+	-I$(LIBVORBIS_DIR)/include \
+	-I$(LIBVORBIS_DIR)/lib \
+	-I$(ZLIB_DIR)
 
-SOURCES_CXX	:=\
+SOURCES_CXX :=\
 	$(CORE_DIR)/src/audio.cpp \
 	$(CORE_DIR)/src/bios.cpp \
 	$(CORE_DIR)/src/cdrom.cpp \
@@ -51,15 +56,19 @@ SOURCES_CXX += \
 	${CORE_DIR}/src/3rdparty/z80/z80daisy.cpp
 
 SOURCES_C := \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_bitstream.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_cdrom.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_chd.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_flac.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_flac_codec.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_huffman.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_lzma.c \
-	$(LIBRETRO_COMMON_DIR)/formats/libchdr/libchdr_zlib.c \
-	
+	$(CORE_DIR)/src/3rdparty/musashi/m68kcpu.c \
+	$(CORE_DIR)/src/3rdparty/musashi/m68kopac.c \
+	$(CORE_DIR)/src/3rdparty/musashi/m68kopdm.c \
+	$(CORE_DIR)/src/3rdparty/musashi/m68kopnz.c \
+	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c
+
+SOURCES_C += \
+	$(LIBCHDR_DIR)/src/libchdr_bitstream.c \
+	$(LIBCHDR_DIR)/src/libchdr_cdrom.c \
+	$(LIBCHDR_DIR)/src/libchdr_chd.c \
+	$(LIBCHDR_DIR)/src/libchdr_flac.c \
+	$(LIBCHDR_DIR)/src/libchdr_huffman.c
+
 SOURCES_C += \
 	$(LIBRETRO_COMMON_DIR)/compat/compat_posix_string.c \
 	$(LIBRETRO_COMMON_DIR)/compat/compat_strcasestr.c \
@@ -68,7 +77,6 @@ SOURCES_C += \
 	$(LIBRETRO_COMMON_DIR)/encodings/encoding_crc32.c \
 	$(LIBRETRO_COMMON_DIR)/encodings/encoding_utf.c \
 	$(LIBRETRO_COMMON_DIR)/file/archive_file.c \
-	$(LIBRETRO_COMMON_DIR)/file/archive_file_7z.c \
 	$(LIBRETRO_COMMON_DIR)/file/archive_file_zlib.c \
 	$(LIBRETRO_COMMON_DIR)/file/file_path.c \
 	$(LIBRETRO_COMMON_DIR)/file/file_path_io.c \
@@ -85,72 +93,55 @@ SOURCES_C += \
 	$(LIBRETRO_COMMON_DIR)/vfs/vfs_implementation.c
 
 SOURCES_C += \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/bitreader.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/cpu.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/crc.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/fixed.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/float.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/format.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/lpc.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/md5.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/memory.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/stream_decoder.c \
-	$(LIBRETRO_DEPS_DIR)/libFLAC/window.c
+	$(LZMA_DIR)/src/Alloc.c \
+	$(LZMA_DIR)/src/Bra86.c \
+	$(LZMA_DIR)/src/BraIA64.c \
+	$(LZMA_DIR)/src/CpuArch.c \
+	$(LZMA_DIR)/src/Delta.c \
+	$(LZMA_DIR)/src/LzFind.c \
+	$(LZMA_DIR)/src/Lzma86Dec.c \
+	$(LZMA_DIR)/src/LzmaDec.c \
+	$(LZMA_DIR)/src/LzmaEnc.c \
+	$(LZMA_DIR)/src/Sort.c
 
-SOURCES_C  += \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zBuf.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zCrc.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zCrcOpt.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zDec.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zFile.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zIn.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/7zStream.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/Bcj2.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/Bra.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/Bra86.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/LzFind.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/Lzma2Dec.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/LzmaDec.c \
-	$(LIBRETRO_DEPS_DIR)/7zip/LzmaEnc.c \
-	$(LIBRETRO_DEPS_DIR)/libogg/src/bitwise.c \
-	$(LIBRETRO_DEPS_DIR)/libogg/src/framing.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/analysis.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/bitrate.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/block.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/codebook.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/envelope.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/floor0.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/floor1.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/info.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/lookup.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/lpc.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/lsp.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/mapping0.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/mdct.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/psy.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/registry.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/res0.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/sharedbook.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/smallft.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/synthesis.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/vorbisfile.c \
-	$(LIBRETRO_DEPS_DIR)/libvorbis/lib/window.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kcpu.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kopac.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kopdm.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kopnz.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c \
-	$(CORE_DIR)/src/3rdparty/zlib/adler32.c \
-	$(CORE_DIR)/src/3rdparty/zlib/crc32.c \
-	$(CORE_DIR)/src/3rdparty/zlib/deflate.c \
-	$(CORE_DIR)/src/3rdparty/zlib/infback.c \
-	$(CORE_DIR)/src/3rdparty/zlib/inffast.c \
-	$(CORE_DIR)/src/3rdparty/zlib/inflate.c \
-	$(CORE_DIR)/src/3rdparty/zlib/inftrees.c \
-	$(CORE_DIR)/src/3rdparty/zlib/trees.c \
-	$(CORE_DIR)/src/3rdparty/zlib/zutil.c
+SOURCES_C += \
+	$(LIBOGG_DIR)/src/bitwise.c \
+	$(LIBOGG_DIR)/src/framing.c
+
+SOURCES_C += \
+	$(LIBVORBIS_DIR)/lib/analysis.c \
+	$(LIBVORBIS_DIR)/lib/bitrate.c \
+	$(LIBVORBIS_DIR)/lib/block.c \
+	$(LIBVORBIS_DIR)/lib/codebook.c \
+	$(LIBVORBIS_DIR)/lib/envelope.c \
+	$(LIBVORBIS_DIR)/lib/floor0.c \
+	$(LIBVORBIS_DIR)/lib/floor1.c \
+	$(LIBVORBIS_DIR)/lib/info.c \
+	$(LIBVORBIS_DIR)/lib/lookup.c \
+	$(LIBVORBIS_DIR)/lib/lpc.c \
+	$(LIBVORBIS_DIR)/lib/lsp.c \
+	$(LIBVORBIS_DIR)/lib/mapping0.c \
+	$(LIBVORBIS_DIR)/lib/mdct.c \
+	$(LIBVORBIS_DIR)/lib/psy.c \
+	$(LIBVORBIS_DIR)/lib/registry.c \
+	$(LIBVORBIS_DIR)/lib/res0.c \
+	$(LIBVORBIS_DIR)/lib/sharedbook.c \
+	$(LIBVORBIS_DIR)/lib/smallft.c \
+	$(LIBVORBIS_DIR)/lib/synthesis.c \
+	$(LIBVORBIS_DIR)/lib/vorbisfile.c \
+	$(LIBVORBIS_DIR)/lib/window.c
+
+SOURCES_C += \
+	$(ZLIB_DIR)/adler32.c \
+	$(ZLIB_DIR)/crc32.c \
+	$(ZLIB_DIR)/deflate.c \
+	$(ZLIB_DIR)/infback.c \
+	$(ZLIB_DIR)/inffast.c \
+	$(ZLIB_DIR)/inflate.c \
+	$(ZLIB_DIR)/inftrees.c \
+	$(ZLIB_DIR)/trees.c \
+	$(ZLIB_DIR)/zutil.c
 
 ifneq ($(STATIC_LINKING),1)
 SOURCES_C +=	$(SRC_LIBRETRO_COMMON)
 endif
-
