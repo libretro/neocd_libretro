@@ -7,7 +7,7 @@ categories = "Emulator"
 systemname = "SNK Neo Geo CD"
 database = "SNK - Neo Geo CD"
 license = "LGPLv3"
-display_version = "2019"
+display_version = "2021"
 supports_no_game = "false"
 
 firmware_count = 12

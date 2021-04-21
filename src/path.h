@@ -26,6 +26,14 @@ std::string make_path(const char* path, const char* filename);
 
 std::string make_srm_path(bool per_content_saves, const char* content_path);
 
+bool string_compare_insensitive(const std::string& a, const std::string& b);
+
 bool string_compare_insensitive(const char* a, const char* b);
+
+bool path_is_archive(const std::string& path);
+
+bool path_is_bios_file(const std::string& path);
+
+void split_compressed_path(const std::string& path, std::string& archive, std::string& file);
 
 #endif

@@ -36,23 +36,14 @@ Copy `neocd_libretro.info` to folder `RetroArch/info`
 
 ### Required BIOS Files
 
-To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder.
-
-> **&#128211; Note:** The hashes are given to help you verify the files have not been tampered with, the emulator doesn't verify them.
-
-#### Zoom ROM
-
-> **&#128211; Note:** Need one in the following table
-
-|Description        | Filename  | SHA1                                     |
-|-------------------|-----------|------------------------------------------|
-| Y Zoom ROM (Bad dump - MAME 0.127)       | ng-lo.rom | 2b1c719531dac9bb503f22644e6e4236b91e7cfc |
-| Y Zoom ROM (MAME) | 000-lo.lo | 5992277debadeb64d1c1c64b0a92d9293eaf7e4a |
+To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder. NeoCD will look for any .bin or .rom file in the `neocd` folder and any folder under it. It will also look into .zip archives. BIOS files are identified by contents so the name of the files don't matter. File hashes do not matter either.
 
 #### BIOS
 
 > **&#128211; Note:** You need at least one in the following table. If several BIOSes are available, it will be possible to choose which to run in the Core Options Menu.
 The files will be automatically byte swapped if needed. 
+
+> **&#128211; Note:** The hashes are given to help you verify the files have not been tampered with, the emulator doesn't verify them.
 
 | Description                | Filename       | SHA1                                     |
 |----------------------------|----------------|------------------------------------------|

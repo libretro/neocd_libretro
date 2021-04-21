@@ -2,8 +2,9 @@
 #include <cstring>
 
 #include "bios.h"
-#include "neocd_endian.h"
+#include "memory.h"
 #include "misc.h"
+#include "neocd_endian.h"
 
 // The patches below are just for convenience / speed as the emulator can run a BIOS unmodified.
 
@@ -135,7 +136,7 @@ void Bios::autoByteSwap(uint8_t *biosData)
     if (*reinterpret_cast<uint16_t*>(&biosData[0]) == LITTLE_ENDIAN_WORD(0x0010))
     {
         uint16_t* start = reinterpret_cast<uint16_t*>(&biosData[0]);
-        uint16_t* end = reinterpret_cast<uint16_t*>(&biosData[/*Memory::ROM_SIZE*/ 0x80000]);
+        uint16_t* end = reinterpret_cast<uint16_t*>(&biosData[Memory::ROM_SIZE]);
 
         std::for_each(start, end, [](uint16_t& data) {
             data = BYTE_SWAP_16(data);

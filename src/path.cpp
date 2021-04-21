@@ -3,9 +3,9 @@
 
 #include "path.h"
 
-static const char* NEOCD_SYSTEM_SUBDIR        = "neocd";
+static const char* NEOCD_SYSTEM_SUBDIR = "neocd";
 static const char* NEOCD_DEFAULT_SRM_FILENAME = "neocd";
-static const char* NEOCD_SRM_EXT              = ".srm";
+static const char* NEOCD_SRM_EXT = ".srm";
 
 extern const char* systemDirectory;
 extern const char* saveDirectory;
@@ -150,7 +150,7 @@ std::string make_srm_path(bool per_content_saves, const char* content_path)
       if (!content_filename.empty())
       {
          strlcpy(srm_filename, content_filename.c_str(), sizeof(srm_filename) - 1);
-         strlcat(srm_filename, NEOCD_SRM_EXT,            sizeof(srm_filename) - 1);
+         strlcat(srm_filename, NEOCD_SRM_EXT, sizeof(srm_filename) - 1);
       }
    }
 
@@ -159,7 +159,7 @@ std::string make_srm_path(bool per_content_saves, const char* content_path)
    if (!per_content_saves || path_is_empty(srm_filename))
    {
       strlcat(srm_filename, NEOCD_DEFAULT_SRM_FILENAME, sizeof(srm_filename) - 1);
-      strlcat(srm_filename, NEOCD_SRM_EXT,              sizeof(srm_filename) - 1);
+      strlcat(srm_filename, NEOCD_SRM_EXT, sizeof(srm_filename) - 1);
    }
 
    // Return full srm file path
@@ -191,8 +191,109 @@ std::string make_path(const char* path, const char* filename)
    return make_path_separator(path, PATH_DEFAULT_SLASH(), filename);
 }
 
-bool string_compare_insensitive(const char* a, const char* b)
+bool string_compare_insensitive(const std::string& a, const std::string& b)
 {
-   return string_is_equal_case_insensitive(a, b);
+    // Check for trivial case
+    if (a.size() != b.size())
+        return false;
+
+    return string_compare_insensitive(a.c_str(), b.c_str());
 }
 
+bool string_compare_insensitive(const char* a, const char* b)
+{
+    // Check for trivial cases
+
+    if ((a == nullptr) || (b == nullptr))
+        return false;
+
+    if (a == b)
+        return true;
+
+    while(1)
+    {
+        if ((*a == 0) || (*b == 0))
+            break;
+
+        if (tolower(*a) != tolower(*b))
+            return false;
+
+        ++a;
+        ++b;
+    }
+
+    return ((*a == 0) && (*b == 0));
+}
+
+static bool ext_is_archive(const char* ext)
+{
+    return string_compare_insensitive(ext, "zip");
+}
+
+bool path_is_archive(const std::string& path)
+{
+    auto ext = path_get_extension(path.c_str());
+    return ext_is_archive(ext);
+}
+
+bool path_is_bios_file(const std::string& path)
+{
+    auto ext = path_get_extension(path.c_str());
+    return (string_compare_insensitive(ext, "rom")
+            || string_compare_insensitive(ext, "bin"));
+}
+
+void split_compressed_path(const std::string& path, std::string& archive, std::string& file)
+{
+    auto search_ext_backwards = [](const char* start, const char* end) -> std::string
+    {
+        if (start >= end)
+            return std::string();
+
+        auto current = end - 1;
+        int count = 0;
+
+        while(1)
+        {
+            if (current == start - 1)
+                return std::string();
+
+            const auto chr = *current;
+
+            if (chr == PATH_DEFAULT_SLASH_C())
+                return std::string();
+
+            if (chr == '.')
+                return std::string(current + 1, count);
+
+            --current;
+            ++count;
+        }
+    };
+
+    auto pPath = path.c_str();
+    auto pDelim = pPath;
+
+    while(1)
+    {
+        pDelim = strchr(pDelim, '#');
+
+        if (pDelim == nullptr)
+        {
+            archive.clear();
+            file = path;
+            return;
+        }
+
+        std::string ext = search_ext_backwards(pPath, pDelim);
+
+        if (ext_is_archive(ext.c_str()))
+        {
+            archive = std::string(pPath, pDelim - pPath);
+            file = std::string(pDelim + 1);
+            return;
+        }
+
+        ++pDelim;
+    }
+}

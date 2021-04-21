@@ -5,13 +5,13 @@
 #include <compat/strl.h>
 #include <cstdlib>
 #include <cstring>
-#include <file/archive_file.h>
 #include <file/file_path.h>
 #include <initializer_list>
 #include <lists/dir_list.h>
 #include <lists/string_list.h>
 #include <vector>
 
+#include "archive.h"
 #include "bios.h"
 #include "neogeocd.h"
 #include "path.h"
@@ -38,9 +38,6 @@ struct BiosListEntry
     std::string description;
     Bios::Type type;
 };
-
-// Valid extensions for BIOS files
-static const char* const BIOS_EXTS = "rom|bin";
 
 // Variable names for the settings
 static const char* REGION_VARIABLE = "neocd_region";
@@ -134,80 +131,53 @@ static std::array<retro_memory_descriptor, RetroMapIndex::COUNT> memoryDescripto
 // Memory map for cheats, achievements, etc...
 static retro_memory_map memoryMap;
 
-// Load a (possibly compressed) file
-static bool fileRead(const std::string& path, void* buffer, size_t maximumSize, size_t* reallyRead)
-{
-    size_t wasRead = 0;
-
-    if (!path_contains_compressed_file(path.c_str()))
-    {
-        RFILE* file = filestream_open(path.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-        if (!file)
-            return false;
-
-        wasRead = filestream_read(file, buffer, maximumSize);
-
-        filestream_close(file);
-    }
-    else
-    {
-        void* tempBuffer;
-        int64_t size;
-
-        if (!file_archive_compressed_read(path.c_str(), &tempBuffer, nullptr, &size))
-            return false;
-
-        wasRead = std::min(maximumSize, static_cast<size_t>(size));
-
-        std::memcpy(buffer, tempBuffer, wasRead);
-
-        std::free(tempBuffer);
-    }
-
-    if (reallyRead)
-        *reallyRead = wasRead;
-
-    return true;
-}
-
 // Load each file from the list and test for validity
-static void searchForBIOSInternal(const char* path, const StringList& file_list)
+static void lookForBIOSInternal(const std::vector<std::string>& fileList)
 {
-    for(const string_list_elem& elem : file_list)
+    for(const std::string& path : fileList)
     {
+        if (!path_is_bios_file(path.c_str()))
+            continue;
+
         BiosListEntry newEntry;
 
-        // When scanning an archive, path will be non null.
-        // We want something of the form archive.zip#file.bin
-        if (path)
+        std::string archive;
+        std::string file;
+        split_compressed_path(path, archive, file);
+
+        // For archives we want something of the form archive.zip#file.bin
+        if (!archive.empty())
         {
-            newEntry.filename = make_path_separator(path, "#", elem.data);
-            newEntry.description = make_path_separator(path_basename(path), "#", elem.data);
+            newEntry.filename = path;
+            newEntry.description = make_path_separator(path_basename(archive.c_str()), "#", file.c_str());
         }
         else
         {
-            newEntry.filename = elem.data;
-            newEntry.description = path_basename(elem.data);
+            newEntry.filename = file.c_str();
+            newEntry.description = path_basename(file.c_str());
         }
 
-        std::unique_ptr<uint8_t[]> buffer(new uint8_t[Memory::ROM_SIZE]);
+        uint8_t buffer[Memory::ROM_SIZE];
         size_t reallyRead;
 
-        if (fileRead(newEntry.filename, buffer.get(), Memory::ROM_SIZE, &reallyRead))
-        {
-            Bios::autoByteSwap(buffer.get());
+        if (!Archive::readFile(newEntry.filename, &buffer[0], Memory::ROM_SIZE, &reallyRead))
+            continue;
 
-            newEntry.type = Bios::identify(buffer.get());
+        if (reallyRead != Memory::ROM_SIZE)
+            continue;
 
-            if (newEntry.type.first != Bios::Family::Invalid)
-            {
-                newEntry.description.append(" (");
-                newEntry.description.append(Bios::description(newEntry.type));
-                newEntry.description.append(")");
+        Bios::autoByteSwap(&buffer[0]);
 
-                biosList.push_back(newEntry);
-            }
-        }
+        newEntry.type = Bios::identify(&buffer[0]);
+
+        if (newEntry.type.first == Bios::Family::Invalid)
+            continue;
+
+        newEntry.description.append(" (");
+        newEntry.description.append(Bios::description(newEntry.type));
+        newEntry.description.append(")");
+
+        biosList.push_back(newEntry);
     }
 }
 
@@ -218,20 +188,38 @@ static void lookForBIOS()
     biosList.clear();
 
     // Get the system path
-    std::string systemPath = system_path();
+    const auto systemPath = system_path();
+
+    auto buildFileList = [&]() -> std::vector<std::string>
+    {
+        std::vector<std::string> result;
+
+        StringList file_list(dir_list_new(systemPath.c_str(), nullptr, false, true, true, true));
+
+        for(const string_list_elem& elem : file_list)
+        {
+            if (path_is_bios_file(elem.data))
+                result.push_back(std::string(elem.data));
+            else if (path_is_archive(elem.data))
+            {
+                auto archiveList = Archive::getFileList(std::string(elem.data));
+
+                for(const std::string& file : archiveList)
+                {
+                    if (path_is_bios_file(file.c_str()))
+                        result.push_back(file);
+                }
+            }
+        }
+
+        return result;
+    };
 
     // Scan the system directory
-    StringList file_list(dir_list_new(systemPath.c_str(), BIOS_EXTS, false, false, false, true));
-    searchForBIOSInternal(nullptr, file_list);
+    auto fileList = buildFileList();
 
-    // Get a list of all archives present in the system directory...
-    StringList archive_list(dir_list_new(systemPath.c_str(), "", false, false, true, true));
-    for(const string_list_elem& elem : archive_list)
-    {
-        // ...and scan them too
-        file_list = file_archive_get_file_list(elem.data, nullptr);
-        searchForBIOSInternal(elem.data, file_list);
-    }
+    // Load all files and check for validity
+    lookForBIOSInternal(fileList);
 
     // Sort the list
     std::sort(biosList.begin(), biosList.end(), [](const BiosListEntry& a, const BiosListEntry& b) {
@@ -250,7 +238,7 @@ static bool loadBIOS()
 
     size_t reallyRead;
 
-    if (!fileRead(biosList[biosIndex].filename, neocd.memory.rom, Memory::ROM_SIZE, &reallyRead))
+    if (!Archive::readFile(biosList[biosIndex].filename, neocd.memory.rom, Memory::ROM_SIZE, &reallyRead))
     {
         LOG(LOG_ERROR, "Could not load BIOS %s\n", biosList[biosIndex].filename.c_str());
         return false;
@@ -466,7 +454,7 @@ void retro_get_system_info(struct retro_system_info *info)
     std::memset(info, 0, sizeof(retro_system_info));
     
     info->library_name = "NeoCD";
-    info->library_version = "2019";
+    info->library_version = "2021";
     info->valid_extensions = "cue|chd";
     info->need_fullpath = true;
 }
