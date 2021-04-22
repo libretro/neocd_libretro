@@ -1159,7 +1159,7 @@ static inline int chd_compressed(chd_header* header) {
 
 static chd_error decompress_v5_map(chd_file* chd, chd_header* header)
 {
-	int result = 0;
+//	int result = 0;
 	int hunknum;
 	int repcount = 0;
 	uint8_t lastcomp = 0;
@@ -1183,13 +1183,13 @@ static chd_error decompress_v5_map(chd_file* chd, chd_header* header)
 	{
 		header->rawmap = (uint8_t*)malloc(rawmapsize);
 		core_fseek(chd->file, header->mapoffset, SEEK_SET);
-		result = core_fread(chd->file, header->rawmap, rawmapsize);
+		/*result =*/ core_fread(chd->file, header->rawmap, rawmapsize);
 		return CHDERR_NONE;
 	}
 
 	/* read the reader */
 	core_fseek(chd->file, header->mapoffset, SEEK_SET);
-	result = core_fread(chd->file, rawbuf, sizeof(rawbuf));
+	/*result =*/ core_fread(chd->file, rawbuf, sizeof(rawbuf));
 	mapbytes = get_bigendian_uint32(&rawbuf[0]);
 	firstoffs = get_bigendian_uint48(&rawbuf[4]);
 	mapcrc = get_bigendian_uint16(&rawbuf[10]);
@@ -1200,7 +1200,7 @@ static chd_error decompress_v5_map(chd_file* chd, chd_header* header)
 	/* now read the map */
 	compressed_ptr = (uint8_t*)malloc(sizeof(uint8_t) * mapbytes);
 	core_fseek(chd->file, header->mapoffset + 16, SEEK_SET);
-	result = core_fread(chd->file, compressed_ptr, mapbytes);
+	/*result =*/ core_fread(chd->file, compressed_ptr, mapbytes);
 	bitbuf = create_bitstream(compressed_ptr, sizeof(uint8_t) * mapbytes);
 	header->rawmap = (uint8_t*)malloc(rawmapsize);
 
@@ -2314,7 +2314,7 @@ static chd_error hunk_read_into_memory(chd_file *chd, UINT32 hunknum, UINT8 *des
 			blockoffs = (uint64_t)get_bigendian_uint32(rawmap) * (uint64_t)chd->header.hunkbytes;
 			if (blockoffs != 0) {
 				core_fseek(chd->file, blockoffs, SEEK_SET);
-				int result = core_fread(chd->file, dest, chd->header.hunkbytes);
+				/*int result = */core_fread(chd->file, dest, chd->header.hunkbytes);
 			/* TODO
 			else if (m_parent_missing)
 				throw CHDERR_REQUIRES_PARENT; */
@@ -2609,7 +2609,7 @@ static void zlib_codec_free(void *codec)
 	/* deinit the streams */
 	if (data != NULL)
 	{
-		int i;
+//		int i;
 
 		inflateEnd(&data->inflater);
 

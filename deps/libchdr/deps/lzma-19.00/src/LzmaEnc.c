@@ -463,10 +463,12 @@ void LzmaEnc_SetDataSize(CLzmaEncHandle pp, UInt64 expectedDataSiize)
 #define kState_MatchAfterLit 7
 #define kState_RepAfterLit   8
 
+#if 0
 static const Byte kLiteralNextStates[kNumStates] = {0, 0, 0, 0, 1, 2, 3, 4,  5,  6,   4, 5};
 static const Byte kMatchNextStates[kNumStates]   = {7, 7, 7, 7, 7, 7, 7, 10, 10, 10, 10, 10};
 static const Byte kRepNextStates[kNumStates]     = {8, 8, 8, 8, 8, 8, 8, 11, 11, 11, 11, 11};
 static const Byte kShortRepNextStates[kNumStates]= {9, 9, 9, 9, 9, 9, 9, 11, 11, 11, 11, 11};
+#endif
 
 #define IsLitState(s) ((s) < 7)
 #define GetLenToPosState2(len) (((len) < kNumLenToPosStates - 1) ? (len) : kNumLenToPosStates - 1)
@@ -485,6 +487,7 @@ static void RangeEnc_Construct(CRangeEnc *p)
 
 #define RC_BUF_SIZE (1 << 16)
 
+#if 0
 static int RangeEnc_Alloc(CRangeEnc *p, ISzAllocPtr alloc)
 {
   if (!p->bufBase)
@@ -496,6 +499,7 @@ static int RangeEnc_Alloc(CRangeEnc *p, ISzAllocPtr alloc)
   }
   return 1;
 }
+#endif
 
 static void RangeEnc_Free(CRangeEnc *p, ISzAllocPtr alloc)
 {
@@ -503,6 +507,7 @@ static void RangeEnc_Free(CRangeEnc *p, ISzAllocPtr alloc)
   p->bufBase = 0;
 }
 
+#if 0
 static void RangeEnc_Init(CRangeEnc *p)
 {
   /* Stream.Init(); */
@@ -567,6 +572,7 @@ static void RangeEnc_FlushData(CRangeEnc *p)
   for (i = 0; i < 5; i++)
     RangeEnc_ShiftLow(p);
 }
+#endif
 
 #define RC_NORM(p) if (range < kTopValue) { range <<= 8; RangeEnc_ShiftLow(p); }
 
@@ -624,6 +630,7 @@ static void RangeEnc_FlushData(CRangeEnc *p)
   RC_BIT_1_BASE(p, prob) \
   RC_NORM(p)
 
+#if 0
 static void RangeEnc_EncodeBit_0(CRangeEnc *p, CLzmaProb *prob)
 {
   UInt32 range, ttt, newBound;
@@ -632,6 +639,7 @@ static void RangeEnc_EncodeBit_0(CRangeEnc *p, CLzmaProb *prob)
   RC_BIT_0(p, prob)
   p->range = range;
 }
+
 
 static void LitEnc_Encode(CRangeEnc *p, CLzmaProb *probs, UInt32 sym)
 {
@@ -649,6 +657,7 @@ static void LitEnc_Encode(CRangeEnc *p, CLzmaProb *probs, UInt32 sym)
   while (sym < 0x10000);
   p->range = range;
 }
+#endif
 
 static void LzmaEnc_InitPriceTables(CProbPrice *ProbPrices)
 {
@@ -687,7 +696,7 @@ static void LzmaEnc_InitPriceTables(CProbPrice *ProbPrices)
 #define GET_PRICEa_0(prob) ProbPrices[(prob) >> kNumMoveReducingBits]
 #define GET_PRICEa_1(prob) ProbPrices[((prob) ^ (kBitModelTotal - 1)) >> kNumMoveReducingBits]
 
-
+#if 0
 static UInt32 LitEnc_GetPrice(const CLzmaProb *probs, UInt32 sym, const CProbPrice *ProbPrices)
 {
   UInt32 price = 0;
@@ -701,7 +710,6 @@ static UInt32 LitEnc_GetPrice(const CLzmaProb *probs, UInt32 sym, const CProbPri
   while (sym >= 2);
   return price;
 }
-
 
 static UInt32 LitEnc_Matched_GetPrice(const CLzmaProb *probs, UInt32 sym, UInt32 matchByte, const CProbPrice *ProbPrices)
 {
@@ -718,7 +726,6 @@ static UInt32 LitEnc_Matched_GetPrice(const CLzmaProb *probs, UInt32 sym, UInt32
   while (sym < 0x10000);
   return price;
 }
-
 
 
 static void LenEnc_Init(CLenEnc *p)
@@ -764,6 +771,7 @@ static void LenEnc_Encode(CLenEnc *p, CRangeEnc *rc, unsigned sym, unsigned posS
     rc->range = range;
   }
 }
+#endif
 
 static void SetPrices_3(const CLzmaProb *probs, UInt32 startPrice, UInt32 *prices, const CProbPrice *ProbPrices)
 {
@@ -896,7 +904,8 @@ MY_NO_INLINE static void MY_FAST_CALL LenPriceEnc_UpdateTables(
   + GET_PRICE_1(p->isRep0Long[state][posState])) \
   + GET_PRICE_1(p->isRep[state]) \
   + GET_PRICE_0(p->isRepG0[state])
-  
+
+#if 0
 MY_FORCE_INLINE
 static UInt32 GetPrice_PureRep(const CLzmaEnc *p, unsigned repIndex, size_t state, size_t posState)
 {
@@ -935,7 +944,7 @@ static SRes CheckErrors(CLzmaEnc *p)
     p->finished = True;
   return p->result;
 }
-
+#endif
 
 MY_NO_INLINE static void FillAlignPrices(CLzmaEnc *p)
 {
@@ -1119,6 +1128,7 @@ void LzmaEnc_Destroy(CLzmaEncHandle p, ISzAllocPtr alloc, ISzAllocPtr allocBig)
 
 #define kBigHashDicLimit ((UInt32)1 << 24)
 
+#if 0
 static SRes LzmaEnc_Alloc(CLzmaEnc *p, UInt32 keepWindowSize, ISzAllocPtr alloc, ISzAllocPtr allocBig)
 {
   UInt32 beforeSize = kNumOpts;
@@ -1241,7 +1251,7 @@ void LzmaEnc_Init(CLzmaEnc *p)
   p->pbMask = (1 << p->pb) - 1;
   p->lpMask = ((UInt32)0x100 << p->lp) - ((unsigned)0x100 >> p->lc);
 }
-
+#endif
 
 void LzmaEnc_InitPrices(CLzmaEnc *p)
 {
@@ -1269,6 +1279,7 @@ typedef struct
   BoolInt overflow;
 } CLzmaEnc_SeqOutStreamBuf;
 
+#if 0
 static size_t SeqOutStreamBuf_Write(const ISeqOutStream *pp, const void *data, size_t size)
 {
   CLzmaEnc_SeqOutStreamBuf *p = CONTAINER_FROM_VTBL(pp, CLzmaEnc_SeqOutStreamBuf, vt);
@@ -1282,7 +1293,7 @@ static size_t SeqOutStreamBuf_Write(const ISeqOutStream *pp, const void *data, s
   p->data += size;
   return size;
 }
-
+#endif
 
 UInt32 LzmaEnc_GetNumAvailableBytes(CLzmaEncHandle pp)
 {
