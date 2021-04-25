@@ -324,10 +324,6 @@ static void cdInterfaceWriteWord(uint32_t address, uint32_t data)
                     */
         neocd.irqMask1 = data;
 //      LOG(LOG_INFO, "IRQ MASK1=%04X MASK2=%04X\n", neocd.irqMask1, neocd.irqMask2);
-
-        // Used to detect disc activity in the main loop
-        if (neocd.isCdDecoderIRQEnabled())
-            neocd.irq1EnabledThisFrame = true;
         break;
 
     case 0x0004:    /*

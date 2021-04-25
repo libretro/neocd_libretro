@@ -111,7 +111,7 @@ public:
     bool        cdCommunicationNReset;
     uint32_t    irqMask1;
     uint32_t    irqMask2;
-    bool        irq1EnabledThisFrame;
+    bool        cdSectorDecodedThisFrame;
     bool        fastForward;
     uint32_t    machineNationality;
     uint32_t    cdromVector;

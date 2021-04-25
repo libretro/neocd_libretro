@@ -28,7 +28,7 @@ NeoGeoCD::NeoGeoCD() :
     cdCommunicationNReset(false),
     irqMask1(0),
     irqMask2(0),
-    irq1EnabledThisFrame(false),
+    cdSectorDecodedThisFrame(false),
     fastForward(false),
     machineNationality(NationalityJapan),
     cdromVector(0),
@@ -231,7 +231,7 @@ bool NeoGeoCD::saveState(DataPacker& out) const
     out << cdCommunicationNReset;
     out << irqMask1;
     out << irqMask2;
-    out << irq1EnabledThisFrame;
+    out << cdSectorDecodedThisFrame;
     out << fastForward;
     out << machineNationality;
     out << cdromVector;
@@ -282,7 +282,7 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     in >> cdCommunicationNReset;
     in >> irqMask1;
     in >> irqMask2;
-    in >> irq1EnabledThisFrame;
+    in >> cdSectorDecodedThisFrame;
     in >> fastForward;
     in >> machineNationality;
     in >> cdromVector;

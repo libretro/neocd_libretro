@@ -102,6 +102,21 @@ public:
     static uint8_t calculatePacketChecksum(const uint8_t* packet);
     static void setPacketChecksum(uint8_t* packet);
 
+    inline bool isCdDecoderEnabled() const
+    {
+        return (CTRL0 & LC8951::DECEN);
+    }
+
+    inline bool isCdDecoderIRQEnabled() const
+    {
+        return (IFCTRL & LC8951::DECIEN);
+    }
+
+    inline bool isCdDecoderIRQPending() const
+    {
+        return !(IFSTAT & LC8951::DECI);
+    }
+
     friend DataPacker& operator<<(DataPacker& out, const LC8951& lc8951);
     friend DataPacker& operator>>(DataPacker& in, LC8951& lc8951);
 

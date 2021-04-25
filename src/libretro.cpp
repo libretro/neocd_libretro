@@ -627,23 +627,20 @@ void retro_run(void)
     neocd.input.setInput(input1, input2, input3);
 
     // Skip CD loading
-    if (neocd.isCdDecoderIRQEnabled() && (neocd.lc8951.CTRL0 & LC8951::DECEN) && skipCDLoading)
+    if (neocd.cdSectorDecodedThisFrame && skipCDLoading)
     {
         neocd.fastForward = true;
 
-        while (neocd.isCdDecoderIRQEnabled() || neocd.irq1EnabledThisFrame)
+        while (neocd.cdSectorDecodedThisFrame)
         {
-            neocd.irq1EnabledThisFrame = false;
+            neocd.cdSectorDecodedThisFrame = false;
             neocd.runOneFrame();
-
-            if (!neocd.irq1EnabledThisFrame && !(neocd.lc8951.CTRL0 & LC8951::DECEN))
-                break;
         }
 
         neocd.fastForward = false;
     }
 
-    neocd.irq1EnabledThisFrame = false;
+    neocd.cdSectorDecodedThisFrame = false;
     neocd.runOneFrame();
 
     libretro.audioBatch(reinterpret_cast<const int16_t*>(&neocd.audio.buffer.ymSamples[0]), neocd.audio.buffer.sampleCount);

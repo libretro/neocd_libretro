@@ -114,66 +114,57 @@ void drawlineTimerCallback(Timer* timer, uint32_t userData)
         timer->armRelative(Timer::pixelToMaster((Timer::SCREEN_HEIGHT - Timer::ACTIVE_AREA_BOTTOM + Timer::ACTIVE_AREA_TOP) * Timer::SCREEN_WIDTH));
 }
 
-void cdrom64HzTimerCallback(Timer* timer, uint32_t userData)
+void cdromTimerCallback(Timer* timer, uint32_t userData)
 {
-    timer->armRelative(Timer::CDROM_64HZ_DELAY);
+    // Shortcuts
+    const bool isCDZ = neocd.isCDZ();
+    const bool isPlaying = neocd.cdrom.isPlaying();
+    const bool isData = neocd.cdrom.isData();
+    const bool isDecoderEnabled = neocd.lc8951.isCdDecoderEnabled();
+    const bool isDecoderIRQEnabled = neocd.lc8951.isCdDecoderIRQEnabled();
+    const bool isDecoderIRQPending = neocd.lc8951.isCdDecoderIRQPending();
 
-    if (neocd.cdrom.isPlaying())
-        return;
-    
-    if (neocd.isCdCommunicationIRQEnabled())
+    int32_t delay;
+
+    if (isPlaying)
     {
-        // Trigger the CD Communication IRQ if needed.
-        // (When CD is playing this is handled in the 75hz timer)
-        neocd.setInterrupt(NeoGeoCD::CdromCommunication);
-
-        // Update interrupts
-        neocd.updateInterrupts();
+        if (isData)
+            delay = isCDZ ? (Timer::CDROM_150HZ_DELAY) : Timer::CDROM_75HZ_DELAY;
+        else
+            delay = Timer::CDROM_75HZ_DELAY;
     }
-}
+    else
+        delay = Timer::CDROM_64HZ_DELAY;
 
-void cdrom75HzTimerCallback(Timer* timer, uint32_t userData)
-{
-    timer->armRelative(neocd.isCDZ() ? (Timer::CDROM_75HZ_DELAY / 2) : Timer::CDROM_75HZ_DELAY);
+    timer->armRelative(delay);
 
-    if (!neocd.cdrom.isPlaying())
-        return;
-
-    // Update head position, load sector in buffer (if needed)
-    neocd.lc8951.sectorDecoded();
+    if (isPlaying)
+    {
+        neocd.lc8951.sectorDecoded();
         
-    // Trigger the CD Decoder IRQ if needed, this is used when reading data sectors
-    if (neocd.cdrom.isData() && neocd.isCdDecoderIRQEnabled() && (neocd.lc8951.IFCTRL & LC8951::DECIEN) && !(neocd.lc8951.IFSTAT & LC8951::DECI))
-    {
-        neocd.setInterrupt(NeoGeoCD::CdromDecoder);
+        // Trigger the CD IRQ1 if needed, this is used when reading data sectors
+        if (isDecoderEnabled // CD Decoder is enabled
+            && neocd.isCdDecoderIRQEnabled() // CD Decoder IRQ is not masked
+            && isDecoderIRQEnabled // CD Decoder IRQ is enabled
+            && isDecoderIRQPending) // CD Decoder IRQ is pending
+        {
+            // This is used to detect CD activity in the main loop
+            neocd.cdSectorDecodedThisFrame = true;
 
-        // Update interrupts
-        neocd.updateInterrupts();
-    }
+            // Trigger the CD Decoder IRQ
+            neocd.setInterrupt(NeoGeoCD::CdromDecoder);
+        }
         
-    if (neocd.cdrom.isData())
-        neocd.cdzIrq1Divisor = 0;
-    else if (neocd.isCDZ())
-    {
-        // If the machine is CDZ head position is updated every 2 interrupts for audio tracks
-        neocd.cdzIrq1Divisor ^= 1;
-    }
-
-    if (!neocd.cdzIrq1Divisor)
-    {
         // Update the read position
         neocd.cdrom.increasePosition();
     }
     
+    // Trigger the CDROM IRQ2, this is used to send commands packets / receive answer packets.
     if (neocd.isCdCommunicationIRQEnabled())
-    {
-        // Trigger the CD Communication IRQ if needed.
-        // (When CD is playing this is handled in the 75hz timer)
         neocd.setInterrupt(NeoGeoCD::CdromCommunication);
 
-        // Update interrupts
-        neocd.updateInterrupts();
-    }
+    // Update interrupts
+    neocd.updateInterrupts();
 }
 
 void audioCommandTimerCallback(Timer* timer, uint32_t userData)
@@ -204,9 +195,7 @@ TimerGroup::TimerGroup() :
 
     timer<TimerGroup::VblReload>().setCallback(vblReloadTimerCallback);
 
-    timer<TimerGroup::Cdrom64Hz>().setCallback(cdrom64HzTimerCallback);
-
-    timer<TimerGroup::Cdrom75Hz>().setCallback(cdrom75HzTimerCallback);
+    timer<TimerGroup::Cdrom>().setCallback(cdromTimerCallback);
 
     timer<TimerGroup::AudioCommand>().setCallback(audioCommandTimerCallback);
 
@@ -229,9 +218,7 @@ void TimerGroup::reset()
 
     timer<TimerGroup::VblReload>().arm(Timer::pixelToMaster((Timer::VBL_RELOAD_Y * Timer::SCREEN_WIDTH) + Timer::VBL_RELOAD_X));
 
-    timer<TimerGroup::Cdrom64Hz>().arm(Timer::CDROM_64HZ_DELAY);
-
-    timer<TimerGroup::Cdrom75Hz>().arm(neocd.isCDZ() ? (Timer::CDROM_75HZ_DELAY / 2) : Timer::CDROM_75HZ_DELAY);
+    timer<TimerGroup::Cdrom>().arm(Timer::CDROM_64HZ_DELAY);
 
     timer<TimerGroup::AudioCommand>().setState(Timer::Stopped);
 
