@@ -79,7 +79,7 @@ public:
 
     inline bool isHBLEnabled() const
     {
-        return (irqMask2 & 0x700) == 0x700;
+        return true;
     }
 
     inline bool isCDZ() const
