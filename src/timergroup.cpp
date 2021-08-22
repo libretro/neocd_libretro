@@ -107,11 +107,9 @@ void drawlineTimerCallback(Timer* timer, uint32_t userData)
             else
                 neocd.video.drawBlackLine(scanline);
         }
-
-        timer->armRelative(Timer::pixelToMaster(Timer::SCREEN_WIDTH));
     }
-    else if (scanline == Timer::ACTIVE_AREA_BOTTOM)
-        timer->armRelative(Timer::pixelToMaster((Timer::SCREEN_HEIGHT - Timer::ACTIVE_AREA_BOTTOM + Timer::ACTIVE_AREA_TOP) * Timer::SCREEN_WIDTH));
+
+    timer->armRelative(Timer::pixelToMaster(Timer::SCREEN_WIDTH));
 }
 
 void cdromTimerCallback(Timer* timer, uint32_t userData)
@@ -210,7 +208,7 @@ void TimerGroup::reset()
 {
     timer<TimerGroup::Watchdog>().setState(Timer::Stopped);
 
-    timer<TimerGroup::Drawline>().arm(Timer::pixelToMaster((Timer::ACTIVE_AREA_TOP * Timer::SCREEN_WIDTH) + Timer::ACTIVE_AREA_LEFT));
+    timer<TimerGroup::Drawline>().arm(Timer::pixelToMaster(Timer::ACTIVE_AREA_LEFT));
 
     timer<TimerGroup::Vbl>().arm(Timer::pixelToMaster((Timer::VBL_IRQ_Y * Timer::SCREEN_WIDTH) + Timer::VBL_IRQ_X));
 
