@@ -7,7 +7,7 @@ NeoCD-Libretro is a complete rewrite of NeoCD from scratch in modern C++11. It i
 
 What is different?
 
-* It's accurate. A lot more. As a result it uses more CPU power than older versions but requirements are still modest:  
+* It's accurate. A lot more. As a result it uses more CPU power than older versions but requirements are still modest:
   NeoCD runs perfect on Raspberry Pi 3 for example.
 * It's implemented as a libretro core which allows it to be used everywhere, at home or on the go :)
 * The CD-ROM drive is now emulated at hardware level.
@@ -41,7 +41,7 @@ To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. 
 #### BIOS
 
 > **&#128211; Note:** You need at least one in the following table. If several BIOSes are available, it will be possible to choose which to run in the Core Options Menu.
-The files will be automatically byte swapped if needed. 
+The files will be automatically byte swapped if needed.
 
 > **&#128211; Note:** The hashes are given to help you verify the files have not been tampered with, the emulator doesn't verify them.
 
@@ -70,7 +70,7 @@ NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can
 
 * **Region:** Change your Neo Geo CD's region. (changing this will reset the machine)
 * **BIOS Select:** Select the BIOS to use here if you have several (changing this will reset the machine)
-* **CD Speed Hack:** This will replace the BIOS CD-ROM busy loop with a STOP instruction, to help low powered platforms (like RPi) load faster (optional, changing this will reset the machine)
+* **CD Speed Hack:** This will replace the BIOS CD-ROM busy loop with a STOP instruction, to help low powered platforms (like Raspberry Pi) load faster (optional, changing this setting will reset the machine)
 * **Skip CD Loading:** Settings this to ON makes the emulator auto fast forward CD loading sequences.
 
 ## For Developers
@@ -78,29 +78,24 @@ NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can
 ### Project Dependencies
 
 * A C++11 compiler
-* CMake > 3.0
 * libFLAC
 * libogg
 * libvorbis
 * zlib
-* MSYS (Windows)
-
-The project uses custom cmake finders in the folder `cmakescripts` to locate the libraries.
+* MSYS2 (Windows)
 
 ### Compiling
 
-* Don't forget to --recurse-submodules when cloning
 * Make sure the development packages for libFLAC, libogg and libvorbis are installed.
-* Eventually, edit the CFLAGS in CMakeLists.txt to suit your platform (Raspberry Pi...)
-* Invoke CMake: `cmake -G "Unix Makefiles" .` or `cmake -G "MSYS Makefiles" .` (Windows)
-* If all went well, build: `make -j 4`
+* Eventually, edit the CFLAGS in `Makefile` to suit your platform (Raspberry Pi...)
+* Build: `make -j 4`
 * Copy the resulting library in `RetroArch/cores`
 * Done! (see the user section for the rest)
 
 ## Tested platforms
 
-* x64 / Windows / GCC 9.1
-* x64 / Arch Linux / GCC 9.1
+* x64 / Windows / GCC 10.2
+* x64 / Arch Linux / GCC 11.1
 * Raspberry Pi 3 / Arch Linux / GCC 8.2
 
 ## Known problems
