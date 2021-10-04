@@ -30,10 +30,6 @@
 #include "misc.h"
 #include "os.h"
 
-#if defined(TRAIN_RES) || defined (TRAIN_RESAUX)
-#include <stdio.h>
-#endif
-
 typedef struct {
   vorbis_info_residue0 *info;
 
@@ -49,17 +45,6 @@ typedef struct {
   long      postbits;
   long      phrasebits;
   long      frames;
-
-#if defined(TRAIN_RES) || defined(TRAIN_RESAUX)
-  int        train_seq;
-  long      *training_data[8][64];
-  float      training_max[8][64];
-  float      training_min[8][64];
-  float     tmin;
-  float     tmax;
-  int       submap;
-#endif
-
 } vorbis_look_residue0;
 
 void res0_free_info(vorbis_info_residue *i){
@@ -75,66 +60,6 @@ void res0_free_look(vorbis_look_residue *i){
   if(i){
 
     vorbis_look_residue0 *look=(vorbis_look_residue0 *)i;
-
-#ifdef TRAIN_RES
-    {
-      int j,k,l;
-      for(j=0;j<look->parts;j++){
-        /*fprintf(stderr,"partition %d: ",j);*/
-        for(k=0;k<8;k++)
-          if(look->training_data[k][j]){
-            char buffer[80];
-            FILE *of;
-            codebook *statebook=look->partbooks[j][k];
-
-            /* long and short into the same bucket by current convention */
-            sprintf(buffer,"res_sub%d_part%d_pass%d.vqd",look->submap,j,k);
-            of=fopen(buffer,"a");
-
-            for(l=0;l<statebook->entries;l++)
-              fprintf(of,"%d:%ld\n",l,look->training_data[k][j][l]);
-
-            fclose(of);
-
-            /*fprintf(stderr,"%d(%.2f|%.2f) ",k,
-              look->training_min[k][j],look->training_max[k][j]);*/
-
-            _ogg_free(look->training_data[k][j]);
-            look->training_data[k][j]=NULL;
-          }
-        /*fprintf(stderr,"\n");*/
-      }
-    }
-    fprintf(stderr,"min/max residue: %g::%g\n",look->tmin,look->tmax);
-
-    /*fprintf(stderr,"residue bit usage %f:%f (%f total)\n",
-            (float)look->phrasebits/look->frames,
-            (float)look->postbits/look->frames,
-            (float)(look->postbits+look->phrasebits)/look->frames);*/
-#endif
-
-
-    /*vorbis_info_residue0 *info=look->info;
-
-    fprintf(stderr,
-            "%ld frames encoded in %ld phrasebits and %ld residue bits "
-            "(%g/frame) \n",look->frames,look->phrasebits,
-            look->resbitsflat,
-            (look->phrasebits+look->resbitsflat)/(float)look->frames);
-
-    for(j=0;j<look->parts;j++){
-      long acc=0;
-      fprintf(stderr,"\t[%d] == ",j);
-      for(k=0;k<look->stages;k++)
-        if((info->secondstages[j]>>k)&1){
-          fprintf(stderr,"%ld,",look->resbits[j][k]);
-          acc+=look->resbits[j][k];
-        }
-
-      fprintf(stderr,":: (%ld vals) %1.2fbits/sample\n",look->resvals[j],
-              acc?(float)acc/(look->resvals[j]*info->grouping):0);
-    }
-    fprintf(stderr,"\n");*/
 
     for(j=0;j<look->parts;j++)
       if(look->partbooks[j])_ogg_free(look->partbooks[j]);
@@ -278,10 +203,6 @@ vorbis_look_residue *res0_look(vorbis_dsp_state *vd,
       for(k=0;k<stages;k++)
         if(info->secondstages[j]&(1<<k)){
           look->partbooks[j][k]=ci->fullbooks+info->booklist[acc++];
-#ifdef TRAIN_RES
-          look->training_data[k][j]=_ogg_calloc(look->partbooks[j][k]->entries,
-                                           sizeof(***look->training_data));
-#endif
         }
     }
   }
@@ -303,12 +224,6 @@ vorbis_look_residue *res0_look(vorbis_dsp_state *vd,
       look->decodemap[j][k]=deco;
     }
   }
-#if defined(TRAIN_RES) || defined (TRAIN_RESAUX)
-  {
-    static int train_seq=0;
-    look->train_seq=train_seq++;
-  }
-#endif
   return(look);
 }
 
@@ -377,24 +292,14 @@ static int local_book_besterror(codebook *book,int *a){
   return(index);
 }
 
-#ifdef TRAIN_RES
-static int _encodepart(oggpack_buffer *opb,int *vec, int n,
-                       codebook *book,long *acc){
-#else
 static int _encodepart(oggpack_buffer *opb,int *vec, int n,
                        codebook *book){
-#endif
   int i,bits=0;
   int dim=book->dim;
   int step=n/dim;
 
   for(i=0;i<step;i++){
     int entry=local_book_besterror(book,vec+i*dim);
-
-#ifdef TRAIN_RES
-    if(entry>=0)
-      acc[entry]++;
-#endif
 
     bits+=vorbis_book_encode(book,entry,opb);
 
@@ -447,21 +352,6 @@ static long **_01class(vorbis_block *vb,vorbis_look_residue *vl,
     }
   }
 
-#ifdef TRAIN_RESAUX
-  {
-    FILE *of;
-    char buffer[80];
-
-    for(i=0;i<ch;i++){
-      sprintf(buffer,"resaux_%d.vqd",look->train_seq);
-      of=fopen(buffer,"a");
-      for(j=0;j<partvals;j++)
-        fprintf(of,"%ld, ",partword[i][j]);
-      fprintf(of,"\n");
-      fclose(of);
-    }
-  }
-#endif
   look->frames++;
 
   return(partword);
@@ -483,11 +373,6 @@ static long **_2class(vorbis_block *vb,vorbis_look_residue *vl,int **in,
 
   int partvals=n/samples_per_partition;
   long **partword=_vorbis_block_alloc(vb,sizeof(*partword));
-
-#if defined(TRAIN_RES) || defined (TRAIN_RESAUX)
-  FILE *of;
-  char buffer[80];
-#endif
 
   partword[0]=_vorbis_block_alloc(vb,partvals*sizeof(*partword[0]));
   memset(partword[0],0,partvals*sizeof(*partword[0]));
@@ -511,15 +396,6 @@ static long **_2class(vorbis_block *vb,vorbis_look_residue *vl,int **in,
 
   }
 
-#ifdef TRAIN_RESAUX
-  sprintf(buffer,"resaux_%d.vqd",look->train_seq);
-  of=fopen(buffer,"a");
-  for(i=0;i<partvals;i++)
-    fprintf(of,"%ld, ",partword[0][i]);
-  fprintf(of,"\n");
-  fclose(of);
-#endif
-
   look->frames++;
 
   return(partword);
@@ -529,22 +405,12 @@ static int _01forward(oggpack_buffer *opb,
                       vorbis_look_residue *vl,
                       int **in,int ch,
                       long **partword,
-#ifdef TRAIN_RES
-                      int (*encode)(oggpack_buffer *,int *,int,
-                                    codebook *,long *),
-                      int submap
-#else
                       int (*encode)(oggpack_buffer *,int *,int,
                                     codebook *)
-#endif
 ){
   long i,j,k,s;
   vorbis_look_residue0 *look=(vorbis_look_residue0 *)vl;
   vorbis_info_residue0 *info=look->info;
-
-#ifdef TRAIN_RES
-  look->submap=submap;
-#endif
 
   /* move all this setup out later */
   int samples_per_partition=info->grouping;
@@ -555,14 +421,6 @@ static int _01forward(oggpack_buffer *opb,
   int partvals=n/samples_per_partition;
   long resbits[128];
   long resvals[128];
-
-#ifdef TRAIN_RES
-  for(i=0;i<ch;i++)
-    for(j=info->begin;j<info->end;j++){
-      if(in[i][j]>look->tmax)look->tmax=in[i][j];
-      if(in[i][j]<look->tmin)look->tmin=in[i][j];
-    }
-#endif
 
   memset(resbits,0,sizeof(resbits));
   memset(resvals,0,sizeof(resvals));
@@ -589,10 +447,6 @@ static int _01forward(oggpack_buffer *opb,
           /* training hack */
           if(val<look->phrasebook->entries)
             look->phrasebits+=vorbis_book_encode(look->phrasebook,val,opb);
-#if 0 /*def TRAIN_RES*/
-          else
-            fprintf(stderr,"!");
-#endif
 
         }
       }
@@ -606,26 +460,8 @@ static int _01forward(oggpack_buffer *opb,
           if(info->secondstages[partword[j][i]]&(1<<s)){
             codebook *statebook=look->partbooks[partword[j][i]][s];
             if(statebook){
-              int ret;
-#ifdef TRAIN_RES
-              long *accumulator=NULL;
-              accumulator=look->training_data[s][partword[j][i]];
-              {
-                int l;
-                int *samples=in[j]+offset;
-                for(l=0;l<samples_per_partition;l++){
-                  if(samples[l]<look->training_min[s][partword[j][i]])
-                    look->training_min[s][partword[j][i]]=samples[l];
-                  if(samples[l]>look->training_max[s][partword[j][i]])
-                    look->training_max[s][partword[j][i]]=samples[l];
-                }
-              }
-              ret=encode(opb,in[j]+offset,samples_per_partition,
-                         statebook,accumulator);
-#else
-              ret=encode(opb,in[j]+offset,samples_per_partition,
+              int ret=encode(opb,in[j]+offset,samples_per_partition,
                          statebook);
-#endif
 
               look->postbits+=ret;
               resbits[partword[j][i]]+=ret;
@@ -720,16 +556,9 @@ int res1_forward(oggpack_buffer *opb,vorbis_block *vb,vorbis_look_residue *vl,
     if(nonzero[i])
       in[used++]=in[i];
 
-  if(used){
-#ifdef TRAIN_RES
-    return _01forward(opb,vl,in,used,partword,_encodepart,submap);
-#else
-    (void)submap;
+  if(used)
     return _01forward(opb,vl,in,used,partword,_encodepart);
-#endif
-  }else{
-    return(0);
-  }
+  return(0);
 }
 
 long **res1_class(vorbis_block *vb,vorbis_look_residue *vl,
@@ -786,16 +615,9 @@ int res2_forward(oggpack_buffer *opb,
       work[k]=pcm[j];
   }
 
-  if(used){
-#ifdef TRAIN_RES
-    return _01forward(opb,vl,&work,1,partword,_encodepart,submap);
-#else
-    (void)submap;
+  if(used)
     return _01forward(opb,vl,&work,1,partword,_encodepart);
-#endif
-  }else{
-    return(0);
-  }
+  return(0);
 }
 
 /* duplicate code here as speed is somewhat more important */

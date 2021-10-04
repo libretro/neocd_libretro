@@ -111,7 +111,6 @@ SOURCES_C += \
 	$(LIBOGG_DIR)/src/framing.c
 
 SOURCES_C += \
-	$(LIBVORBIS_DIR)/lib/analysis.c \
 	$(LIBVORBIS_DIR)/lib/bitrate.c \
 	$(LIBVORBIS_DIR)/lib/block.c \
 	$(LIBVORBIS_DIR)/lib/codebook.c \

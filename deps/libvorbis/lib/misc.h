@@ -22,14 +22,6 @@ extern void *_vorbis_block_alloc(vorbis_block *vb,long bytes);
 extern void _vorbis_block_ripcord(vorbis_block *vb);
 extern int ov_ilog(ogg_uint32_t v);
 
-#ifdef ANALYSIS
-extern int analysis_noisy;
-extern void _analysis_output(char *base,int i,float *v,int n,int bark,int dB,
-                             ogg_int64_t off);
-extern void _analysis_output_always(char *base,int i,float *v,int n,int bark,int dB,
-                             ogg_int64_t off);
-#endif
-
 #ifdef DEBUG_MALLOC
 
 #define _VDBG_GRAPHFILE "malloc.m"
