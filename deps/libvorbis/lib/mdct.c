@@ -36,7 +36,6 @@
    roundoff isn't done (so it's noisy).  Consider it functional, but
    only a starting point.  There's no point on a machine with an FPU */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>

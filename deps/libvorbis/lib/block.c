@@ -17,7 +17,6 @@
 
  ********************************************************************/
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ogg/ogg.h>
@@ -364,48 +363,6 @@ void vorbis_dsp_clear(vorbis_dsp_state *v){
     memset(v,0,sizeof(*v));
   }
 }
-
-static void _preextrapolate_helper(vorbis_dsp_state *v){
-  int i;
-  int order=16;
-  float *lpc=alloca(order*sizeof(*lpc));
-  float *work=alloca(v->pcm_current*sizeof(*work));
-  long j;
-  v->preextrapolate=1;
-
-  if(v->pcm_current-v->centerW>order*2){ /* safety */
-    for(i=0;i<v->vi->channels;i++){
-      /* need to run the extrapolation in reverse! */
-      for(j=0;j<v->pcm_current;j++)
-        work[j]=v->pcm[i][v->pcm_current-j-1];
-
-      /* prime as above */
-      vorbis_lpc_from_data(work,lpc,v->pcm_current-v->centerW,order);
-
-#if 0
-      if(v->vi->channels==2){
-        if(i==0)
-          _analysis_output("predataL",0,work,v->pcm_current-v->centerW,0,0,0);
-        else
-          _analysis_output("predataR",0,work,v->pcm_current-v->centerW,0,0,0);
-      }else{
-        _analysis_output("predata",0,work,v->pcm_current-v->centerW,0,0,0);
-      }
-#endif
-
-      /* run the predictor filter */
-      vorbis_lpc_predict(lpc,work+v->pcm_current-v->centerW-order,
-                         order,
-                         work+v->pcm_current-v->centerW,
-                         v->centerW);
-
-      for(j=0;j<v->pcm_current;j++)
-        v->pcm[i][v->pcm_current-j-1]=work[j];
-
-    }
-  }
-}
-
 
 int vorbis_synthesis_restart(vorbis_dsp_state *v){
   vorbis_info *vi=v->vi;

@@ -29,7 +29,6 @@
 #include "os.h"
 
 #include "misc.h"
-#include <stdio.h>
 
 typedef struct {
   int ln;

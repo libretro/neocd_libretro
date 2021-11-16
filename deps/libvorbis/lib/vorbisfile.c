@@ -15,7 +15,6 @@
  ********************************************************************/
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <math.h>
@@ -63,6 +62,10 @@
 #define CHUNKSIZE 65536 /* greater-than-page-size granularity seeking */
 #define READSIZE 2048 /* a smaller read size is needed for low-rate streaming. */
 
+#define	VSEEK_SET	0	/* set file offset to offset */
+#define	VSEEK_CUR	1	/* set file offset to current plus offset */
+#define	VSEEK_END	2	/* set file offset to EOF plus offset */
+
 static long _get_data(OggVorbis_File *vf){
   errno=0;
   if(!(vf->callbacks.read_func))return(-1);
@@ -82,7 +85,7 @@ static int _seek_helper(OggVorbis_File *vf,ogg_int64_t offset){
     /* only seek if the file position isn't already there */
     if(vf->offset != offset){
       if(!(vf->callbacks.seek_func)||
-         (vf->callbacks.seek_func)(vf->datasource, offset, SEEK_SET) == -1)
+         (vf->callbacks.seek_func)(vf->datasource, offset, VSEEK_SET) == -1)
         return OV_EREAD;
       vf->offset=offset;
       ogg_sync_reset(&vf->oy);
@@ -628,7 +631,7 @@ static int _open_seekable2(OggVorbis_File *vf){
 
   /* we can seek, so set out learning all about this file */
   if(vf->callbacks.seek_func && vf->callbacks.tell_func){
-    (vf->callbacks.seek_func)(vf->datasource,0,SEEK_END);
+    (vf->callbacks.seek_func)(vf->datasource,0,VSEEK_END);
     vf->offset=vf->end=(vf->callbacks.tell_func)(vf->datasource);
   }else{
     vf->offset=vf->end=-1;
@@ -870,16 +873,9 @@ static int _fetch_and_process_packet(OggVorbis_File *vf,
   }
 }
 
-/* if, eg, 64 bit stdio is configured by default, this will build with
-   fseek64 */
-static int _fseek64_wrap(FILE *f,ogg_int64_t off,int whence){
-  if(f==NULL)return(-1);
-  return fseek(f,off,whence);
-}
-
 static int _ov_open1(void *f,OggVorbis_File *vf,const char *initial,
                      long ibytes, ov_callbacks callbacks){
-  int offsettest=((f && callbacks.seek_func)?callbacks.seek_func(f,0,SEEK_CUR):-1);
+  int offsettest=((f && callbacks.seek_func)?callbacks.seek_func(f,0,VSEEK_CUR):-1);
   long *serialno_list=NULL;
   int serialno_list_size=0;
   int ret;

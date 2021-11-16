@@ -26,32 +26,33 @@ static voidpf ZCALLBACK fopen_file_func(voidpf opaque, const char* filename, int
     return file;
 }
 
-static uLong ZCALLBACK fread_file_func(voidpf opaque, voidpf stream, void* buf, uLong size)
+static int64_t ZCALLBACK fread_file_func(voidpf opaque, voidpf stream, void* buf, uLong size)
 {
     UNUSED_ARG(opaque);
 
-    return static_cast<uLong>(filestream_read(reinterpret_cast<RFILE*>(stream), buf, int64_t(size)));
+    return filestream_read(reinterpret_cast<RFILE*>(stream), buf, int64_t(size));
 }
 
-static uLong ZCALLBACK fwrite_file_func(voidpf opaque, voidpf stream, const void* buf, uLong size)
+static int64_t ZCALLBACK fwrite_file_func(voidpf opaque, voidpf stream, const void* buf, uLong size)
 {
     UNUSED_ARG(opaque);
 
-    return static_cast<uLong>(filestream_write(reinterpret_cast<RFILE*>(stream), buf, int64_t(size)));
+    return filestream_write(reinterpret_cast<RFILE*>(stream), buf, int64_t(size));
 }
 
-static long ZCALLBACK ftell_file_func(voidpf opaque, voidpf stream)
+static int64_t ZCALLBACK ftell_file_func(voidpf opaque, voidpf stream)
 {
     UNUSED_ARG(opaque);
 
-    return static_cast<long>(filestream_tell(reinterpret_cast<RFILE*>(stream)));
+    return filestream_tell(reinterpret_cast<RFILE*>(stream));
 }
 
-static long ZCALLBACK fseek_file_func(voidpf  opaque, voidpf stream, uLong offset, int origin)
+static int64_t ZCALLBACK fseek_file_func(voidpf  opaque, voidpf stream, uLong offset, int origin)
 {
-    UNUSED_ARG(opaque);
-
+    int64_t ret = 0;
     int fseek_origin = 0;
+
+    UNUSED_ARG(opaque);
 
     switch (origin)
     {
@@ -67,7 +68,6 @@ static long ZCALLBACK fseek_file_func(voidpf  opaque, voidpf stream, uLong offse
     default: return -1;
     }
 
-    int64_t ret = 0;
     if (filestream_seek(reinterpret_cast<RFILE*>(stream), offset, fseek_origin) != 0)
         return -1;
 

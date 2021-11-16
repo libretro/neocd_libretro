@@ -88,6 +88,7 @@ SOURCES_C += \
 	$(LIBRETRO_COMMON_DIR)/lists/string_list.c \
 	$(LIBRETRO_COMMON_DIR)/time/rtime.c \
 	$(LIBRETRO_COMMON_DIR)/streams/file_stream.c \
+	$(LIBRETRO_COMMON_DIR)/streams/file_stream_transforms.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_pipe.c \
 	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_zlib.c \

@@ -55,21 +55,9 @@ extern "C" {
 #include "ioapi.h"
 #endif
 
-#ifdef HAVE_BZIP2
-#include "bzlib.h"
-#endif
-
 #define Z_BZIP2ED 12
 
-#if defined(STRICTUNZIP) || defined(STRICTZIPUNZIP)
-/* like the STRICT of WIN32, we define a pointer that cannot be converted
-    from (void*) without cast */
-typedef struct TagunzFile__ { int unused; } unzFile__;
-typedef unzFile__ *unzFile;
-#else
 typedef voidp unzFile;
-#endif
-
 
 #define UNZ_OK                          (0)
 #define UNZ_END_OF_LIST_OF_FILE         (-100)
@@ -202,27 +190,6 @@ extern int ZEXPORT unzClose OF((unzFile file));
     these files MUST be closed with unzCloseCurrentFile before call unzClose.
   return UNZ_OK if there is no problem. */
 
-extern int ZEXPORT unzGetGlobalInfo OF((unzFile file,
-                                        unz_global_info *pglobal_info));
-
-extern int ZEXPORT unzGetGlobalInfo64 OF((unzFile file,
-                                        unz_global_info64 *pglobal_info));
-/*
-  Write info about the ZipFile in the *pglobal_info structure.
-  No preparation of the structure is needed
-  return UNZ_OK if there is no problem. */
-
-
-extern int ZEXPORT unzGetGlobalComment OF((unzFile file,
-                                           char *szComment,
-                                           uLong uSizeBuf));
-/*
-  Get the global comment string of the ZipFile, in the szComment buffer.
-  uSizeBuf is the size of the szComment buffer.
-  return the number of byte copied or an error code <0
-*/
-
-
 /***************************************************************************/
 /* Unzip package allow you browse the directory of the zipfile */
 
@@ -260,14 +227,6 @@ typedef struct unz_file_pos_s
     uLong pos_in_zip_directory;   /* offset in zip file directory */
     uLong num_of_file;            /* # of file */
 } unz_file_pos;
-
-extern int ZEXPORT unzGetFilePos(
-    unzFile file,
-    unz_file_pos* file_pos);
-
-extern int ZEXPORT unzGoToFilePos(
-    unzFile file,
-    unz_file_pos* file_pos);
 
 typedef struct unz64_file_pos_s
 {
@@ -334,14 +293,6 @@ extern int ZEXPORT unzOpenCurrentFile OF((unzFile file));
   If there is no error, the return value is UNZ_OK.
 */
 
-extern int ZEXPORT unzOpenCurrentFilePassword OF((unzFile file,
-                                                  const char* password));
-/*
-  Open for reading data the current file in the zipfile.
-  password is a crypting password
-  If there is no error, the return value is UNZ_OK.
-*/
-
 extern int ZEXPORT unzOpenCurrentFile2 OF((unzFile file,
                                            int* method,
                                            int* level,
@@ -390,43 +341,13 @@ extern int ZEXPORT unzReadCurrentFile OF((unzFile file,
     (UNZ_ERRNO for IO error, or zLib error for uncompress error)
 */
 
-extern z_off_t ZEXPORT unztell OF((unzFile file));
-
-extern ZPOS64_T ZEXPORT unztell64 OF((unzFile file));
-/*
-  Give the current position in uncompressed data
-*/
-
-extern int ZEXPORT unzeof OF((unzFile file));
-/*
-  return 1 if the end of file was reached, 0 elsewhere
-*/
-
-extern int ZEXPORT unzGetLocalExtrafield OF((unzFile file,
-                                             voidp buf,
-                                             unsigned len));
-/*
-  Read extra field from the current file (opened by unzOpenCurrentFile)
-  This is the local-header version of the extra field (sometimes, there is
-    more info in the local-header version than in the central-header)
-
-  if buf==NULL, it return the size of the local extra field
-
-  if buf!=NULL, len is the size of the buffer, the extra header is copied in
-    buf.
-  the return value is the number of bytes copied in buf, or (if <0)
-    the error code
-*/
-
 /***************************************************************************/
 
 /* Get the current file offset */
 extern ZPOS64_T ZEXPORT unzGetOffset64 (unzFile file);
-extern uLong ZEXPORT unzGetOffset (unzFile file);
 
 /* Set the current file offset */
 extern int ZEXPORT unzSetOffset64 (unzFile file, ZPOS64_T pos);
-extern int ZEXPORT unzSetOffset (unzFile file, uLong pos);
 
 
 

@@ -25,7 +25,6 @@
 #include "misc.h"
 #include "scales.h"
 
-#include <stdio.h>
 
 #define floor1_rangedB 140 /* floor 1 fixed at -140dB to 0dB range */
 

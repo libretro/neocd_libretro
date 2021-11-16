@@ -448,34 +448,6 @@ int vorbis_synthesis_headerin(vorbis_info *vi,vorbis_comment *vc,ogg_packet *op)
 
 /* pack side **********************************************************/
 
-static int _vorbis_pack_info(oggpack_buffer *opb,vorbis_info *vi){
-  codec_setup_info     *ci=vi->codec_setup;
-  if(!ci||
-     ci->blocksizes[0]<64||
-     ci->blocksizes[1]<ci->blocksizes[0]){
-    return(OV_EFAULT);
-  }
-
-  /* preamble */
-  oggpack_write(opb,0x01,8);
-  _v_writestring(opb,"vorbis", 6);
-
-  /* basic information about the stream */
-  oggpack_write(opb,0x00,32);
-  oggpack_write(opb,vi->channels,8);
-  oggpack_write(opb,vi->rate,32);
-
-  oggpack_write(opb,vi->bitrate_upper,32);
-  oggpack_write(opb,vi->bitrate_nominal,32);
-  oggpack_write(opb,vi->bitrate_lower,32);
-
-  oggpack_write(opb,ov_ilog(ci->blocksizes[0]-1),4);
-  oggpack_write(opb,ov_ilog(ci->blocksizes[1]-1),4);
-  oggpack_write(opb,1,1);
-
-  return(0);
-}
-
 static int _vorbis_pack_comment(oggpack_buffer *opb,vorbis_comment *vc){
   int bytes = strlen(ENCODE_VENDOR_STRING);
 
@@ -504,62 +476,6 @@ static int _vorbis_pack_comment(oggpack_buffer *opb,vorbis_comment *vc){
   oggpack_write(opb,1,1);
 
   return(0);
-}
-
-static int _vorbis_pack_books(oggpack_buffer *opb,vorbis_info *vi){
-  codec_setup_info     *ci=vi->codec_setup;
-  int i;
-  if(!ci)return(OV_EFAULT);
-
-  oggpack_write(opb,0x05,8);
-  _v_writestring(opb,"vorbis", 6);
-
-  /* books */
-  oggpack_write(opb,ci->books-1,8);
-  for(i=0;i<ci->books;i++)
-    if(vorbis_staticbook_pack(ci->book_param[i],opb))goto err_out;
-
-  /* times; hook placeholders */
-  oggpack_write(opb,0,6);
-  oggpack_write(opb,0,16);
-
-  /* floors */
-  oggpack_write(opb,ci->floors-1,6);
-  for(i=0;i<ci->floors;i++){
-    oggpack_write(opb,ci->floor_type[i],16);
-    if(_floor_P[ci->floor_type[i]]->pack)
-      _floor_P[ci->floor_type[i]]->pack(ci->floor_param[i],opb);
-    else
-      goto err_out;
-  }
-
-  /* residues */
-  oggpack_write(opb,ci->residues-1,6);
-  for(i=0;i<ci->residues;i++){
-    oggpack_write(opb,ci->residue_type[i],16);
-    _residue_P[ci->residue_type[i]]->pack(ci->residue_param[i],opb);
-  }
-
-  /* maps */
-  oggpack_write(opb,ci->maps-1,6);
-  for(i=0;i<ci->maps;i++){
-    oggpack_write(opb,ci->map_type[i],16);
-    _mapping_P[ci->map_type[i]]->pack(vi,ci->map_param[i],opb);
-  }
-
-  /* modes */
-  oggpack_write(opb,ci->modes-1,6);
-  for(i=0;i<ci->modes;i++){
-    oggpack_write(opb,ci->mode_param[i]->blockflag,1);
-    oggpack_write(opb,ci->mode_param[i]->windowtype,16);
-    oggpack_write(opb,ci->mode_param[i]->transformtype,16);
-    oggpack_write(opb,ci->mode_param[i]->mapping,8);
-  }
-  oggpack_write(opb,1,1);
-
-  return(0);
-err_out:
-  return(-1);
 }
 
 int vorbis_commentheader_out(vorbis_comment *vc,

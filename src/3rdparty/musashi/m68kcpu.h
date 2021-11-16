@@ -556,22 +556,8 @@ extern "C" {
 	#define m68ki_check_address_error(ADDR, WRITE_MODE, FC)
 #endif /* M68K_ADDRESS_ERROR */
 
-/* Logging */
-#if M68K_LOG_ENABLE
-	#include <stdio.h>
-	extern FILE* M68K_LOG_FILEHANDLE
-	extern const char* m68ki_cpu_names[];
-
-	#define M68K_DO_LOG(A) if(M68K_LOG_FILEHANDLE) fprintf A
-	#if M68K_LOG_1010_1111
-		#define M68K_DO_LOG_EMU(A) if(M68K_LOG_FILEHANDLE) fprintf A
-	#else
-		#define M68K_DO_LOG_EMU(A)
-	#endif
-#else
 	#define M68K_DO_LOG(A)
 	#define M68K_DO_LOG_EMU(A)
-#endif
 
 
 
