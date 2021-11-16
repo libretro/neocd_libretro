@@ -5,11 +5,11 @@ LIBCHDR_DIR          = $(LIBRETRO_DEPS_DIR)/libchdr
 ZLIB_DIR             = $(LIBCHDR_DIR)/deps/zlib-1.2.11
 MINIZIP_DIR          = $(LIBRETRO_DEPS_DIR)/minizip
 LZMA_DIR             = $(LIBCHDR_DIR)/deps/lzma-19.00
-LIBRETRO_COMMON_DIR  = $(LIBRETRO_DEPS_DIR)/libretro-common
+LIBRETRO_COMM_DIR    = $(LIBRETRO_DEPS_DIR)/libretro-common
 
 INCFLAGS :=  \
 	-I$(CORE_DIR)/src \
-	-I$(LIBRETRO_COMMON_DIR)/include \
+	-I$(LIBRETRO_COMM_DIR)/include \
 	-I$(LIBRETRO_DEPS_DIR)/ \
 	-I$(LIBCHDR_DIR)/include \
 	-I$(LZMA_DIR)/include \
@@ -74,26 +74,26 @@ SOURCES_C += \
 	$(LIBCHDR_DIR)/src/libchdr_huffman.c
 
 SOURCES_C += \
-	$(LIBRETRO_COMMON_DIR)/compat/compat_posix_string.c \
-	$(LIBRETRO_COMMON_DIR)/compat/compat_strcasestr.c \
-	$(LIBRETRO_COMMON_DIR)/compat/compat_strl.c \
-	$(LIBRETRO_COMMON_DIR)/compat/fopen_utf8.c \
-	$(LIBRETRO_COMMON_DIR)/encodings/encoding_crc32.c \
-	$(LIBRETRO_COMMON_DIR)/encodings/encoding_utf.c \
-	$(LIBRETRO_COMMON_DIR)/file/file_path.c \
-	$(LIBRETRO_COMMON_DIR)/file/file_path_io.c \
-	$(LIBRETRO_COMMON_DIR)/file/retro_dirent.c \
-	$(LIBRETRO_COMMON_DIR)/lists/dir_list.c \
-	$(LIBRETRO_COMMON_DIR)/lists/file_list.c \
-	$(LIBRETRO_COMMON_DIR)/lists/string_list.c \
-	$(LIBRETRO_COMMON_DIR)/time/rtime.c \
-	$(LIBRETRO_COMMON_DIR)/streams/file_stream.c \
-	$(LIBRETRO_COMMON_DIR)/streams/file_stream_transforms.c \
-	$(LIBRETRO_COMMON_DIR)/streams/trans_stream.c \
-	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_pipe.c \
-	$(LIBRETRO_COMMON_DIR)/streams/trans_stream_zlib.c \
-	$(LIBRETRO_COMMON_DIR)/string/stdstring.c \
-	$(LIBRETRO_COMMON_DIR)/vfs/vfs_implementation.c
+	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
+	$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
+	$(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
+	$(LIBRETRO_COMM_DIR)/compat/fopen_utf8.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_crc32.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
+	$(LIBRETRO_COMM_DIR)/file/file_path.c \
+	$(LIBRETRO_COMM_DIR)/file/file_path_io.c \
+	$(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
+	$(LIBRETRO_COMM_DIR)/lists/dir_list.c \
+	$(LIBRETRO_COMM_DIR)/lists/file_list.c \
+	$(LIBRETRO_COMM_DIR)/lists/string_list.c \
+	$(LIBRETRO_COMM_DIR)/time/rtime.c \
+	$(LIBRETRO_COMM_DIR)/streams/file_stream.c \
+	$(LIBRETRO_COMM_DIR)/streams/file_stream_transforms.c \
+	$(LIBRETRO_COMM_DIR)/streams/trans_stream.c \
+	$(LIBRETRO_COMM_DIR)/streams/trans_stream_pipe.c \
+	$(LIBRETRO_COMM_DIR)/streams/trans_stream_zlib.c \
+	$(LIBRETRO_COMM_DIR)/string/stdstring.c \
+	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
 
 SOURCES_C += \
 	$(LZMA_DIR)/src/Alloc.c \
