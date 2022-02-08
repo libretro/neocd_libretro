@@ -61,10 +61,8 @@ SOURCES_CXX += \
 
 SOURCES_C := \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kcpu.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kopac.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kopdm.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kopnz.c \
-	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c
+	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c \
+	$(CORE_DIR)/src/3rdparty/musashi/softfloat/softfloat.c
 
 SOURCES_C += \
 	$(LIBCHDR_DIR)/src/libchdr_bitstream.c \

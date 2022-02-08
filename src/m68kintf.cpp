@@ -5,42 +5,13 @@ extern "C" {
 
     #include "3rdparty/musashi/m68kcpu.h"
 
-    void m68ki_exception_bus_error(void)
-    {
-        LOG(LOG_ERROR, "Bus Error @ PC=%X.", REG_PPC);
-
-        uint_fast32_t sr = m68ki_init_exception();
-
-        /* If we were processing a bus error, address error, or reset,
-        * this is a catastrophic failure.
-        * Halt the CPU
-        */
-        if (CPU_RUN_MODE == RUN_MODE_BERR_AERR_RESET)
-        {
-//          m68k_read_memory_8(0x00ffff01);
-            CPU_STOPPED = STOP_LEVEL_HALT;
-            return;
-        }
-        CPU_RUN_MODE = RUN_MODE_BERR_AERR_RESET;
-
-        /* Note: This is implemented for 68000 only! */
-        m68ki_stack_frame_buserr(sr);
-
-        m68ki_jump_vector(EXCEPTION_BUS_ERROR);
-
-        /* Use up some clock cycles and undo the instruction's cycles */
-        USE_CYCLES(CYC_EXCEPTION[EXCEPTION_BUS_ERROR] - CYC_INSTRUCTION[REG_IR]);
-
-        SET_CYCLES(CYC_INSTRUCTION[REG_IR]);
-    }
-
     uint32_t m68k_read_memory_8(uint32_t address)
     {
         const Memory::Region* region = neocd.memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
 
         if (!region)
         {
-            m68ki_exception_bus_error();
+            m68k_pulse_bus_error();
             return 0xFF;
         }
 
@@ -60,7 +31,7 @@ extern "C" {
 
         if (!region)
         {
-            m68ki_exception_bus_error();
+            m68k_pulse_bus_error();
             return;
         }
 
@@ -85,7 +56,7 @@ extern "C" {
 
         if (!region)
         {
-            m68ki_exception_bus_error();
+            m68k_pulse_bus_error();
             return 0xFFFF;
         }
 
@@ -105,7 +76,7 @@ extern "C" {
 
         if (!region)
         {
-            m68ki_exception_bus_error();
+            m68k_pulse_bus_error();
             return;
         }
 
@@ -161,5 +132,16 @@ extern "C" {
         }
 
         return vector;
+    }
+
+    int neocd_illegal_handler(int instruction)
+    {
+        if ((instruction & 0xFFFF) == 0x7300)
+        {
+            SET_CYCLES(0);
+            return 1;
+        }
+
+        return 0;
     }
 }

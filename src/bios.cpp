@@ -45,7 +45,7 @@ static const uint8_t SMKDAN_CHECKSUM_SEARCH_PATTERN_DATA_B[] = { 0x22, 0x39, 0x0
 // Replace data for patches
 
 static const uint8_t REPLACE_DATA_NOP[] = { 0x4E, 0x71 };
-static const uint8_t REPLACE_DATA_SPEEDHACK[] =  { 0xFA, 0xBE, 0x4E, 0x71, 0x4E, 0x71 };
+static const uint8_t REPLACE_DATA_SPEEDHACK[] =  { 0x73, 0x00, 0x4E, 0x71, 0x4E, 0x71 };
 static const uint8_t REPLACE_DATA_UNIBIOS33_CHECKSUM[] =  { 0x60, 0x32 };
 static const uint8_t REPLACE_DATA_SMKDAN_CHECKSUM[] = { 0x22, 0x00, 0x4E, 0x71, 0x4E, 0x71 };
 
