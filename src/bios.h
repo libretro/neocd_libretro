@@ -21,6 +21,7 @@ public:
     {
         None,
         SMKDan,
+        SMKDanBeta,
         Universe32,
         Universe33
     };
