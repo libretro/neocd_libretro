@@ -203,7 +203,7 @@ else
    CXXFLAGS += -Ofast -DNDEBUG
 endif
 
-CFLAGS += -DUSE_LIBRETRO_VFS -DHAVE_ZLIB -D_7ZIP_ST -DHAVE_FLAC
+CFLAGS += -DHAVE_ZLIB -D_7ZIP_ST -DHAVE_FLAC
 CXXFLAGS += -std=c++11 -fno-exceptions -fno-rtti
 
 include Makefile.common
