@@ -1162,8 +1162,8 @@ static inline int chd_compressed(chd_header* header) {
 
 static chd_error decompress_v5_map(chd_file* chd, chd_header* header)
 {
-//	int result = 0;
-	int hunknum;
+	/*int result = 0;*/
+	uint32_t hunknum;
 	int repcount = 0;
 	uint8_t lastcomp = 0;
 	uint32_t last_self = 0;
@@ -1179,7 +1179,7 @@ static chd_error decompress_v5_map(chd_file* chd, chd_header* header)
 	uint8_t rawbuf[16];
 	struct huffman_decoder* decoder;
 	enum huffman_error err;
-	uint64_t curoffset;	
+	uint64_t curoffset;
 	int rawmapsize = map_size_v5(header);
 
 	if (!chd_compressed(header))
@@ -1569,6 +1569,12 @@ CHD_EXPORT chd_error chd_open(const char *filename, int mode, chd_file *parent, 
 {
 	chd_error err;
 	core_file *file = NULL;
+
+	if (filename == NULL)
+	{
+		err = CHDERR_INVALID_PARAMETER;
+		goto cleanup;
+	}
 
 	/* choose the proper mode */
 	switch(mode)
@@ -2317,7 +2323,7 @@ static chd_error hunk_read_into_memory(chd_file *chd, UINT32 hunknum, UINT8 *des
 			blockoffs = (uint64_t)get_bigendian_uint32(rawmap) * (uint64_t)chd->header.hunkbytes;
 			if (blockoffs != 0) {
 				core_fseek(chd->file, blockoffs, SEEK_SET);
-				/*int result = */core_fread(chd->file, dest, chd->header.hunkbytes);
+				/*int result =*/ core_fread(chd->file, dest, chd->header.hunkbytes);
 			/* TODO
 			else if (m_parent_missing)
 				throw CHDERR_REQUIRES_PARENT; */
@@ -2442,7 +2448,7 @@ static chd_error map_read(chd_file *chd)
 	UINT8 cookie[MAP_ENTRY_SIZE];
 	UINT32 count;
 	chd_error err;
-	int i;
+	UINT32 i;
 
 	/* first allocate memory */
 	chd->map = (map_entry *)malloc(sizeof(chd->map[0]) * chd->header.totalhunks);
@@ -2612,8 +2618,6 @@ static void zlib_codec_free(void *codec)
 	/* deinit the streams */
 	if (data != NULL)
 	{
-//		int i;
-
 		inflateEnd(&data->inflater);
 
 		/* free our fast memory */

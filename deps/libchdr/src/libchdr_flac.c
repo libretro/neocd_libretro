@@ -8,11 +8,11 @@
 
 ***************************************************************************/
 
-#include <assert.h>
 #include <string.h>
 
 #include <libchdr/flac.h>
 #define DR_FLAC_IMPLEMENTATION
+#define DR_FLAC_NO_STDIO
 #include <dr_libs/dr_flac.h>
 
 /***************************************************************************
@@ -23,13 +23,13 @@
 static size_t flac_decoder_read_callback(void *userdata, void *buffer, size_t bytes);
 static drflac_bool32 flac_decoder_seek_callback(void *userdata, int offset, drflac_seek_origin origin);
 static void flac_decoder_metadata_callback(void *userdata, drflac_metadata *metadata);
-static void flac_decoder_write_callback(void *userdata, void *buffer, size_t len);
+static void flac_decoder_write_callback(void *userdata, void *buffer, size_t bytes);
 
 
 /* getters (valid after reset) */
-/*static uint32_t sample_rate(flac_decoder *decoder)  { return decoder->sample_rate; }*/
-static uint8_t channels(flac_decoder *decoder)  { return decoder->channels; }
-/*static uint8_t bits_per_sample(flac_decoder *decoder) { return decoder->bits_per_sample; }*/
+static inline uint32_t sample_rate(flac_decoder *decoder)  { return decoder->sample_rate; }
+static inline uint8_t channels(flac_decoder *decoder)  { return decoder->channels; }
+static inline uint8_t bits_per_sample(flac_decoder *decoder) { return decoder->bits_per_sample; }
 
 /*-------------------------------------------------
  *  flac_decoder - constructor

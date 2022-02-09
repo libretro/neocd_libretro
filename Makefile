@@ -136,7 +136,7 @@ else ifneq (,$(findstring qnx,$(platform)))
 else ifeq ($(platform), emscripten)
    TARGET := $(TARGET_NAME)_libretro_emscripten.bc
    fpic := -fPIC
-   SHARED := 
+   SHARED :=
    CFLAGS += -DSYNC_CDROM=1
    CXXFLAGS += -DSYNC_CDROM=1
    STATIC_LINKING = 1
@@ -203,14 +203,14 @@ else
    CXXFLAGS += -Ofast -DNDEBUG
 endif
 
-CFLAGS += -DUSE_FILE32API -DHAVE_ZLIB -D_7ZIP_ST -DHAVE_FLAC
+CFLAGS += -DUSE_LIBRETRO_VFS -DHAVE_ZLIB -D_7ZIP_ST -DHAVE_FLAC
 CXXFLAGS += -std=c++11 -fno-exceptions -fno-rtti
 
 include Makefile.common
 
 OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
 
-CFLAGS   += -Wall -D__LIBRETRO__ $(fpic) $(INCFLAGS) 
+CFLAGS   += -Wall -D__LIBRETRO__ $(fpic) $(INCFLAGS)
 CXXFLAGS += -Wall -D__LIBRETRO__ $(fpic) $(INCFLAGS)
 
 all: $(TARGET)
