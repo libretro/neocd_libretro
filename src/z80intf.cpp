@@ -1,14 +1,16 @@
-#include "z80intf.h"
 #include "3rdparty/ym/ym2610.h"
+#include "libretro_common.h"
 #include "neogeocd.h"
+#include "z80intf.h"
 
-extern "C" {
+extern "C"
+{
     uint16_t io_read_byte_8(uint16_t port)
     {
         switch (port & 0xFF)
         {
         case 0x00:  // Sound code
-            return neocd.audioCommand;
+            return neocd->audioCommand;
 
         case 0x04:  // Status port A
             return YM2610Read(0);
@@ -18,7 +20,7 @@ extern "C" {
 
         case 0x06:  // Status port B
             return YM2610Read(2);
-            
+
         case 0x07: // Read port B
             return YM2610Read(3);
         }
@@ -31,9 +33,9 @@ extern "C" {
         switch (port & 0xFF)
         {
         case 0x00: // Clear sound code
-            neocd.audioCommand = 0;
+            neocd->audioCommand = 0;
             break;
-            
+
         case 0x04:  // Control port A
             YM2610Write(0, (uint8_t)value);
             break;
@@ -51,27 +53,27 @@ extern "C" {
             break;
 
         case 0x08: // NMI Enable
-            neocd.z80NMIDisable = false;
+            neocd->z80NMIDisable = false;
             break;
-            
+
         case 0x0C:   // Set audio result
-            neocd.audioResult = value;
+            neocd->audioResult = value;
             break;
-            
+
         case 0x18: // NMI Disable
-            neocd.z80NMIDisable = true;
+            neocd->z80NMIDisable = true;
             break;
         }
     }
 
     uint8_t program_read_byte_8(uint16_t addr)
     {
-        return neocd.memory.z80Ram[addr]; 
+        return neocd->memory.z80Ram[addr];
     }
 
     void program_write_byte_8(uint16_t addr, uint8_t value)
     {
-        neocd.memory.z80Ram[addr] = value;
+        neocd->memory.z80Ram[addr] = value;
     }
 
     int z80_irq_callback(int parameter)

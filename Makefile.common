@@ -33,6 +33,13 @@ SOURCES_CXX :=\
 	$(CORE_DIR)/src/flacfile.cpp \
 	$(CORE_DIR)/src/input.cpp \
 	$(CORE_DIR)/src/lc8951.cpp \
+	$(CORE_DIR)/src/libretro_backupram.cpp \
+	$(CORE_DIR)/src/libretro_bios.cpp \
+	$(CORE_DIR)/src/libretro_common.cpp \
+	$(CORE_DIR)/src/libretro_input.cpp \
+	$(CORE_DIR)/src/libretro_log.cpp \
+	$(CORE_DIR)/src/libretro_memmap.cpp \
+	$(CORE_DIR)/src/libretro_variables.cpp \
 	$(CORE_DIR)/src/libretro.cpp \
 	$(CORE_DIR)/src/m68kintf.cpp \
 	$(CORE_DIR)/src/memory_backupram.cpp \

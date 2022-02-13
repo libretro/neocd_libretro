@@ -1,5 +1,6 @@
 #include "archive.h"
 #include "archivezip.h"
+#include "libretro_log.h"
 #include "misc.h"
 #include "path.h"
 #include "streams/file_stream.h"
@@ -39,7 +40,7 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
     if (archiveType == TypeZip)
         return ArchiveZip::getFileList(archiveFilename);
 
-    LOG(LOG_ERROR, "Archive: Unknown archive type %s\n", archiveFilename.c_str());
+    Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Unknown archive type %s\n", archiveFilename.c_str());
     return std::vector<std::string>();
 }
 
@@ -57,7 +58,7 @@ bool readFile(const std::string &path, void *buffer, size_t maximumSize, size_t 
     if (archiveType == TypeZip)
         return ArchiveZip::readFile(archive, filename, buffer, maximumSize, reallyRead);
 
-    LOG(LOG_ERROR, "Archive: Unknown archive type %s\n", archive.c_str());
+    Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Unknown archive type %s\n", archive.c_str());
 
     return false;
 }

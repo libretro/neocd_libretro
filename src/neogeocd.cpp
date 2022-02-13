@@ -1,20 +1,18 @@
-#include "neogeocd.h"
-extern "C" {
-    #include "3rdparty/musashi/m68kcpu.h"
-}
-#include "m68kintf.h"
-#include "3rdparty/z80/z80.h"
-#include "z80intf.h"
-#include "3rdparty/ym/ym2610.h"
-#include "timeprofiler.h"
-#include "timer.h"
-
 #include <algorithm>
 
-NeoGeoCD neocd;
+#include "3rdparty/ym/ym2610.h"
+#include "3rdparty/z80/z80.h"
+#include "m68kintf.h"
+#include "neogeocd.h"
+#include "timeprofiler.h"
+#include "timer.h"
+#include "z80intf.h"
+#include "libretro_log.h"
 
-extern void cdrom75HzTimerCallback(Timer* timer, uint32_t userData);
-extern void cdromIRQ1TimerCDZCallback(Timer* timer, uint32_t userData);
+extern "C"
+{
+    #include "3rdparty/musashi/m68kcpu.h"
+}
 
 NeoGeoCD::NeoGeoCD() :
     memory(),
@@ -42,6 +40,14 @@ NeoGeoCD::NeoGeoCD() :
     audioResult(0),
     biosType(Bios::Unknown)
 {
+    // Create the worker thread to buffer & decode audio data
+    cdrom.createWorkerThread();
+}
+
+NeoGeoCD::~NeoGeoCD()
+{
+    // End the worker thread
+    cdrom.endWorkerThread();
 }
 
 void NeoGeoCD::initialize()
@@ -54,16 +60,14 @@ void NeoGeoCD::initialize()
     z80_init(0, Timer::Z80_CLOCK, NULL, z80_irq_callback);
 
     // Initialize the YM2610
-    YM2610Init(8000000, Audio::SAMPLE_RATE, neocd.memory.pcmRam, Memory::PCMRAM_SIZE, YM2610TimerHandler, YM2610IrqHandler);
+    YM2610Init(8000000, Audio::SAMPLE_RATE, memory.pcmRam, Memory::PCMRAM_SIZE, YM2610TimerHandler, YM2610IrqHandler);
 
-    // Create the worker thread to buffer & decode audio data
-    neocd.cdrom.createWorkerThread();
+    // Reset everything
+    reset();
 }
 
 void NeoGeoCD::deinitialize()
 {
-    // End the worker thread
-    neocd.cdrom.endWorkerThread();
 }
 
 void NeoGeoCD::reset()
@@ -108,7 +112,7 @@ void NeoGeoCD::runOneFrame()
 
     while (remainingCyclesThisFrame > 0)
     {
-        uint32_t timeSlice = std::min(neocd.timers.timeSlice(), remainingCyclesThisFrame);
+        uint32_t timeSlice = std::min(timers.timeSlice(), remainingCyclesThisFrame);
 
         PROFILE(p_m68k, ProfilingCategory::CpuM68K);
         uint32_t elapsed = Timer::m68kToMaster(m68k_execute(Timer::masterToM68k(timeSlice)));
@@ -131,11 +135,11 @@ void NeoGeoCD::runOneFrame()
             z80TimeSlice -= z80Elapsed;
         }
 
-        remainingCyclesThisFrame -= elapsed;       
+        remainingCyclesThisFrame -= elapsed;
         currentTimeSeconds += Timer::masterToSeconds(elapsed);
 
         PROFILE(p_videoIRQ, ProfilingCategory::VideoAndIRQ);
-        neocd.timers.advanceTime(elapsed);
+        timers.advanceTime(elapsed);
         PROFILE_END(p_videoIRQ);
     }
 
@@ -158,24 +162,24 @@ void NeoGeoCD::clearInterrupt(NeoGeoCD::Interrupt interrupt)
  * Interrupt levels have been determined by hooking each interrupt and writing SR somewhere in memory.
  * VBL              -> SR=2100
  * CD Communication -> SR=2200
- * CD Decoder       -> SR=2200 
+ * CD Decoder       -> SR=2200
  * HBL              -> SR=2300
- * 
+ *
  * The CD communication interrupt frequency changes:
  * It happens at about 64Hz if the CD-ROM is idle, or exactly 75Hz if the CD-ROM is reading.
- * 
+ *
  * Timings
  * =======
- * 
+ *
  * Measured by hooking the interrupt and incrementing a memory location.
  * 10 minutes measured with a stopwatch (tried to be as accurate as possible)
- * 
+ *
  * VBL
  * 10 minutes = 35759 interrupts -> ~59.5983Hz
- * 
+ *
  * CD Communication (Nothing playing)
  * 10 minutes = 38788 interrupts -> ~64.6466Hz
- * 
+ *
  */
 int NeoGeoCD::updateInterrupts(void)
 {
@@ -252,25 +256,25 @@ bool NeoGeoCD::saveState(DataPacker& out) const
     out << Z80;
 
     // Timers
-    out << neocd.timers;
+    out << timers;
 
     // Memory
-    out << neocd.memory;
+    out << memory;
 
     // Video
-    out << neocd.video;
+    out << video;
 
     // Audio
-    out << neocd.audio;
+    out << audio;
 
     // YM2610
     YM2610SaveState(out);
 
     // LC8951
-    out << neocd.lc8951;
+    out << lc8951;
 
     // CDROM
-    out << neocd.cdrom;
+    out << cdrom;
 
     return !out.fail();
 }
@@ -312,25 +316,25 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     Z80.irq_callback = z80_irq_callback;
 
     // Timers
-    in >> neocd.timers;
+    in >> timers;
 
     // Memory
-    in >> neocd.memory;
+    in >> memory;
 
     // Video
-    in >> neocd.video;
+    in >> video;
 
     // Audio
-    in >> neocd.audio;
+    in >> audio;
 
     // YM2610
     YM2610RestoreState(in);
 
     // LC8951
-    in >> neocd.lc8951;
+    in >> lc8951;
 
     // CDROM
-    in >> neocd.cdrom;
+    in >> cdrom;
 
     return (!in.fail());
 }

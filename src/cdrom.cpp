@@ -2,9 +2,12 @@
 #include <thread>
 
 #include "cdrom.h"
+#include "libretro_common.h"
+#include "libretro_log.h"
 #include "misc.h"
-#include "path.h"
 #include "neocd_endian.h"
+#include "neogeocd.h"
+#include "path.h"
 
 Cdrom::Cdrom() :
     m_currentPosition(0),
@@ -91,7 +94,7 @@ bool Cdrom::loadCd(const std::string& imageFile)
     {
         if (!m_toc.loadChd(imageFile))
         {
-            LOG(LOG_ERROR, "Could not open CHD file: %s\n", imageFile.c_str());
+            Libretro::Log::message(RETRO_LOG_ERROR, "Could not open CHD file: %s\n", imageFile.c_str());
             return false;
         }
     }
@@ -99,7 +102,7 @@ bool Cdrom::loadCd(const std::string& imageFile)
     {
         if (!m_toc.loadCueSheet(imageFile))
         {
-            LOG(LOG_ERROR, "Could not open CUE file: %s\n", imageFile.c_str());
+            Libretro::Log::message(RETRO_LOG_ERROR, "Could not open CUE file: %s\n", imageFile.c_str());
             return false;
         }
     }
@@ -107,7 +110,7 @@ bool Cdrom::loadCd(const std::string& imageFile)
     // TOC list should not be empty
     if (m_toc.isEmpty())
     {
-        LOG(LOG_ERROR, "Empty TOC! This is not supposed to happen.\n");
+        Libretro::Log::message(RETRO_LOG_ERROR, "Empty TOC! This is not supposed to happen.\n");
         initialize();
         return false;
     }
@@ -506,7 +509,7 @@ DataPacker& operator>>(DataPacker& in, Cdrom& cdrom)
     in >> cdrom.m_currentPosition;
     in >> cdrom.m_isPlaying;
 
-    neocd.cdrom.seek(cdrom.m_currentPosition);
+    neocd->cdrom.seek(cdrom.m_currentPosition);
 
     return in;
 }

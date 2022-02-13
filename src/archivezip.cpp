@@ -1,9 +1,10 @@
 #include "archive.h"
 #include "archivezip.h"
+#include "libretro_log.h"
 #include "misc.h"
 #include "path.h"
-#include "unzip.h"
 #include "streams/file_stream.h"
+#include "unzip.h"
 
 static voidpf ZCALLBACK fopen_file_func(voidpf opaque, const char* filename, int mode)
 {
@@ -112,7 +113,7 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
     auto zipFile = unzOpen2(archiveFilename.c_str(), &callbacks);
     if (!zipFile)
     {
-        LOG(LOG_ERROR, "Archive: Could not open %s\n", archiveFilename.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s\n", archiveFilename.c_str());
         return result;
     }
 
@@ -122,7 +123,7 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
 
         if (unzGetCurrentFileInfo(zipFile, &fileInfo, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
         {
-            LOG(LOG_ERROR, "Archive: Failed to enumerate files (1) %s\n", archiveFilename.c_str());
+            Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Failed to enumerate files (1) %s\n", archiveFilename.c_str());
             break;
         }
 
@@ -131,7 +132,7 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
             std::string filename(fileInfo.size_filename, 0x0);
             if (unzGetCurrentFileInfo(zipFile, &fileInfo, &filename[0], filename.size(), nullptr, 0, nullptr, 0) != UNZ_OK)
             {
-                LOG(LOG_ERROR, "Archive: Failed to enumerate files (2) %s\n", archiveFilename.c_str());
+                Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Failed to enumerate files (2) %s\n", archiveFilename.c_str());
                 break;
             }
 
@@ -143,7 +144,7 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
     }
 
     if (unzClose(zipFile) != UNZ_OK)
-        LOG(LOG_ERROR, "Archive: Could not close %s\n", archiveFilename.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s\n", archiveFilename.c_str());
 
     return result;
 }
@@ -156,34 +157,34 @@ bool readFile(const std::string &archive, const std::string &filename, void *buf
     auto zipFile = unzOpen2(archive.c_str(), &callbacks);
     if (!zipFile)
     {
-        LOG(LOG_ERROR, "Archive: Could not open %s\n", archive.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s\n", archive.c_str());
         return false;
     }
 
     auto cleanup = [&](bool result) -> bool
     {
         if (unzClose(zipFile) != UNZ_OK)
-            LOG(LOG_ERROR, "Archive: Could not close %s\n", archive.c_str());
+            Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s\n", archive.c_str());
 
         return result;
     };
 
     if (unzLocateFile(zipFile, filename.c_str(), 2) != UNZ_OK)
     {
-        LOG(LOG_ERROR, "Archive: Could not find %s in archive %s\n", filename.c_str(), archive.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not find %s in archive %s\n", filename.c_str(), archive.c_str());
         return cleanup(false);
     }
 
     if (unzOpenCurrentFile(zipFile) != UNZ_OK)
     {
-        LOG(LOG_ERROR, "Archive: Could not open %s in archive %s\n", filename.c_str(), archive.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s in archive %s\n", filename.c_str(), archive.c_str());
         return cleanup(false);
     }
 
     auto result = unzReadCurrentFile(zipFile, buffer, maximumSize);
     if (result < 0)
     {
-        LOG(LOG_ERROR, "Archive: Could not read %s in archive %s\n", filename.c_str(), archive.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not read %s in archive %s\n", filename.c_str(), archive.c_str());
         unzCloseCurrentFile(zipFile);
         return cleanup(false);
     }
@@ -192,7 +193,7 @@ bool readFile(const std::string &archive, const std::string &filename, void *buf
         *reallyRead = result;
 
     if (unzCloseCurrentFile(zipFile) != UNZ_OK)
-        LOG(LOG_ERROR, "Archive: Could not close %s in archive %s\n", filename.c_str(), archive.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s in archive %s\n", filename.c_str(), archive.c_str());
 
     return cleanup(true);
 }

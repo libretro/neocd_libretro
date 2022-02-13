@@ -2,10 +2,11 @@
 #include <algorithm>
 #include <array>
 
+#include "inline.h"
+#include "libretro_common.h"
+#include "neocd_endian.h"
 #include "neogeocd.h"
 #include "video.h"
-#include "neocd_endian.h"
-#include "inline.h"
 
 static const std::array<uint32_t, 256> SPR_DECODE_TABLE {
     0x00000000, 0x00000001, 0x00000010, 0x00000011,
@@ -167,7 +168,7 @@ void Video::reset()
 
 void Video::convertColor(uint32_t index)
 {
-    uint16_t c = BIG_ENDIAN_WORD(neocd.memory.paletteRam[index]);
+    uint16_t c = BIG_ENDIAN_WORD(neocd->memory.paletteRam[index]);
 
     paletteRamPc[index] = ((c & 0x0F00) << 4) | ((c & 0x4000) >> 3) |
         ((c & 0x00F0) << 3) | ((c & 0x2000) >> 7) |
@@ -182,7 +183,7 @@ void Video::convertPalette()
 
 void Video::updateFixUsageMap()
 {
-    uint8_t* fixPtr = neocd.memory.fixRam;
+    uint8_t* fixPtr = neocd->memory.fixRam;
     uint8_t* usagePtrStart = fixUsageMap;
     uint8_t* usagePtrEnd = fixUsageMap + (Memory::FIXRAM_SIZE / 32);
 
@@ -199,7 +200,7 @@ void Video::updateFixUsageMap()
 // Note: scanline between 16 and 240!
 void Video::drawFix(uint32_t scanline)
 {
-    uint16_t* videoRamPtr = &neocd.memory.videoRam[(0xE004 / 2) + ((scanline - 16) / 8)] + (Video::LEFT_BORDER * 4);
+    uint16_t* videoRamPtr = &neocd->memory.videoRam[(0xE004 / 2) + ((scanline - 16) / 8)] + (Video::LEFT_BORDER * 4);
     uint16_t* videoRamEndPtr = videoRamPtr + (FRAMEBUFFER_WIDTH * 4);
     uint16_t* frameBufferPtr = frameBuffer + ((scanline - 16) * FRAMEBUFFER_WIDTH);
 
@@ -215,7 +216,7 @@ void Video::drawFix(uint32_t scanline)
             continue;
         }
 
-        uint8_t* fixBase = &neocd.memory.fixRam[(character * 32) + (scanline % 8)];
+        uint8_t* fixBase = &neocd->memory.fixRam[(character * 32) + (scanline % 8)];
         uint16_t* paletteBase = &paletteRamPc[(activePaletteBank * 4096) + (palette * 16)];
 
         auto decodeAndDrawFix = [&](int n) ALWAYS_INLINE {
@@ -246,7 +247,7 @@ static inline bool isSpriteOnScanline(uint32_t scanline, uint32_t y, uint32_t cl
 
 uint16_t Video::createSpriteList(uint32_t scanline, uint16_t *spriteList) const
 {
-    uint16_t* attributesPtr = &neocd.memory.videoRam[0x8200];
+    uint16_t* attributesPtr = &neocd->memory.videoRam[0x8200];
     uint16_t activeCount = 0;
     uint16_t attributes;
     uint32_t y = sprite_y;
@@ -292,9 +293,9 @@ void Video::drawSprites(uint32_t scanline, uint16_t *spriteList, uint16_t sprite
         if ((!spriteNumber) && (currentSprite < spritesToDraw))
             continue;
 
-        uint16_t spriteAttributes1 = neocd.memory.videoRam[0x8000 + spriteNumber];
-        uint16_t spriteAttributes2 = neocd.memory.videoRam[0x8200 + spriteNumber];
-        uint16_t spriteAttributes3 = neocd.memory.videoRam[0x8400 + spriteNumber];
+        uint16_t spriteAttributes1 = neocd->memory.videoRam[0x8000 + spriteNumber];
+        uint16_t spriteAttributes2 = neocd->memory.videoRam[0x8200 + spriteNumber];
+        uint16_t spriteAttributes3 = neocd->memory.videoRam[0x8400 + spriteNumber];
 
         if (spriteAttributes2 & 0x40)
         {
@@ -499,7 +500,7 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
     uint32_t spriteLine = (scanline - y) & 0x1FF;
     uint32_t zoomLine = spriteLine & 0xFF;
     bool invert = (spriteLine & 0x100) != 0;
-    
+
     enum Status {
         Normal,
         Clipped,
@@ -543,7 +544,7 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
         }
     }
 
-    uint32_t tileNumber = neocd.memory.yZoomRom[zoomY * 256 + zoomLine];
+    uint32_t tileNumber = neocd->memory.yZoomRom[zoomY * 256 + zoomLine];
     uint32_t tileLine = tileNumber & 0xF;
     tileNumber >>= 4;
 
@@ -553,8 +554,8 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
         tileNumber ^= 0x1f;
     }
 
-    uint32_t tileIndex = neocd.memory.videoRam[spriteNumber * 64 + tileNumber * 2];
-    uint32_t tileControl = neocd.memory.videoRam[spriteNumber * 64 + tileNumber * 2 + 1];
+    uint32_t tileIndex = neocd->memory.videoRam[spriteNumber * 64 + tileNumber * 2];
+    uint32_t tileControl = neocd->memory.videoRam[spriteNumber * 64 + tileNumber * 2 + 1];
 
     if (tileControl & 2)
         tileLine ^= 0x0F;
@@ -569,7 +570,7 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
     }
 
     const uint16_t* paletteBase = &paletteRamPc[(activePaletteBank * 0x1000) + ((tileControl >> 8) * 16)];
-    const uint8_t* spriteBase = &neocd.memory.sprRam[(tileIndex & 0x7FFF) * 128 + (tileLine * 4)];
+    const uint8_t* spriteBase = &neocd->memory.sprRam[(tileIndex & 0x7FFF) * 128 + (tileLine * 4)];
 
     uint16_t* frameBufferPtr = frameBuffer;
 

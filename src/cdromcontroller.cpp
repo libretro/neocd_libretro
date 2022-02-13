@@ -2,6 +2,7 @@
 
 #include "cdrom.h"
 #include "cdromcontroller.h"
+#include "libretro_common.h"
 #include "neogeocd.h"
 
 //#define CONTROLLER_LOG(x, ...) LOG(x, __VA_ARGS__)
@@ -15,11 +16,11 @@ void CdromController::reset()
 {
 
 }
-    
+
 void CdromController::processCdCommand()
 {
-    const auto& commandPacket = neocd.lc8951.commandPacket;
-    auto& responsePacket = neocd.lc8951.responsePacket;
+    const auto& commandPacket = neocd->lc8951.commandPacket;
+    auto& responsePacket = neocd->lc8951.responsePacket;
 
     if (commandPacket[0])
     {
@@ -31,7 +32,7 @@ void CdromController::processCdCommand()
             commandPacket[4]);
     }
 
-    if ((commandPacket[4] & 0x0F) != neocd.lc8951.calculatePacketChecksum(commandPacket))
+    if ((commandPacket[4] & 0x0F) != neocd->lc8951.calculatePacketChecksum(commandPacket))
     {
         CONTROLLER_LOG(LOG_INFO, "CD command with wrong checksum!");
         responsePacket[0] = status;
@@ -39,7 +40,7 @@ void CdromController::processCdCommand()
         responsePacket[2] = 0x00;
         responsePacket[3] = 0x00;
         responsePacket[4] = 0x00;
-        neocd.lc8951.setPacketChecksum(responsePacket);
+        neocd->lc8951.setPacketChecksum(responsePacket);
         return;
     }
 
@@ -50,7 +51,7 @@ void CdromController::processCdCommand()
         break;
 
     case 0x10:  // Stop
-        neocd.cdrom.stop();
+        neocd->cdrom.stop();
         status = CdIdle;
         responsePacket[0] = status;
         responsePacket[1] = 0x00;
@@ -60,7 +61,7 @@ void CdromController::processCdCommand()
         break;
 
     case 0x20:  // Query info
-        if ((status == CdIdle) && (!neocd.cdrom.isTocEmpty()))
+        if ((status == CdIdle) && (!neocd->cdrom.isTocEmpty()))
             status = CdStopped;
 
         switch (commandPacket[1] & 0x0F)    // Sub command
@@ -68,12 +69,12 @@ void CdromController::processCdCommand()
         case 0x00:  // Get current position
         {
             uint32_t     m, s, f;
-            CdromToc::toMSF(CdromToc::fromLBA(neocd.cdrom.position()), m, s, f);
+            CdromToc::toMSF(CdromToc::fromLBA(neocd->cdrom.position()), m, s, f);
             responsePacket[0] = status;
             responsePacket[1] = Cdrom::toBCD(m);
             responsePacket[2] = Cdrom::toBCD(s);
             responsePacket[3] = Cdrom::toBCD(f);
-            responsePacket[4] = neocd.cdrom.isData() ? 0x40 : 0x00;
+            responsePacket[4] = neocd->cdrom.isData() ? 0x40 : 0x00;
         }
         break;
 
@@ -81,10 +82,10 @@ void CdromController::processCdCommand()
         {
             uint32_t position;
 
-            if (neocd.cdrom.isPregap()) // Pregaps are counted down
-                position = (neocd.cdrom.currentTrackPosition() + neocd.cdrom.currentIndexSize()) - (neocd.cdrom.position() + 1);
+            if (neocd->cdrom.isPregap()) // Pregaps are counted down
+                position = (neocd->cdrom.currentTrackPosition() + neocd->cdrom.currentIndexSize()) - (neocd->cdrom.position() + 1);
             else
-                position = neocd.cdrom.position() - neocd.cdrom.currentTrackPosition();
+                position = neocd->cdrom.position() - neocd->cdrom.currentTrackPosition();
 
             uint32_t m, s, f;
             CdromToc::toMSF(position, m, s, f);
@@ -93,7 +94,7 @@ void CdromController::processCdCommand()
             responsePacket[1] = Cdrom::toBCD(m);
             responsePacket[2] = Cdrom::toBCD(s);
             responsePacket[3] = Cdrom::toBCD(f);
-            responsePacket[4] = neocd.cdrom.isData() ? 0x40 : 0x00;
+            responsePacket[4] = neocd->cdrom.isData() ? 0x40 : 0x00;
         }
         break;
 
@@ -103,19 +104,19 @@ void CdromController::processCdCommand()
                 NOTE: Copy protection can be simulated by generating indexes for track 01 as follow:
                 index = std::min(99, (((m * 100) + s) / 4) + 1);
                 */
-            TrackIndex trackIndex = neocd.cdrom.currentTrackIndex();
+            TrackIndex trackIndex = neocd->cdrom.currentTrackIndex();
             responsePacket[0] = status | 0x02;
             responsePacket[1] = Cdrom::toBCD(trackIndex.track());
             responsePacket[2] = Cdrom::toBCD(trackIndex.index());
             responsePacket[3] = 0x00;
-            responsePacket[4] = neocd.cdrom.isData() ? 0x40 : 0x00;
+            responsePacket[4] = neocd->cdrom.isData() ? 0x40 : 0x00;
         }
         break;
 
         case 0x03: // Get leadout address (msf)
         {
             uint32_t m, s, f;
-            CdromToc::toMSF(CdromToc::fromLBA(neocd.cdrom.leadout()), m, s, f);
+            CdromToc::toMSF(CdromToc::fromLBA(neocd->cdrom.leadout()), m, s, f);
             responsePacket[0] = status | 0x03;
             responsePacket[1] = Cdrom::toBCD(m);
             responsePacket[2] = Cdrom::toBCD(s);
@@ -127,8 +128,8 @@ void CdromController::processCdCommand()
         case 0x04: // Get first track and last track
         {
             responsePacket[0] = status | 0x04;
-            responsePacket[1] = Cdrom::toBCD(neocd.cdrom.firstTrack());
-            responsePacket[2] = Cdrom::toBCD(neocd.cdrom.lastTrack());
+            responsePacket[1] = Cdrom::toBCD(neocd->cdrom.firstTrack());
+            responsePacket[2] = Cdrom::toBCD(neocd->cdrom.lastTrack());
             responsePacket[3] = 0x00;
             responsePacket[4] = 0x00;
         }
@@ -137,7 +138,7 @@ void CdromController::processCdCommand()
         case 0x05: // Get track info
         {
             uint8_t track = Cdrom::fromBCD(commandPacket[2]);
-            uint32_t position = CdromToc::fromLBA(neocd.cdrom.trackPosition(track));
+            uint32_t position = CdromToc::fromLBA(neocd->cdrom.trackPosition(track));
             uint32_t m, s, f;
             CdromToc::toMSF(position, m, s, f);
 
@@ -145,7 +146,7 @@ void CdromController::processCdCommand()
             responsePacket[1] = Cdrom::toBCD(m);
             responsePacket[2] = Cdrom::toBCD(s);
 
-            if (neocd.cdrom.trackIsData(track))
+            if (neocd->cdrom.trackIsData(track))
                 responsePacket[3] = Cdrom::toBCD(f) | 0x80;
             else
                 responsePacket[3] = Cdrom::toBCD(f);
@@ -156,14 +157,14 @@ void CdromController::processCdCommand()
 
         case 0x06: // Check end of disc?
         {
-            if (neocd.cdrom.position() >= neocd.cdrom.leadout())
+            if (neocd->cdrom.position() >= neocd->cdrom.leadout())
                 status = CdEndOfDisc;
 
             responsePacket[0] = status | 0x06;
             responsePacket[1] = 0x00;
             responsePacket[2] = 0x00;
             responsePacket[3] = 0x00;
-            responsePacket[4] = neocd.cdrom.isData() ? 0x40 : 0x00;
+            responsePacket[4] = neocd->cdrom.isData() ? 0x40 : 0x00;
         }
         break;
 
@@ -211,13 +212,13 @@ void CdromController::processCdCommand()
             Some tracks use this, other tracks use $C0B3C6 (called once)
             Is this a bug in the BIOS? Or is something not properly emulated?
         */
-        neocd.cdrom.play();
-        neocd.cdrom.seek(position);
-//        updateHeadRegisters(neocd.cdrom.position());
+        neocd->cdrom.play();
+        neocd->cdrom.seek(position);
+//        updateHeadRegisters(neocd->cdrom.position());
 
         status = CdPlaying;
         responsePacket[0] = status | 0x02;
-        responsePacket[1] = Cdrom::toBCD(neocd.cdrom.currentTrackIndex().track());
+        responsePacket[1] = Cdrom::toBCD(neocd->cdrom.currentTrackIndex().track());
         responsePacket[2] = 0x00;
         responsePacket[3] = 0x00;
         responsePacket[4] = 0x00;
@@ -232,7 +233,7 @@ void CdromController::processCdCommand()
             commandPacket[3],
             commandPacket[4]);
 
-        neocd.cdrom.stop();
+        neocd->cdrom.stop();
         status = CdPaused;
         responsePacket[0] = CdSeeking;
         responsePacket[1] = 0x00;
@@ -246,14 +247,14 @@ void CdromController::processCdCommand()
         break;
 
     case 0x60: // Pause
-        neocd.cdrom.stop();
+        neocd->cdrom.stop();
 
         status = CdPaused;
         responsePacket[0] = status;
         break;
 
     case 0x70: // Resume
-        neocd.cdrom.play();
+        neocd->cdrom.play();
 
         status = CdPlaying;
         responsePacket[0] = status;
@@ -261,11 +262,11 @@ void CdromController::processCdCommand()
 
     case 0x80: // Scan forward
     {
-        uint32_t position = neocd.cdrom.position();
+        uint32_t position = neocd->cdrom.position();
 
-        position = std::min(position + SCAN_SPEED, neocd.cdrom.leadout() - 1);
+        position = std::min(position + SCAN_SPEED, neocd->cdrom.leadout() - 1);
 
-        neocd.cdrom.seek(position);
+        neocd->cdrom.seek(position);
 
         status = CdPlaying;
         responsePacket[0] = CdScanning;
@@ -274,14 +275,14 @@ void CdromController::processCdCommand()
 
     case 0x90: // Scan backward
     {
-        uint32_t position = neocd.cdrom.position();
+        uint32_t position = neocd->cdrom.position();
 
         if (position < SCAN_SPEED)
             position = 0;
         else
             position -= SCAN_SPEED;
 
-        neocd.cdrom.seek(position);
+        neocd->cdrom.seek(position);
 
         status = CdPlaying;
         responsePacket[0] = CdScanning;
@@ -291,14 +292,14 @@ void CdromController::processCdCommand()
     case 0xB0: // Move to track
     {
         uint8_t track = Cdrom::fromBCD(commandPacket[1]);
-        uint32_t position = neocd.cdrom.trackPosition(track);
+        uint32_t position = neocd->cdrom.trackPosition(track);
 
-        neocd.cdrom.play();
-        neocd.cdrom.seek(position);
+        neocd->cdrom.play();
+        neocd->cdrom.seek(position);
 
         status = CdPlaying;
         responsePacket[0] = status | 0x02;
-        responsePacket[1] = Cdrom::toBCD(neocd.cdrom.currentTrackIndex().track());
+        responsePacket[1] = Cdrom::toBCD(neocd->cdrom.currentTrackIndex().track());
         responsePacket[2] = 0x00;
         responsePacket[3] = 0x00;
         responsePacket[4] = 0x00;
@@ -335,7 +336,7 @@ void CdromController::processCdCommand()
         break;
     }
 
-    neocd.lc8951.setPacketChecksum(responsePacket);
+    neocd->lc8951.setPacketChecksum(responsePacket);
 
 /*  CONTROLLER_LOG(LOG_INFO, "ANSWER  %02X%02X%02X%02X%02X\n",
         responsePacket[0],

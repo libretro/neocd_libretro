@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "bios.h"
+#include "libretro_log.h"
 #include "memory.h"
 #include "misc.h"
 #include "neocd_endian.h"
@@ -205,70 +206,70 @@ void Bios::patch(uint8_t *biosData, const Bios::Type biosType, bool speedHackEna
     if (biosType.first == Bios::CDZ)
     {
         if (!replacePattern(biosData, CDZ_CD_RECOG_REPLACE))
-            LOG(LOG_ERROR, MSG_CD_RECOG_PATCH_FAILED);
+            Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_RECOG_PATCH_FAILED);
 
         if (speedHackEnabled)
         {
             if (!replacePattern(biosData, CDZ_SPEEDHACK_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SPEEDHACK_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SPEEDHACK_PATCH_FAILED);
         }
 
         if (biosType.second == Bios::SMKDan)
         {
             if (!replacePattern(biosData, CDZ_SMKDAN_CHECKSUM_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
         }
 
         if (biosType.second == Bios::SMKDanBeta)
         {
             if (!replacePattern(biosData, CDZ_SMKDANBETA_CHECKSUM_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
         }
 
         if (biosType.second == Bios::Universe33)
         {
             if (!replacePattern(biosData, CDZ_UNIVERSE33_CHECKSUM_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_UNIVERSE33_CRC_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_UNIVERSE33_CRC_PATCH_FAILED);
         }
     }
     else if (biosType.first == Bios::FrontLoader)
     {
         if (!replacePattern(biosData, FRONT_CD_RECOG_REPLACE))
-            LOG(LOG_ERROR, MSG_CD_RECOG_PATCH_FAILED);
+            Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_RECOG_PATCH_FAILED);
 
         if (speedHackEnabled)
         {
             if (!replacePattern(biosData, FRONT_SPEEDHACK_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SPEEDHACK_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SPEEDHACK_PATCH_FAILED);
         }
 
         if (biosType.second == Bios::SMKDanBeta)
         {
             if (!replacePattern(biosData, FRONT_SMKDANBETA_CHECKSUM_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
         }
     }
     else if (biosType.first == Bios::TopLoader)
     {
         if (!replacePattern(biosData, TOP_CD_RECOG_REPLACE))
-            LOG(LOG_ERROR, MSG_CD_RECOG_PATCH_FAILED);
+            Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_RECOG_PATCH_FAILED);
 
         if (speedHackEnabled)
         {
             if (!replacePattern(biosData, TOP_SPEEDHACK_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SPEEDHACK_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SPEEDHACK_PATCH_FAILED);
         }
 
         if (biosType.second == Bios::SMKDan)
         {
             if (!replacePattern(biosData, TOP_SMKDAN_CHECKSUM_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
         }
 
         if (biosType.second == Bios::SMKDanBeta)
         {
             if (!replacePattern(biosData, TOP_SMKDANBETA_CHECKSUM_REPLACE))
-                LOG(LOG_ERROR, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
+                Libretro::Log::message(RETRO_LOG_WARN, MSG_CD_SMKDAN_CRC_PATCH_FAILED);
         }
     }
 }

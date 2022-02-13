@@ -110,6 +110,7 @@
 
 #include "ym2610.h"
 #include "../../neogeocd.h"
+#include "../../libretro_common.h"
 #include "../../datapacker.h"
 
 #define logerror(...)
@@ -2884,7 +2885,7 @@ void YM2610Update(int length)
 		Limit(lt, MAXOUT, MINOUT);
 		Limit(rt, MAXOUT, MINOUT);
 
-		neocd.audio.buffer.appendSample({ static_cast<int16_t>(lt), static_cast<int16_t>(rt) });
+		neocd->audio.buffer.appendSample({ static_cast<int16_t>(lt), static_cast<int16_t>(rt) });
 	}
 }
 
@@ -3373,7 +3374,7 @@ DataPacker& operator<<(DataPacker& out, const FM_CH& fmCh)
 	out.pushPointerMulti(reinterpret_cast<const char *>(fmCh.connect3), connect3Map, sizeof(connect3Map) / sizeof(DataPacker::ConstPointerMap));
 	out.pushPointer(reinterpret_cast<const char *>(fmCh.connect4), reinterpret_cast<const char *>(out_fm), sizeof(INT32) * 6);
 	out.pushPointerMulti(reinterpret_cast<const char *>(fmCh.mem_connect), memcMap, sizeof(memcMap) / sizeof(DataPacker::ConstPointerMap));
-	
+
 	out << fmCh.mem_value;
 	out << fmCh.pms;
 	out << fmCh.ams;

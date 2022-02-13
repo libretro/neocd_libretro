@@ -1,13 +1,15 @@
+#include "libretro_common.h"
+#include "3rdparty/musashi/m68k.h"
 #include "m68kintf.h"
 #include "neogeocd.h"
 
-extern "C" {
-
+extern "C"
+{
     #include "3rdparty/musashi/m68kcpu.h"
 
     uint32_t m68k_read_memory_8(uint32_t address)
     {
-        const Memory::Region* region = neocd.memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
+        const Memory::Region* region = neocd->memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
 
         if (!region)
         {
@@ -27,7 +29,7 @@ extern "C" {
 
     void m68k_write_memory_8(uint32_t address, uint32_t data)
     {
-        const Memory::Region* region = neocd.memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
+        const Memory::Region* region = neocd->memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
 
         if (!region)
         {
@@ -52,7 +54,7 @@ extern "C" {
 
     uint32_t m68k_read_memory_16(uint32_t address)
     {
-        const Memory::Region* region = neocd.memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
+        const Memory::Region* region = neocd->memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
 
         if (!region)
         {
@@ -72,7 +74,7 @@ extern "C" {
 
     void m68k_write_memory_16(uint32_t address, uint32_t data)
     {
-        const Memory::Region* region = neocd.memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
+        const Memory::Region* region = neocd->memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
 
         if (!region)
         {
@@ -124,7 +126,7 @@ extern "C" {
             vector = 0x68 / 4;
             break;
         case 2:
-            vector = neocd.cdromVector / 4;
+            vector = neocd->cdromVector / 4;
             break;
         case 3:
             vector = 0x64 / 4;

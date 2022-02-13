@@ -2,17 +2,21 @@
 #include <algorithm>
 #include <array>
 
-#include "neogeocd.h"
-#include "memory.h"
-#include "memory_paletteram.h"
+#include "libretro_common.h"
+#include "libretro_log.h"
+#include "memory_backupram.h"
 #include "memory_cdintf.h"
 #include "memory_input.h"
 #include "memory_mapped.h"
-#include "memory_z80comm.h"
-#include "memory_backupram.h"
-#include "memory_video.h"
+#include "memory_paletteram.h"
 #include "memory_switches.h"
-extern "C" {
+#include "memory_video.h"
+#include "memory_z80comm.h"
+#include "memory.h"
+#include "neogeocd.h"
+
+extern "C"
+{
     #include "3rdparty/musashi/m68kcpu.h"
 }
 
@@ -97,8 +101,8 @@ Memory::Memory() :
     z80Ram = reinterpret_cast<uint8_t*>(std::malloc(Z80RAM_SIZE));
 
     // Backup RAM: 8KiB
-    backupRam = reinterpret_cast<uint8_t*>(std::malloc(BACKUPRAM_SIZE));
-    
+    backupRam = reinterpret_cast<uint8_t*>(std::calloc(1, BACKUPRAM_SIZE));
+
     generateYZoomData();
     buildMemoryMap();
     initializeRegionLookupTable();
@@ -179,7 +183,7 @@ void Memory::mapVectorsToRom()
 
 void Memory::buildMemoryMap()
 {
-    memoryRegions[Regions::RAM] = { Memory::Region::ReadDirect | Memory::Region::WriteDirect, 0x000000, 0x1FFFFF, 0x001FFFFF, nullptr, neocd.memory.ram, neocd.memory.ram };
+    memoryRegions[Regions::RAM] = { Memory::Region::ReadDirect | Memory::Region::WriteDirect, 0x000000, 0x1FFFFF, 0x001FFFFF, nullptr, ram, ram };
     memoryRegions[Regions::Controller1] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x300000, 0x31FFFF, 0x00000001, &controller1Handlers, nullptr, nullptr };
     memoryRegions[Regions::Z80Comm] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x320000, 0x33FFFF, 0x00000001, &z80CommunicationHandlers, nullptr, nullptr };
     memoryRegions[Regions::Controller2] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x340000, 0x35FFFF, 0x00000001, &controller2Handlers, nullptr, nullptr };
@@ -188,7 +192,7 @@ void Memory::buildMemoryMap()
     memoryRegions[Regions::Video] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x3C0000, 0x3DFFFF, 0x0000000F, &videoRamHandlers, nullptr, nullptr };
     memoryRegions[Regions::Palette] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x400000, 0x4FFFFF, 0x00001FFF, &paletteRamHandlers, nullptr, nullptr };
     memoryRegions[Regions::Backup] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0x800000, 0x8FFFFF, 0x00003FFF, &backupRamHandlers, nullptr, nullptr };
-    memoryRegions[Regions::ROM] = { Memory::Region::ReadDirect | Memory::Region::WriteNop, 0xC00000, 0xCFFFFF, 0x0007FFFF, nullptr, neocd.memory.rom, nullptr };
+    memoryRegions[Regions::ROM] = { Memory::Region::ReadDirect | Memory::Region::WriteNop, 0xC00000, 0xCFFFFF, 0x0007FFFF, nullptr, rom, nullptr };
     memoryRegions[Regions::MappedRAM] = { Memory::Region::ReadMapped | Memory::Region::WriteMapped, 0xE00000, 0xEFFFFF, 0x000FFFFF, &mappedRamHandlers, nullptr, nullptr };
     memoryRegions[Regions::CDInterface] = { static_cast<Memory::Region::Flags>(Memory::Region::ReadMapped | Memory::Region::WriteMapped), 0xFF0000, 0xFF01FF, 0x000001FF, &cdInterfaceHandlers, nullptr, nullptr };
 
@@ -200,8 +204,8 @@ void Memory::buildMemoryMap()
     memoryRegions[Regions::Unused3E] = { Memory::Region::ReadNop | Memory::Region::WriteNop, 0x3E0000, 0x3FFFFF, 0x00000000, nullptr, nullptr, nullptr };
 
     // Those regions are only used to swap the first 0x80 bytes of the address map between ROM and RAM
-    vectorRegions[Vectors::ROM] = { Memory::Region::ReadDirect | Memory::Region::WriteNop, 0x000000, 0x00007F, 0x0000007F, nullptr, neocd.memory.rom, nullptr };
-    vectorRegions[Vectors::RAM] = { Memory::Region::ReadDirect | Memory::Region::WriteDirect, 0x000000, 0x00007F, 0x0000007F, nullptr, neocd.memory.ram, neocd.memory.ram };
+    vectorRegions[Vectors::ROM] = { Memory::Region::ReadDirect | Memory::Region::WriteNop, 0x000000, 0x00007F, 0x0000007F, nullptr, rom, nullptr };
+    vectorRegions[Vectors::RAM] = { Memory::Region::ReadDirect | Memory::Region::WriteDirect, 0x000000, 0x00007F, 0x0000007F, nullptr, ram, ram };
 }
 
 void Memory::initializeRegionLookupTable()
@@ -210,7 +214,7 @@ void Memory::initializeRegionLookupTable()
     {
         const auto start = &regionLookupTable[memoryRegion.startAddress / MEMORY_GRANULARITY];
         const auto end = &regionLookupTable[memoryRegion.endAddress / MEMORY_GRANULARITY];
-        
+
         for (auto ptr = start; ptr <= end; ++ptr)
             *ptr = &memoryRegion;
     }
@@ -278,7 +282,7 @@ void Memory::doDma()
         dmaOpFillOddBytes();
         break;
     default:
-        LOG(LOG_ERROR, "DMA transfer with unknown DMA configuration: %04x %04x %04x %04x %04x %04x %04x %04x %04x\n",
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer with unknown DMA configuration: %04x %04x %04x %04x %04x %04x %04x %04x %04x\n",
             dmaConfig[0],
             dmaConfig[1],
             dmaConfig[2],
@@ -288,11 +292,11 @@ void Memory::doDma()
             dmaConfig[6],
             dmaConfig[7],
             dmaConfig[8]);
-        LOG(LOG_ERROR, "Source : %X\n", dmaSource);
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "Pattern: %X\n", dmaPattern);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Source : %X\n", dmaSource);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Pattern: %X\n", dmaPattern);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         break;
     }
 }
@@ -351,10 +355,10 @@ void Memory::dmaOpCopyCdrom(void)
     const Memory::Region* region = dmaFindRegion(dmaDestination);
     if (!region)
     {
-        LOG(LOG_ERROR, "DMA COPY FROM CD BUFFER: Unknown destination region.\n");
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA COPY FROM CD BUFFER: Unknown destination region.\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
@@ -364,31 +368,31 @@ void Memory::dmaOpCopyCdrom(void)
     */
     if (dmaLength > 0x400)
     {
-        LOG(LOG_ERROR, "DMA transfer from CD buffer with length > 0x400 ! \n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer with length > 0x400 ! \n");
         m68k_write_memory_32(0x10FEFC, 0x800);
         dmaLength = 0x400;
     }
     else if (dmaLength < 0x400)
-        LOG(LOG_ERROR, "DMA transfer from CD buffer with length = %X ! \n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer with length = %X ! \n", dmaLength);
 
-    if (neocd.lc8951.IFSTAT & LC8951::DTBSY)
-        LOG(LOG_ERROR, "DMA transfer from CD buffer but LC8951 side is not started ! \n");
+    if (neocd->lc8951.IFSTAT & LC8951::DTBSY)
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer but LC8951 side is not started ! \n");
 
-    if (neocd.lc8951.wordRegister(neocd.lc8951.DBCL, neocd.lc8951.DBCH) != 0x7FF)
-        LOG(LOG_ERROR, "DMA transfer from CD buffer but LC8951 length is not 0x7FF ! \n");
+    if (neocd->lc8951.wordRegister(neocd->lc8951.DBCL, neocd->lc8951.DBCH) != 0x7FF)
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer but LC8951 length is not 0x7FF ! \n");
 
-    uint16_t* source = reinterpret_cast<uint16_t*>(&neocd.lc8951.buffer[0]);
+    uint16_t* source = reinterpret_cast<uint16_t*>(&neocd->lc8951.buffer[0]);
     uint32_t length = dmaLength;
     uint32_t offset = dmaDestination & region->addressMask;
-    
+
     while (length)
     {
         dmaWriteNextWord(region, offset, BIG_ENDIAN_WORD(*source));
         source++;
         length--;
     }
-    
-    neocd.lc8951.endTransfer();
+
+    neocd->lc8951.endTransfer();
 }
 
 void Memory::dmaOpCopyCdromOddBytes(void)
@@ -397,29 +401,29 @@ void Memory::dmaOpCopyCdromOddBytes(void)
     const Memory::Region* region = dmaFindRegion(dmaDestination);
     if (!region)
     {
-        LOG(LOG_ERROR, "DMA COPY FROM CD BUFFER (ODD BYTES): Unknown destination region.\n");
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA COPY FROM CD BUFFER (ODD BYTES): Unknown destination region.\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
     if (dmaLength > 0x400)
     {
-        LOG(LOG_ERROR, "DMA transfer from CD buffer with length > 0x400 ! \n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer with length > 0x400 ! \n");
         m68k_write_memory_32(0x10FEFC, 0x800); // Fix, see above.
         dmaLength = 0x400;
     }
     else if (dmaLength < 0x400)
-        LOG(LOG_ERROR, "DMA transfer from CD buffer with length = %X ! \n", dmaLength);
-        
-    if (neocd.lc8951.IFSTAT & LC8951::DTBSY)
-        LOG(LOG_ERROR, "DMA transfer from CD buffer but LC8951 side is not started ! \n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer with length = %X ! \n", dmaLength);
 
-    if (neocd.lc8951.wordRegister(neocd.lc8951.DBCL, neocd.lc8951.DBCH) != 0x7FF)
-        LOG(LOG_ERROR, "DMA transfer from CD buffer but LC8951 length is not 0x7FF ! \n");
+    if (neocd->lc8951.IFSTAT & LC8951::DTBSY)
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer but LC8951 side is not started ! \n");
 
-    uint16_t* source = reinterpret_cast<uint16_t*>(&neocd.lc8951.buffer[0]);
+    if (neocd->lc8951.wordRegister(neocd->lc8951.DBCL, neocd->lc8951.DBCH) != 0x7FF)
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA transfer from CD buffer but LC8951 length is not 0x7FF ! \n");
+
+    uint16_t* source = reinterpret_cast<uint16_t*>(&neocd->lc8951.buffer[0]);
     uint16_t data;
     uint32_t length = dmaLength;
     uint32_t offset = dmaDestination & region->addressMask;
@@ -432,8 +436,8 @@ void Memory::dmaOpCopyCdromOddBytes(void)
         dmaWriteNextWord(region, offset, data);
         length--;
     }
-    
-    neocd.lc8951.endTransfer();
+
+    neocd->lc8951.endTransfer();
 }
 
 void Memory::dmaOpCopyOddBytes(void)
@@ -448,12 +452,12 @@ void Memory::dmaOpCopyOddBytes(void)
 
     if ((!sourceRegion) || (!destinationRegion))
     {
-        LOG(LOG_ERROR, "DMA COPY ODD BYTES: Unhandled call\n");
-        LOG(LOG_ERROR, "Source : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaSource);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "Pattern: %X\n", dmaPattern);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA COPY ODD BYTES: Unhandled call\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Source : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaSource);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Pattern: %X\n", dmaPattern);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
@@ -485,12 +489,12 @@ void Memory::dmaOpCopy(void)
 
     if ((!sourceRegion) || (!destinationRegion))
     {
-        LOG(LOG_ERROR, "DMA COPY: Unhandled call\n");
-        LOG(LOG_ERROR, "Source : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaSource);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "Pattern: %X\n", dmaPattern);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA COPY: Unhandled call\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Source : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaSource);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Pattern: %X\n", dmaPattern);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
@@ -515,11 +519,11 @@ void Memory::dmaOpPattern(void)
     const Memory::Region* region = dmaFindRegion(dmaDestination);
     if (!region)
     {
-        LOG(LOG_ERROR, "DMA PATTERN: Unknown destination region.\n");
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "Pattern: %X\n", dmaPattern);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA PATTERN: Unknown destination region.\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Pattern: %X\n", dmaPattern);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
@@ -540,11 +544,11 @@ void Memory::dmaOpFill(void)
     const Memory::Region* region = dmaFindRegion(dmaDestination);
     if (!region)
     {
-        LOG(LOG_ERROR, "DMA FILL: Unknown destination region.\n");
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "Pattern: %X\n", dmaPattern);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA FILL: Unknown destination region.\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Pattern: %X\n", dmaPattern);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
@@ -569,11 +573,11 @@ void Memory::dmaOpFillOddBytes(void)
     const Memory::Region* region = dmaFindRegion(dmaDestination);
     if (!region)
     {
-        LOG(LOG_ERROR, "DMA FILL ODD BYTES: Unknown destination region.\n");
-        LOG(LOG_ERROR, "Dest   : %X\n", dmaDestination);
-        LOG(LOG_ERROR, "Length : %X\n", dmaLength);
-        LOG(LOG_ERROR, "Pattern: %X\n", dmaPattern);
-        LOG(LOG_ERROR, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "DMA FILL ODD BYTES: Unknown destination region.\n");
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Dest   : %X\n", dmaDestination);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Length : %X\n", dmaLength);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "Pattern: %X\n", dmaPattern);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "(PC = %X)\n", m68k_get_reg(NULL, M68K_REG_PPC));
         return;
     }
 
@@ -685,8 +689,8 @@ DataPacker& operator>>(DataPacker& in, Memory& memory)
     in.pop(reinterpret_cast<char*>(memory.paletteRam), Memory::PALETTERAM_SIZE);
     in.pop(reinterpret_cast<char*>(memory.z80Ram), Memory::Z80RAM_SIZE);
 
-    neocd.video.convertPalette();
-    neocd.video.updateFixUsageMap();
+    neocd->video.convertPalette();
+    neocd->video.updateFixUsageMap();
 
     return in;
 }

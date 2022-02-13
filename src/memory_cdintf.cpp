@@ -1,10 +1,14 @@
+#include "3rdparty/ym/ym2610.h"
+#include "3rdparty/z80/z80.h"
+#include "libretro_common.h"
+#include "libretro_log.h"
 #include "memory_cdintf.h"
 #include "neogeocd.h"
-extern "C" {
+
+extern "C"
+{
     #include "3rdparty/musashi/m68kcpu.h"
 }
-#include "3rdparty/z80/z80.h"
-#include "3rdparty/ym/ym2610.h"
 
 /*
     Few notes for later:
@@ -54,13 +58,13 @@ static const uint8_t bitReverseTable[] = {
 
 inline bool isCdAudioPlaying()
 {
-    return neocd.cdrom.isPlaying() && neocd.cdrom.isAudio();
+    return neocd->cdrom.isPlaying() && neocd->cdrom.isAudio();
 }
 
 inline const AudioBuffer::Sample& currentCdAudioSample()
 {
-    const int32_t currentSample = neocd.audio.buffer.masterCyclesThisFrameToSampleClamped(neocd.m68kMasterCyclesThisFrame());
-    return neocd.audio.buffer.cdSamples[currentSample];
+    const int32_t currentSample = neocd->audio.buffer.masterCyclesThisFrameToSampleClamped(neocd->m68kMasterCyclesThisFrame());
+    return neocd->audio.buffer.cdSamples[currentSample];
 }
 
 inline uint16_t reverseBits(uint16_t value)
@@ -72,20 +76,20 @@ static uint32_t cdInterfaceReadByte(uint32_t address)
 {
     switch (address)
     {
-    case 0x0017:    // Unknown registers 
+    case 0x0017:    // Unknown registers
         break;
 
     case 0x0103:    // FF0103: CDROM Read Register
-        return neocd.lc8951.readRegister();
+        return neocd->lc8951.readRegister();
 
     case 0x0161:    // FF0161: CDROM Communication: Read Response Packet
-        return neocd.lc8951.readResponsePacket();
+        return neocd->lc8951.readResponsePacket();
 
     case 0x0167:    // FF0167: Unknown. Front loader BIOS uses this
         break;
 
     default:
-        LOG(LOG_INFO, "CD-UNIT: Byte read from unknown register %06X @ PC=%06X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "CD-UNIT: Byte read from unknown register %06X @ PC=%06X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC));
         break;
     }
 
@@ -98,7 +102,7 @@ static uint32_t cdInterfaceReadWord(uint32_t address)
     {
     case 0x0004:    // FF0004: IRQ Mask for VBL & others
                     // /!\ It is really important that this register can be read as it is saved on the stack and restored during an interrupt.
-        return neocd.irqMask2;
+        return neocd->irqMask2;
 
     case 0x011C:    /*
                         FF011C: System Config
@@ -107,9 +111,9 @@ static uint32_t cdInterfaceReadWord(uint32_t address)
                         N = Nationality
                         T = Tray (Top & Front Models: Open=0 Close=1  CDZ: Open=1 Close=0)
                     */
-        if (neocd.isCDZ())
-            return ((~neocd.machineNationality & 7) << 8);
-        return ((~neocd.machineNationality & 7) << 8) | 0x1000;
+        if (neocd->isCDZ())
+            return ((~neocd->machineNationality & 7) << 8);
+        return ((~neocd->machineNationality & 7) << 8) | 0x1000;
 
     case 0x0188:    // FF0188: Current CD-Audio Sample: Left Channel, bits are reversed
         if (isCdAudioPlaying())
@@ -124,7 +128,7 @@ static uint32_t cdInterfaceReadWord(uint32_t address)
         return 0x0000;
 
     default:
-        LOG(LOG_INFO, "CD-UNIT: Word read from unknown register %06X @ PC=%06X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC));
+        Libretro::Log::message(RETRO_LOG_DEBUG, "CD-UNIT: Word read from unknown register %06X @ PC=%06X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC));
         break;
     }
 
@@ -142,7 +146,7 @@ static void cdInterfaceWriteByte(uint32_t address, uint32_t data)
     case 0x0017:
     case 0x0167:
     case 0x016D:
-//      LOG(LOG_INFO, "%06X = %02X\n", address + 0xFF0000, data);
+//      Libretro::Log::message(RETRO_LOG_DEBUG, "%06X = %02X\n", address + 0xFF0000, data);
         break;
 
     case 0x000F:    /*
@@ -153,146 +157,146 @@ static void cdInterfaceWriteByte(uint32_t address, uint32_t data)
                         $04 -> Vector $60 (Unused, Spurious Interrupt)
                     */
         if (data & 0x20)
-            neocd.clearInterrupt(NeoGeoCD::CdromDecoder);
+            neocd->clearInterrupt(NeoGeoCD::CdromDecoder);
 
         if (data & 0x10)
-            neocd.clearInterrupt(NeoGeoCD::CdromCommunication);
+            neocd->clearInterrupt(NeoGeoCD::CdromCommunication);
 
-        neocd.updateInterrupts();
+        neocd->updateInterrupts();
         break;
 
     case 0x0061:    // FF0061: DMA control $40 = enable / $00 = clear
         if (data == 0x40)
-            neocd.memory.doDma();
+            neocd->memory.doDma();
         else if (data == 0)
-            neocd.memory.resetDma();
+            neocd->memory.resetDma();
         break;
 
     case 0x0101:    // FF0101: CDROM Register Select
-        neocd.lc8951.setRegisterPointer(data);
+        neocd->lc8951.setRegisterPointer(data);
         break;
 
     case 0x0103:    // FF0103: CDROM Write Register
-        neocd.lc8951.writeRegister(data);
+        neocd->lc8951.writeRegister(data);
         break;
 
     case 0x0105:    // FF0105: Destination Area  (0=SPR; 1=PCM; 4=Z80; 5=FIX)
         switch (data)
         {
         case 0:
-            neocd.memory.areaSelect = Memory::AREA_SPR;
+            neocd->memory.areaSelect = Memory::AREA_SPR;
             break;
         case 1:
-            neocd.memory.areaSelect = Memory::AREA_PCM;
+            neocd->memory.areaSelect = Memory::AREA_PCM;
             break;
         case 4:
-            neocd.memory.areaSelect = Memory::AREA_Z80;
+            neocd->memory.areaSelect = Memory::AREA_Z80;
             break;
         case 5:
-            neocd.memory.areaSelect = Memory::AREA_FIX;
+            neocd->memory.areaSelect = Memory::AREA_FIX;
             break;
         default:
-            neocd.memory.areaSelect = 0;
+            neocd->memory.areaSelect = 0;
             break;
         }
         break;
 
     case 0x0111:    // FF0111: SPR Layer Enable / Disable
-        neocd.video.sprDisable = (data != 0);
+        neocd->video.sprDisable = (data != 0);
         break;
 
     case 0x0115:    // FF0115: FIX Layer Enable / Disable
-        neocd.video.fixDisable = (data != 0);
+        neocd->video.fixDisable = (data != 0);
         break;
 
     case 0x0119:    // FF0119: Video Enable / Disable
-        neocd.video.videoEnable = (data != 0);
+        neocd->video.videoEnable = (data != 0);
         break;
 
     case 0x0121:    // FF0121: SPR RAM Bus Request
-        neocd.memory.busRequest |= Memory::AREA_SPR;
+        neocd->memory.busRequest |= Memory::AREA_SPR;
         break;
 
     case 0x0123:    // FF0123: PCM RAM Bus Request
-        neocd.memory.busRequest |= Memory::AREA_PCM;
+        neocd->memory.busRequest |= Memory::AREA_PCM;
         break;
 
     case 0x0127:    // FF0127: Z80 RAM Bus Request
-        neocd.memory.busRequest |= Memory::AREA_Z80;
+        neocd->memory.busRequest |= Memory::AREA_Z80;
         break;
 
     case 0x0129:    // FF0129: FIX RAM Bus Request
-        neocd.memory.busRequest |= Memory::AREA_FIX;
+        neocd->memory.busRequest |= Memory::AREA_FIX;
         break;
 
     case 0x0141:    // FF0141: SPR RAM Bus Release
-        neocd.memory.busRequest &= ~Memory::AREA_SPR;
+        neocd->memory.busRequest &= ~Memory::AREA_SPR;
         break;
 
     case 0x0143:    // FF0143: PCM RAM Bus Release
-        neocd.memory.busRequest &= ~Memory::AREA_PCM;
+        neocd->memory.busRequest &= ~Memory::AREA_PCM;
         break;
 
     case 0x0147:    // FF0147: Z80 RAM Bus Release
-        neocd.memory.busRequest &= ~Memory::AREA_Z80;
+        neocd->memory.busRequest &= ~Memory::AREA_Z80;
         break;
 
     case 0x0149:    // FF0149: FIX RAM Bus Release
-        neocd.memory.busRequest &= ~Memory::AREA_FIX;
-        neocd.video.updateFixUsageMap();
+        neocd->memory.busRequest &= ~Memory::AREA_FIX;
+        neocd->video.updateFixUsageMap();
         break;
 
     case 0x0163:    // FF0163: CDROM Communication, Send Command Packet
-        neocd.lc8951.writeCommandPacket(data);
+        neocd->lc8951.writeCommandPacket(data);
         break;
 
     case 0x0165:    // FF0165: CDROM Communication, Access Pointer Increment + "Data Clock" */
-        neocd.lc8951.increasePacketPointer(data);
+        neocd->lc8951.increasePacketPointer(data);
         break;
 
     case 0x016F:    // FF016F: Watchdog Timer $00 Enable / $01 Disable
         if (data)
-            neocd.timers.timer<TimerGroup::Watchdog>().setState(Timer::Stopped);
+            neocd->timers.timer<TimerGroup::Watchdog>().setState(Timer::Stopped);
         else
-            neocd.timers.timer<TimerGroup::Watchdog>().setState(Timer::Active);
+            neocd->timers.timer<TimerGroup::Watchdog>().setState(Timer::Active);
         break;
 
     case 0x0181:    /*
                         FF0181: CD Communication Reset (Active Low)
                         When data = 0, CD communication is disabled (and no IRQ will trigger)
                         When data = 1, CD communication is enabled
-                        
+
                         This is evidenced by the fact that if a communication timeout is detected (flag $76DB(A5))
                         this register will be set to zero during the next VBL then back to 1 four frames later.
 
                         This register has no influence whatsoever on the decoder IRQ (Verified on real hardware)
                     */
-//      LOG(LOG_INFO, "FF0181: %02X\n", data);
-        neocd.cdCommunicationNReset = (data != 0);
-        neocd.lc8951.resetPacketPointers();
+//      Libretro::Log::message(RETRO_LOG_DEBUG, "FF0181: %02X\n", data);
+        neocd->cdCommunicationNReset = (data != 0);
+        neocd->lc8951.resetPacketPointers();
         break;
 
     case 0x0183:    // FF0183: Z80 $00 Reset / $FF Enable
         if (!data)
-            neocd.z80Disable = true;
+            neocd->z80Disable = true;
         else
         {
-            neocd.z80Disable = false;
+            neocd->z80Disable = false;
             z80_reset();
             YM2610Reset();
         }
         break;
 
     case 0x01A1:    // FF01A1: SPR RAM Bank Select
-        neocd.memory.sprBankSelect = data;
+        neocd->memory.sprBankSelect = data;
         break;
 
     case 0x01A3:    // FF01A3: PCM RAM Bank Select
-        neocd.memory.pcmBankSelect = data;
+        neocd->memory.pcmBankSelect = data;
         break;
 
     default:
-        LOG(LOG_INFO, "CD-UNIT: Write to unknown register %06X @ PC=%06X DATA=%02X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC), data);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "CD-UNIT: Write to unknown register %06X @ PC=%06X DATA=%02X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC), data);
         break;
     }
 }
@@ -305,15 +309,15 @@ static void cdInterfaceWriteWord(uint32_t address, uint32_t data)
     case 0x0006:
     case 0x0008:
     case 0x000A:
-//      LOG(LOG_INFO, "%06X = %04X\n", address + 0xFF0000, data);
+//      Libretro::Log::message(RETRO_LOG_DEBUG, "%06X = %04X\n", address + 0xFF0000, data);
         break;
 
     case 0x0000:    /*
                         FF0000: CD-ROM Reset. (To be verified)
                     */
-//      LOG(LOG_INFO, "CDROM: Drive reset at PC=%06X\n", m68k_get_reg(NULL, M68K_REG_PPC));
-        neocd.cdrom.stop();
-        neocd.lc8951.controller.status = CdromController::CdIdle;
+//      Libretro::Log::message(RETRO_LOG_DEBUG, "CDROM: Drive reset at PC=%06X\n", m68k_get_reg(NULL, M68K_REG_PPC));
+        neocd->cdrom.stop();
+        neocd->lc8951.controller.status = CdromController::CdIdle;
         break;
 
     case 0x0002:    /*
@@ -322,8 +326,8 @@ static void cdInterfaceWriteWord(uint32_t address, uint32_t data)
                         0x050 IRQ2
                         0x500 IRQ1
                     */
-        neocd.irqMask1 = data;
-//      LOG(LOG_INFO, "IRQ MASK1=%04X MASK2=%04X\n", neocd.irqMask1, neocd.irqMask2);
+        neocd->irqMask1 = data;
+//      Libretro::Log::message(RETRO_LOG_DEBUG, "IRQ MASK1=%04X MASK2=%04X\n", neocd->irqMask1, neocd->irqMask2);
         break;
 
     case 0x0004:    /*
@@ -332,81 +336,81 @@ static void cdInterfaceWriteWord(uint32_t address, uint32_t data)
                         0x700   Unknown
                         0x030   VBL
                         0x001   Unknown, writing zero causes a hard reset.
-                    
+
                         /!\ Emulating this register is vital !
                         When the system is loading data from CD-ROM the VBL IRQ is disabled using this mask.
                         The VBL IRQ reconfigure mapped memory access to peek into the Z80 RAM, if this register is not emulated the system will end up overwriting the Z80 RAM.
                     */
-        neocd.irqMask2 = data;
-//      LOG(LOG_INFO, "IRQ MASK1=%04X MASK2=%04X\n", neocd.irqMask1, neocd.irqMask2);
+        neocd->irqMask2 = data;
+//      Libretro::Log::message(RETRO_LOG_DEBUG, "IRQ MASK1=%04X MASK2=%04X\n", neocd->irqMask1, neocd->irqMask2);
         break;
 
     case 0x0064:    // FF0064: DMA Destination Address High Word
-        neocd.memory.dmaDestination = (neocd.memory.dmaDestination & 0xFFFF) | ((uint32_t)data << 16);
+        neocd->memory.dmaDestination = (neocd->memory.dmaDestination & 0xFFFF) | ((uint32_t)data << 16);
         break;
 
     case 0x0066:    // FF0066: DMA Destination Address Low Word
-        neocd.memory.dmaDestination = (neocd.memory.dmaDestination & 0xFFFF0000) | (uint32_t)data;
+        neocd->memory.dmaDestination = (neocd->memory.dmaDestination & 0xFFFF0000) | (uint32_t)data;
         break;
 
     case 0x0068:    // FF0068: DMA Source Address High Word
-        neocd.memory.dmaSource = (neocd.memory.dmaSource & 0xFFFF) | ((uint32_t)data << 16);
+        neocd->memory.dmaSource = (neocd->memory.dmaSource & 0xFFFF) | ((uint32_t)data << 16);
         break;
 
     case 0x006A:    // FF006A: DMA Source Address Low Word
-        neocd.memory.dmaSource = (neocd.memory.dmaSource & 0xFFFF0000) | (uint32_t)data;
+        neocd->memory.dmaSource = (neocd->memory.dmaSource & 0xFFFF0000) | (uint32_t)data;
         break;
 
     case 0x006C:    // FF006C: DMA Pattern
-        neocd.memory.dmaPattern = data;
+        neocd->memory.dmaPattern = data;
         break;
 
     case 0x0070:    // FF0070: DMA Length High Word
-        neocd.memory.dmaLength = (neocd.memory.dmaLength & 0xFFFF) | ((uint32_t)data << 16);
+        neocd->memory.dmaLength = (neocd->memory.dmaLength & 0xFFFF) | ((uint32_t)data << 16);
         break;
 
     case 0x0072:    // FF0072: DMA Length Low Word
-        neocd.memory.dmaLength = (neocd.memory.dmaLength & 0xFFFF0000) | (uint32_t)data;
+        neocd->memory.dmaLength = (neocd->memory.dmaLength & 0xFFFF0000) | (uint32_t)data;
         break;
 
     case 0x007E:    // FF007E: DMA Configuration Register 0
-        neocd.memory.dmaConfig[0] = data;
+        neocd->memory.dmaConfig[0] = data;
         break;
 
     case 0x0080:    // FF0080: DMA Configuration Register 1
-        neocd.memory.dmaConfig[1] = data;
+        neocd->memory.dmaConfig[1] = data;
         break;
 
     case 0x0082:    // FF0082: DMA Configuration Register 2
-        neocd.memory.dmaConfig[2] = data;
+        neocd->memory.dmaConfig[2] = data;
         break;
 
     case 0x0084:    // FF0084: DMA Configuration Register 3
-        neocd.memory.dmaConfig[3] = data;
+        neocd->memory.dmaConfig[3] = data;
         break;
 
     case 0x0086:    // FF0086: DMA Configuration Register 4
-        neocd.memory.dmaConfig[4] = data;
+        neocd->memory.dmaConfig[4] = data;
         break;
 
     case 0x0088:    // FF0088: DMA Configuration Register 5
-        neocd.memory.dmaConfig[5] = data;
+        neocd->memory.dmaConfig[5] = data;
         break;
 
     case 0x008A:    // FF008A: DMA Configuration Register 6
-        neocd.memory.dmaConfig[6] = data;
+        neocd->memory.dmaConfig[6] = data;
         break;
 
     case 0x008C:    // FF008C: DMA Configuration Register 7
-        neocd.memory.dmaConfig[7] = data;
+        neocd->memory.dmaConfig[7] = data;
         break;
 
     case 0x008E:    // FF008E: DMA Configuration Register 8
-        neocd.memory.dmaConfig[8] = data;
+        neocd->memory.dmaConfig[8] = data;
         break;
 
     default:
-        LOG(LOG_INFO, "CD-UNIT: Write to unknown register %06X @ PC=%06X DATA=%04X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC), data);
+        Libretro::Log::message(RETRO_LOG_DEBUG, "CD-UNIT: Write to unknown register %06X @ PC=%06X DATA=%04X\n", address + 0xFF0000, m68k_get_reg(NULL, M68K_REG_PPC), data);
         break;
     }
 }

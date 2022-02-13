@@ -9,7 +9,6 @@
 #include "datapacker.h"
 #include "input.h"
 #include "lc8951.h"
-#include "libretro.h"
 #include "memory.h"
 #include "misc.h"
 #include "timergroup.h"
@@ -35,13 +34,15 @@ public:
     };
 
     NeoGeoCD();
-    
+
+    ~NeoGeoCD();
+
     // Non copyable
     NeoGeoCD(const NeoGeoCD&) = delete;
-    
+
     // Non copyable
     NeoGeoCD& operator=(const NeoGeoCD&) = delete;
-    
+
     void initialize();
     void deinitialize();
 
@@ -51,7 +52,7 @@ public:
     void setInterrupt(NeoGeoCD::Interrupt interrupt);
     void clearInterrupt(NeoGeoCD::Interrupt interrupt);
     int  updateInterrupts();
-    
+
     inline int  getScreenX() const
     {
         return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) % Timer::SCREEN_WIDTH);
@@ -66,7 +67,7 @@ public:
     {
         return ((irqMask1 & 0x500) == 0x500);
     }
-    
+
     inline bool isCdCommunicationIRQEnabled() const
     {
         return ((irqMask1 & 0x50) == 0x50) && cdCommunicationNReset;
@@ -126,20 +127,5 @@ public:
     uint32_t    biosType;
     // End variables to save in savestate
 };
-
-extern NeoGeoCD neocd;
-
-struct LibretroCallbacks
-{
-    retro_log_printf_t log;
-    retro_video_refresh_t video;
-    retro_input_poll_t inputPoll;
-    retro_input_state_t inputState;
-    retro_environment_t environment;
-    retro_audio_sample_batch_t audioBatch;
-    retro_perf_callback perf;
-};
-
-extern LibretroCallbacks libretro;
 
 #endif // NEOGEOCD_H

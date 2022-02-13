@@ -2,12 +2,16 @@
 #include <cstring>
 
 #include "lc8951.h"
+#include "libretro_common.h"
+#include "libretro_log.h"
 #include "neogeocd.h"
-extern "C" {
+
+extern "C"
+{
     #include "3rdparty/musashi/m68kcpu.h"
 }
 
-//#define LC8951_LOG(x, ...) LOG(x, __VA_ARGS__)
+//#define LC8951_LOG(x, ...) Libretro::Log::message(RETRO_LOG_DEBUG, __VA_ARGS__)
 #define LC8951_LOG(x, ...)
 
 LC8951::LC8951() :
@@ -56,7 +60,7 @@ void LC8951::reset()
     resetPacketPointers();
 
     updateHeadRegisters(0);
-    
+
     SBOUT = 0;
     IFCTRL = 0;
     DBCL = 0;
@@ -77,14 +81,14 @@ void LC8951::reset()
     STAT1 = 0;
     STAT2 = 0;
     STAT3 = 0;
-    
+
     std::memset(buffer, 0, sizeof(buffer));
 }
 
 void LC8951::updateHeadRegisters(uint32_t lba)
 {
     uint32_t m, s, f;
-    
+
     LC8951_LOG(LOG_INFO, "CD LBA = %d\n", lba);
 
     CdromToc::toMSF(CdromToc::fromLBA(lba), m, s, f);
@@ -98,7 +102,7 @@ void LC8951::updateHeadRegisters(uint32_t lba)
 uint8_t LC8951::readRegister()
 {
     uint8_t value;
-    
+
     switch (registerPointer & 0xF)
     {
     case 0x00:  // COMIN
@@ -164,7 +168,7 @@ uint8_t LC8951::readRegister()
     case 0x0F:  // STAT3
         value = STAT3;
         LC8951_LOG(LOG_INFO, "READ STAT3 = %02X\n", value);
-        
+
         // Reading STAT3 clears DECI
         IFSTAT = IFSTAT & ~DECI;
         break;
@@ -205,7 +209,7 @@ void LC8951::writeRegister(uint8_t data)
     case 0x06:
         LC8951_LOG(LOG_INFO, "WRITE DTRG = %02X\n", data);
         DTRG = data;
-        
+
         // Writing DTRG sets !DTBSY if data output is enabled
         if (IFCTRL & DOUTEN)
             IFSTAT &= ~DTBSY;
@@ -213,7 +217,7 @@ void LC8951::writeRegister(uint8_t data)
     case 0x07:
         LC8951_LOG(LOG_INFO, "WRITE DTACK = %02X\n", data);
         DTACK = data;
-        
+
         // Writing DTACK clears !DTEI
         IFSTAT = IFSTAT | DTEI;
         break;
@@ -337,19 +341,19 @@ void LC8951::sectorDecoded()
     // If the decoder is not enabled, nothing to do
     if (!(CTRL0 & DECEN))
         return;
-        
+
     // Update the head registers
-    updateHeadRegisters(neocd.cdrom.position());
-    
+    updateHeadRegisters(neocd->cdrom.position());
+
     // If the current track is not a data track, nothing more to do
-    if (!neocd.cdrom.isData())
+    if (!neocd->cdrom.isData())
         return;
-    
+
     // Read the sector in buffer
     // The Neo Geo CD never change the write address (WA) or pointer registers (PT)
     // It simply read PT and set DAC to PT + 4 (to skip the header) and DBC to 0x7FF
     // This means we only need keep the last decoded sector
-    neocd.cdrom.readData(reinterpret_cast<char*>(buffer));
+    neocd->cdrom.readData(reinterpret_cast<char*>(buffer));
 
     // Autoincrement WA and PT
     addWordRegister(WAL, WAH, 2352);
@@ -357,14 +361,14 @@ void LC8951::sectorDecoded()
 
     STAT0 = CRCOK;
     STAT1 = 0;
-    
+
     if (CTRL0 & AUTORQ)
         STAT2 = CTRL1 & MODRQ;
     else
         STAT2 = CTRL1 & (MODRQ | FORMRQ);
-    
+
     STAT3 = 0;
-    
+
     // Set !DECI
     IFSTAT &= ~DECI;
 }
@@ -372,7 +376,7 @@ void LC8951::sectorDecoded()
 void LC8951::endTransfer()
 {
     IFSTAT |= DTBSY;
-    
+
     addWordRegister(DACL, DACH, wordRegister(DBCL, DBCH) + 1);
     setWordRegister(DBCL, DBCH, 0);
 }
@@ -411,7 +415,7 @@ DataPacker& operator<<(DataPacker& out, const LC8951& lc8951)
     out << lc8951.STAT2;
     out << lc8951.STAT3;
     out << lc8951.buffer;
-    
+
     return out;
 }
 
@@ -449,6 +453,6 @@ DataPacker& operator>>(DataPacker& in, LC8951& lc8951)
     in >> lc8951.STAT2;
     in >> lc8951.STAT3;
     in >> lc8951.buffer;
-    
+
     return in;
 }

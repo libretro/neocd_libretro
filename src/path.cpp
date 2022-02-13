@@ -1,25 +1,23 @@
 #include <retro_miscellaneous.h>
 #include <string/stdstring.h>
 
+#include "libretro_common.h"
 #include "path.h"
 
-static const char* NEOCD_SYSTEM_SUBDIR = "neocd";
-static const char* NEOCD_DEFAULT_SRM_FILENAME = "neocd";
-static const char* NEOCD_SRM_EXT = ".srm";
-
-extern const char* systemDirectory;
-extern const char* saveDirectory;
+static const char* const NEOCD_SYSTEM_SUBDIR = "neocd";
+static const char* const NEOCD_DEFAULT_SRM_FILENAME = "neocd";
+static const char* const NEOCD_SRM_EXT = ".srm";
 
 static void system_path_internal(char* buffer, size_t len)
 {
-   if (path_is_empty(systemDirectory))
+   if (path_is_empty(globals.systemDirectory))
    {
       buffer[0] = '.';
       buffer[1] = PATH_DEFAULT_SLASH_C();
       buffer[2] = '\0';
    }
    else
-      strlcpy(buffer, systemDirectory, len);
+      strlcpy(buffer, globals.systemDirectory, len);
 
    if (!path_ends_with_slash(buffer))
       strlcat(buffer, PATH_DEFAULT_SLASH(), len);
@@ -30,11 +28,11 @@ static void system_path_internal(char* buffer, size_t len)
 static void save_path_internal(char* buffer, size_t len)
 {
    /* If save directory is unset, use system directory */
-   if (path_is_empty(saveDirectory))
+   if (path_is_empty(globals.saveDirectory))
       system_path_internal(buffer, len);
    else
    {
-      strlcpy(buffer, saveDirectory, len);
+      strlcpy(buffer, globals.saveDirectory, len);
 
       // Remove trailing slash, if required
       if (path_ends_with_slash(buffer))
