@@ -31,6 +31,20 @@ static bool readFileUncompressed(const std::string &path, void *buffer, size_t m
     return true;
 }
 
+static int64_t getFileSizeUncompressed(const std::string &path)
+{
+    RFILE* file = filestream_open(path.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+
+    if (!file)
+        return -1;
+
+    int64_t ret = filestream_get_size(file);
+
+    filestream_close(file);
+
+    return ret;
+}
+
 namespace Archive
 {
 std::vector<std::string> getFileList(const std::string &archiveFilename)
@@ -42,6 +56,26 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
 
     Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Unknown archive type %s\n", archiveFilename.c_str());
     return std::vector<std::string>();
+}
+
+int64_t getFileSize(const std::string &path)
+{
+    std::string archive;
+    std::string filename;
+
+    split_compressed_path(path, archive, filename);
+
+    if (archive.empty())
+        return getFileSizeUncompressed(filename);
+
+    const auto archiveType = getArchiveType(archive);
+
+    if (archiveType == TypeZip)
+	return ArchiveZip::getFileSize(archive, filename);
+
+    Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Unknown archive type %s\n", archive.c_str());
+
+    return -1;
 }
 
 bool readFile(const std::string &path, void *buffer, size_t maximumSize, size_t *reallyRead)

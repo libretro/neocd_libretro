@@ -146,18 +146,23 @@ static const char* const MSG_CD_SPEEDHACK_PATCH_FAILED = "BIOS: Speed hack patch
 static const char* const MSG_CD_SMKDAN_CRC_PATCH_FAILED = "BIOS: SMKDAN checksum patch failed.\n";
 static const char* const MSG_CD_UNIVERSE33_CRC_PATCH_FAILED = "WARNING: BIOS Universe 3.3 checksum patch failed.\n";
 
-void Bios::autoByteSwap(uint8_t *biosData)
+void Bios::autoByteSwap(uint8_t *biosData, size_t sz)
 {
     // Swap the BIOS if needed
     if (*reinterpret_cast<uint16_t*>(&biosData[0]) == LITTLE_ENDIAN_WORD(0x0010))
     {
         uint16_t* start = reinterpret_cast<uint16_t*>(&biosData[0]);
-        uint16_t* end = reinterpret_cast<uint16_t*>(&biosData[Memory::ROM_SIZE]);
+        uint16_t* end = reinterpret_cast<uint16_t*>(&biosData[sz]);
 
         std::for_each(start, end, [](uint16_t& data) {
             data = BYTE_SWAP_16(data);
         });
     }
+}
+
+void Bios::autoByteSwap(uint8_t *biosData)
+{
+    return autoByteSwap(biosData, Memory::ROM_SIZE);
 }
 
 Bios::Type Bios::identify(const uint8_t *biosData)

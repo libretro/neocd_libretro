@@ -38,16 +38,20 @@ static void lookForBIOSInternal(const std::vector<std::string>& fileList)
             newEntry.description = path_basename(file.c_str());
         }
 
-        uint8_t buffer[Memory::ROM_SIZE];
+	// Probably != is more correct but using < to keep compatibility with old versions that would accept larger files
+	if (Archive::getFileSize(newEntry.filename) < (int64_t) Memory::ROM_SIZE)
+            continue;
+
+	uint8_t buffer[512]; // We only need that much to identify the BIOS
         size_t reallyRead;
 
-        if (!Archive::readFile(newEntry.filename, &buffer[0], Memory::ROM_SIZE, &reallyRead))
+	if (!Archive::readFile(newEntry.filename, &buffer[0], sizeof(buffer), &reallyRead))
             continue;
 
-        if (reallyRead != Memory::ROM_SIZE)
+	if (reallyRead != sizeof(buffer))
             continue;
 
-        Bios::autoByteSwap(&buffer[0]);
+	Bios::autoByteSwap(&buffer[0], sizeof(buffer));
 
         newEntry.type = Bios::identify(&buffer[0]);
 
