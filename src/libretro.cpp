@@ -1,5 +1,6 @@
 #include <streams/file_stream.h>
 #include <file/file_path.h>
+#include <retro_dirent.h>
 
 #include "libretro_backupram.h"
 #include "libretro_bios.h"
@@ -19,7 +20,7 @@
 void initVfs()
 {
     retro_vfs_interface_info vfs_iface_info;
-    vfs_iface_info.required_interface_version = FILESTREAM_REQUIRED_VFS_VERSION;
+    vfs_iface_info.required_interface_version = DIRENT_REQUIRED_VFS_VERSION;
     vfs_iface_info.iface = nullptr;
 
     if (libretro.environment(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
@@ -28,6 +29,7 @@ void initVfs()
 
         filestream_vfs_init(&vfs_iface_info);
         path_vfs_init(&vfs_iface_info);
+	dirent_vfs_init(&vfs_iface_info);
     }
     else
         Libretro::Log::message(RETRO_LOG_DEBUG, "Using fallback VFS routines\n");
