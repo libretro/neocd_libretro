@@ -78,7 +78,7 @@ SOURCES_C += \
 	$(LIBCHDR_DIR)/src/libchdr_flac.c \
 	$(LIBCHDR_DIR)/src/libchdr_huffman.c
 
-SOURCES_C += \
+SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
@@ -100,7 +100,7 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/string/stdstring.c \
 	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
 
-SOURCES_C += \
+SRC_LIBRETRO_COMMON += \
 	$(LZMA_DIR)/src/Alloc.c \
 	$(LZMA_DIR)/src/Bra86.c \
 	$(LZMA_DIR)/src/BraIA64.c \

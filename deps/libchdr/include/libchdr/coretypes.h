@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #ifdef USE_LIBRETRO_VFS
+#define SKIP_STDIO_REDEFINES 1
 #include <streams/file_stream_transforms.h>
 #endif
 
@@ -31,12 +32,19 @@ typedef int32_t INT32;
 typedef int16_t INT16;
 typedef int8_t INT8;
 
+#ifndef USE_LIBRETRO_VFS
 #define core_file FILE
 #define core_fopen(file) fopen(file, "rb")
+#endif
 
 #if defined USE_LIBRETRO_VFS
-	#define core_fseek fseek
-	#define core_ftell ftell
+	#define core_file RFILE
+	#define core_fopen(file) filestream_open(file, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE)
+	#define core_fseek rfseek
+	#define core_ftell filestream_tell
+	#define core_fread filestream_read
+	#define core_fclose filestream_close
+	#define core_fsize filestream_get_size
 #elif defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__WIN64__)
 	#define core_fseek _fseeki64
 	#define core_ftell _ftelli64
@@ -50,6 +58,8 @@ typedef int8_t INT8;
 	#define core_fseek fseeko
 	#define core_ftell ftello
 #endif
+
+#ifndef USE_LIBRETRO_VFS
 #define core_fread(fc, buff, len) fread(buff, 1, len, fc)
 #define core_fclose fclose
 
@@ -62,5 +72,6 @@ static inline UINT64 core_fsize(core_file *f)
     core_fseek(f, p, SEEK_SET);
     return rv;
 }
+#endif
 
 #endif
