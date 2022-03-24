@@ -140,6 +140,15 @@ else ifeq ($(platform), emscripten)
    CFLAGS += -DSYNC_CDROM=1
    CXXFLAGS += -DSYNC_CDROM=1
    STATIC_LINKING = 1
+# DOS
+else ifeq ($(platform), dos)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
+	CC = i586-pc-msdosdjgpp-gcc
+	AR = i586-pc-msdosdjgpp-ar
+	CXX = i586-pc-msdosdjgpp-g++
+	CFLAGS += -march=i386 -DSYNC_CDROM=1
+	CXXFLAGS += -march=i386 -DSYNC_CDROM=1
+	STATIC_LINKING=1
 else ifeq ($(platform), libnx)
    include $(DEVKITPRO)/libnx/switch_rules
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
