@@ -81,7 +81,10 @@ void retro_get_system_info(struct retro_system_info *info)
     std::memset(info, 0, sizeof(retro_system_info));
 
     info->library_name = "NeoCD";
-    info->library_version = "2022";
+#ifndef GIT_VERSION
+#define GIT_VERSION ""
+#endif
+    info->library_version = "2022" GIT_VERSION;
     info->valid_extensions = "cue|chd";
     info->need_fullpath = true;
 }
