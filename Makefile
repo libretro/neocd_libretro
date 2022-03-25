@@ -157,6 +157,15 @@ else ifeq ($(platform), libnx)
    CFLAGS += -march=armv8-a -mtune=cortex-a57 -mtp=soft -mcpu=cortex-a57+crc+fp+simd -ffast-math
    CXXFLAGS := $(ASFLAGS) $(CFLAGS)
    STATIC_LINKING = 1
+# PS2
+else ifeq ($(platform), ps2)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).a
+	CC = mips64r5900el-ps2-elf-gcc
+	CXX = mips64r5900el-ps2-elf-g++
+	AR = mips64r5900el-ps2-elf-ar
+	CFLAGS += -G0 -DPS2 -DABGR1555 -DSYNC_CDROM=1
+	CXXFLAGS += -G0 -DPS2 -DABGR1555 -DSYNC_CDROM=1
+	STATIC_LINKING=1
 else ifeq ($(platform), vita)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = arm-vita-eabi-gcc
