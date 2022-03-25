@@ -75,16 +75,15 @@ void Libretro::Bios::init()
     // Get the system path
     const auto systemPath = system_path();
 
-    auto buildFileList = [&]() -> std::vector<std::string>
-    {
-        std::vector<std::string> result;
+    std::vector<std::string> fileList;
 
-        StringList file_list(dir_list_new(systemPath.c_str(), nullptr, false, true, true, true));
+    // Scan the system directory
+    StringList file_list(dir_list_new(systemPath.c_str(), nullptr, false, true, true, true));
 
-        for(const string_list_elem& elem : file_list)
+    for(const string_list_elem& elem : file_list)
         {
             if (path_is_bios_file(elem.data))
-                result.push_back(std::string(elem.data));
+                fileList.push_back(std::string(elem.data));
             else if (path_is_archive(elem.data))
             {
                 auto archiveList = Archive::getFileList(std::string(elem.data));
@@ -92,16 +91,10 @@ void Libretro::Bios::init()
                 for(const std::string& file : archiveList)
                 {
                     if (path_is_bios_file(file.c_str()))
-                        result.push_back(file);
+                        fileList.push_back(file);
                 }
             }
         }
-
-        return result;
-    };
-
-    // Scan the system directory
-    auto fileList = buildFileList();
 
     // Load all files and check for validity
     lookForBIOSInternal(fileList);
