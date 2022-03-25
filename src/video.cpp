@@ -170,9 +170,15 @@ void Video::convertColor(uint32_t index)
 {
     uint16_t c = BIG_ENDIAN_WORD(neocd->memory.paletteRam[index]);
 
+#ifdef ABGR1555
+    paletteRamPc[index] = ((c & 0x000F) << 11) | ((c & 0x1000) >> 2) |
+	(((c & 0x00F0) << 2) | ((c & 0x2000) >> 8)) |
+	(((c & 0x0F00) >> 7) | ((c & 0x4000) >> 14));
+#else
     paletteRamPc[index] = ((c & 0x0F00) << 4) | ((c & 0x4000) >> 3) |
         ((c & 0x00F0) << 3) | ((c & 0x2000) >> 7) |
         ((c & 0x000F) << 1) | ((c & 0x1000) >> 12);
+#endif
 }
 
 void Video::convertPalette()
