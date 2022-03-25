@@ -149,6 +149,48 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
     return result;
 }
 
+int64_t getFileSize(const std::string &archive, const std::string &filename)
+{
+    zlib_filefunc_def callbacks;
+    fill_callbacks(&callbacks);
+
+    auto zipFile = unzOpen2(archive.c_str(), &callbacks);
+    if (!zipFile)
+    {
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s\n", archive.c_str());
+        return -1;
+    }
+
+    auto cleanup = [&](bool result) -> int64_t
+    {
+        if (unzClose(zipFile) != UNZ_OK)
+            Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s\n", archive.c_str());
+
+        return -1;
+    };
+
+    if (unzLocateFile(zipFile, filename.c_str(), 2) != UNZ_OK)
+    {
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not find %s in archive %s\n", filename.c_str(), archive.c_str());
+        return cleanup(false);
+    }
+
+    if (unzOpenCurrentFile(zipFile) != UNZ_OK)
+    {
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s in archive %s\n", filename.c_str(), archive.c_str());
+        return cleanup(false);
+    }
+
+    unz_file_info64 file_info;
+    if (unzGetCurrentFileInfo64(zipFile, &file_info, 0, 0, 0, 0, 0, 0) != UNZ_OK)
+    {
+	Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not read file info %s in archive %s\n", filename.c_str(), archive.c_str());
+        return cleanup(false);
+    }
+
+    return file_info.uncompressed_size;
+}
+
 bool readFile(const std::string &archive, const std::string &filename, void *buffer, size_t maximumSize, size_t *reallyRead)
 {
     zlib_filefunc_def callbacks;

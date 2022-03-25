@@ -22,6 +22,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/windows-i686-mingw.yml'
 
+  # DJGPP
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/djgpp-static.yml'
+
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-x64.yml'
@@ -94,6 +98,12 @@ libretro-build-windows-x64:
 libretro-build-windows-i686:
   extends:
     - .libretro-windows-i686-mingw-make-default
+    - .core-defs
+
+# DJGPP
+libretro-build-djgpp-i586:
+  extends:
+    - .libretro-djgpp-static-retroarch-master
     - .core-defs
 
 # Linux 64-bit
