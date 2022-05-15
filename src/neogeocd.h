@@ -53,14 +53,23 @@ public:
     void clearInterrupt(NeoGeoCD::Interrupt interrupt);
     int  updateInterrupts();
 
+#define ADJUST_FRAME_BOUNDARY
     inline int  getScreenX() const
     {
+#ifndef ADJUST_FRAME_BOUNDARY
         return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) % Timer::SCREEN_WIDTH);
+#else
+        return (Timer::VBL_IRQ_X + Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame)) % Timer::SCREEN_WIDTH;
+#endif
     }
 
     inline int  getScreenY() const
     {
+#ifndef ADJUST_FRAME_BOUNDARY
         return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) / Timer::SCREEN_WIDTH);
+#else
+        return (Timer::VBL_IRQ_Y + (Timer::VBL_IRQ_X + Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame)) / Timer::SCREEN_WIDTH) % Timer::SCREEN_HEIGHT;
+#endif
     }
 
     inline bool isCdDecoderIRQEnabled() const
