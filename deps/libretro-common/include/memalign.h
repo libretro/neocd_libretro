@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (fopen_utf8.c).
+ * The following license statement only applies to this file (memalign.h).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,45 +20,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <compat/fopen_utf8.h>
-#include <encodings/utf.h>
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef _LIBRETRO_MEMALIGN_H
+#define _LIBRETRO_MEMALIGN_H
 
-#if defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0500 || defined(_XBOX)
-#ifndef LEGACY_WIN32
-#define LEGACY_WIN32
-#endif
-#endif
+#include <stddef.h>
 
-#ifdef _WIN32
-#undef fopen
+#include <retro_common_api.h>
 
-void *fopen_utf8(const char * filename, const char * mode)
-{
-#if defined(LEGACY_WIN32)
-   char * filename_local = utf8_to_local_string_alloc(filename);
-   if (filename_local)
-   {
-      FILE *ret          = fopen(filename_local, mode);
-      free(filename_local);
-      return ret;
-   }
-#else
-   wchar_t * filename_w  = utf8_to_utf16_string_alloc(filename);
-   if (filename_w)
-   {
-      FILE    *ret       = NULL;
-      wchar_t *mode_w    = utf8_to_utf16_string_alloc(mode);
-      if (mode_w)
-      {
-         ret             = _wfopen(filename_w, mode_w);
-         free(mode_w);
-      }
-      free(filename_w);
-      return ret;
-   }
-#endif
-   return NULL;
-}
+RETRO_BEGIN_DECLS
+
+void *memalign_alloc(size_t boundary, size_t size);
+
+void *memalign_alloc_aligned(size_t size);
+
+void memalign_free(void *ptr);
+
+RETRO_END_DECLS
+
 #endif

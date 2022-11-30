@@ -1,5 +1,7 @@
 STATIC_LINKING := 0
 AR             := ar
+HAVE_CDROM     := 0
+USE_LTO        := 0
 
 ifneq ($(V),1)
    Q := @
@@ -58,11 +60,15 @@ ifneq (,$(findstring unix,$(platform)))
    fpic := -fPIC
    SHARED := -shared -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
    LIBS += -lpthread
+   HAVE_CDROM := 1
+   USE_LTO := 1
 else ifeq ($(platform), linux-portable)
    TARGET := $(TARGET_NAME)_libretro.$(EXT)
    fpic := -fPIC -nostdlib
    SHARED := -shared -Wl,--version-script=$(CORE_DIR)/link.T
 	LIBM :=
+   HAVE_CDROM := 1
+   USE_LTO := 1
 else ifneq (,$(findstring osx,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC
@@ -204,6 +210,8 @@ else ifeq ($(platform), psl1ght)
    STATIC_LINKING = 1
 else
    CC ?= gcc
+   HAVE_CDROM := 1
+   USE_LTO := 1
    TARGET := $(TARGET_NAME)_libretro.dll
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
 endif
@@ -219,6 +227,16 @@ else ifeq ($(platform), emscripten)
 else
    CFLAGS += -Ofast -DNDEBUG
    CXXFLAGS += -Ofast -DNDEBUG
+endif
+
+ifeq ($(HAVE_CDROM), 1)
+   CFLAGS += -DHAVE_CDROM
+   CXXFLAGS += -DHAVE_CDROM
+endif
+
+ifeq ($(USE_LTO), 1)
+   CFLAGS += -flto -fuse-linker-plugin
+   CXXFLAGS += -flto -fuse-linker-plugin
 endif
 
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"

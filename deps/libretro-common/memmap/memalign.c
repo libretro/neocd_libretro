@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (fopen_utf8.c).
+ * The following license statement only applies to this file (memalign.c).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,45 +20,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <compat/fopen_utf8.h>
-#include <encodings/utf.h>
-#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-#if defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0500 || defined(_XBOX)
-#ifndef LEGACY_WIN32
-#define LEGACY_WIN32
-#endif
-#endif
+#include <memalign.h>
 
-#ifdef _WIN32
-#undef fopen
-
-void *fopen_utf8(const char * filename, const char * mode)
+void *memalign_alloc(size_t boundary, size_t size)
 {
-#if defined(LEGACY_WIN32)
-   char * filename_local = utf8_to_local_string_alloc(filename);
-   if (filename_local)
-   {
-      FILE *ret          = fopen(filename_local, mode);
-      free(filename_local);
-      return ret;
-   }
-#else
-   wchar_t * filename_w  = utf8_to_utf16_string_alloc(filename);
-   if (filename_w)
-   {
-      FILE    *ret       = NULL;
-      wchar_t *mode_w    = utf8_to_utf16_string_alloc(mode);
-      if (mode_w)
-      {
-         ret             = _wfopen(filename_w, mode_w);
-         free(mode_w);
-      }
-      free(filename_w);
-      return ret;
-   }
-#endif
-   return NULL;
+   void **place   = NULL;
+   uintptr_t addr = 0;
+   void *ptr      = (void*)malloc(boundary + size + sizeof(uintptr_t));
+   if (!ptr)
+      return NULL;
+
+   addr           = ((uintptr_t)ptr + sizeof(uintptr_t) + boundary)
+      & ~(boundary - 1);
+   place          = (void**)addr;
+   place[-1]      = ptr;
+
+   return (void*)addr;
 }
+
+void memalign_free(void *ptr)
+{
+   void **p = NULL;
+   if (!ptr)
+      return;
+
+   p = (void**)ptr;
+   free(p[-1]);
+}
+
+void *memalign_alloc_aligned(size_t size)
+{
+#if defined(__x86_64__) || defined(__LP64) || defined(__IA64__) || defined(_M_X64) || defined(_M_X64) || defined(_WIN64)
+   return memalign_alloc(64, size);
+#elif defined(__i386__) || defined(__i486__) || defined(__i686__) || defined(GEKKO) || defined(_M_IX86)
+   return memalign_alloc(32, size);
+#else
+   return memalign_alloc(32, size);
 #endif
+}
