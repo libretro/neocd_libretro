@@ -295,3 +295,20 @@ void split_compressed_path(const std::string& path, std::string& archive, std::s
         ++pDelim;
     }
 }
+
+bool path_is_absolute(const std::string& path)
+{
+    if (path.empty())
+        return false;
+
+    if ((path[0] == '/') || (path[0] == '\\'))
+        return true;
+
+    if (path.find(":/") != std::string::npos)
+        return true;
+
+    if (path.find(":\\") != std::string::npos)
+        return true;
+
+    return false;
+}

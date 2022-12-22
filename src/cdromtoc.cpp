@@ -95,7 +95,12 @@ bool CdromToc::loadCueSheet(const std::string &filename)
 
         if (std::regex_match(line, match, FILE_REGEX))
         {
-            currentFile = path_replace_filename(filename.c_str(), match[1].str().c_str());
+            const std::string filespec = match[1].str();
+            if (path_is_absolute(filespec))
+                currentFile = filespec;
+            else
+                currentFile = path_replace_filename(filename.c_str(), filespec.c_str());
+            
             currentTrack = -1;
             currentIndex = -1;
             currentType = TrackType::Silence;

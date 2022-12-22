@@ -36,4 +36,6 @@ bool path_is_bios_file(const std::string& path);
 
 void split_compressed_path(const std::string& path, std::string& archive, std::string& file);
 
+bool path_is_absolute(const std::string& path);
+
 #endif
