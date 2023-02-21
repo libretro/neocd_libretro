@@ -1,5 +1,6 @@
-#include <stdio.h>
+#include <cstdio>
 #include <cstdarg>
+#include <stdio.h>
 
 #include "libretro_common.h"
 #include "libretro_log.h"
