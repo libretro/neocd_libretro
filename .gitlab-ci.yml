@@ -56,13 +56,17 @@ include:
     file: '/ios9.yml'
 
   ################################## CONSOLES ################################
-  # PlayStation Vita
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/vita-static.yml'
-
   # PlayStation2
   - project: 'libretro-infrastructure/ci-templates'
     file: '/ps2-static.yml'
+
+  # PlayStation3
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/psl1ght-static.yml'
+
+  # PlayStation Vita
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/vita-static.yml'
 
   # Nintendo 3DS
   - project: 'libretro-infrastructure/ci-templates'
@@ -178,6 +182,24 @@ libretro-build-tvos-arm64:
     - .core-defs
 
 ################################### CONSOLES #################################
+# PlayStation2
+libretro-build-ps2:
+  extends:
+    - .libretro-ps2-static-retroarch-master
+    - .core-defs
+
+# PlayStation3
+libretro-build-psl1ght:
+  extends:
+    - .libretro-psl1ght-static-retroarch-master
+    - .core-defs
+
+# PlayStation Vita
+libretro-build-vita:
+  extends:
+    - .libretro-vita-static-retroarch-master
+    - .core-defs
+
 # Nintendo 3DS
 libretro-build-ctr:
   extends:
@@ -194,18 +216,6 @@ libretro-build-wiiu:
 libretro-build-libnx-aarch64:
   extends:
     - .libretro-libnx-static-retroarch-master
-    - .core-defs
-
-# PlayStation Vita
-libretro-build-vita:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs
-
-# PlayStation2
-libretro-build-ps2:
-  extends:
-    - .libretro-ps2-static-retroarch-master
     - .core-defs
 
 #################################### MISC ##################################
