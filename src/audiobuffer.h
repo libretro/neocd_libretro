@@ -20,7 +20,7 @@ public:
     static constexpr double SAMPLES_PER_FRAME = static_cast<double>(SAMPLE_RATE) / Timer::FRAME_RATE;
 
     /// The audio buffer size, enough for one frame of audio.
-    static constexpr uint32_t CD_BUFFER_SIZE = round<int32_t>(SAMPLES_PER_FRAME + 1.0);
+    static constexpr uint32_t CD_BUFFER_SIZE = round<uint32_t, double>(SAMPLES_PER_FRAME + 1.0);
 
     /// We may occasionally generate one or two extra samples because of a long instruction (like DIVU)
     static constexpr uint32_t YM_BUFFER_SIZE = CD_BUFFER_SIZE + 2;
