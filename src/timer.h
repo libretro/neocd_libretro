@@ -74,32 +74,32 @@ public:
 
     static inline constexpr int32_t m68kToMaster(int32_t value)
     {
-       return round<int32_t>(static_cast<double>(value) * (MASTER_CLOCK / M68K_CLOCK));
+       return round<int32_t,double>(static_cast<double>(value) * (MASTER_CLOCK / M68K_CLOCK));
     }
 
     static inline constexpr int32_t z80ToMaster(int32_t value)
     {
-        return round<int32_t>(static_cast<double>(value) * (MASTER_CLOCK / Z80_CLOCK));
+        return round<int32_t,double>(static_cast<double>(value) * (MASTER_CLOCK / Z80_CLOCK));
     }
 
     static inline constexpr int32_t pixelToMaster(int32_t value)
     {
-        return round<int32_t>(static_cast<double>(value) * (MASTER_CLOCK / PIXEL_CLOCK));
+        return round<int32_t,double>(static_cast<double>(value) * (MASTER_CLOCK / PIXEL_CLOCK));
     }
 
     static inline constexpr int32_t masterToM68k(int32_t value)
     {
-        return round<int32_t>(static_cast<double>(value) / (MASTER_CLOCK / M68K_CLOCK));
+        return round<int32_t,double>(static_cast<double>(value) / (MASTER_CLOCK / M68K_CLOCK));
     }
 
     static inline constexpr int32_t masterToZ80(int32_t value)
     {
-        return round<int32_t>(static_cast<double>(value) / (MASTER_CLOCK / Z80_CLOCK));
+        return round<int32_t,double>(static_cast<double>(value) / (MASTER_CLOCK / Z80_CLOCK));
     }
 
     static inline constexpr int32_t masterToPixel(int32_t value)
     {
-        return round<int32_t>(static_cast<double>(value) / (MASTER_CLOCK / PIXEL_CLOCK));
+        return round<int32_t,double>(static_cast<double>(value) / (MASTER_CLOCK / PIXEL_CLOCK));
     }
 
     friend DataPacker& operator<<(DataPacker& out, const Timer& timer);
