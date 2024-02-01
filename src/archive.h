@@ -1,6 +1,7 @@
 #ifndef ARCHIVE_H
 #define ARCHIVE_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 

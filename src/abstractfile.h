@@ -1,6 +1,7 @@
 #ifndef ABSTRACTFILE_H
 #define ABSTRACTFILE_H 1
 
+#include <cstdint>
 #include <string>
 
 class AbstractFile
