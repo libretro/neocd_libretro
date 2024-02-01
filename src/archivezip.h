@@ -1,6 +1,7 @@
 #ifndef ARCHIVEZIP_H
 #define ARCHIVEZIP_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
