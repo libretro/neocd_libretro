@@ -531,7 +531,7 @@ bool  CdromToc::loadChd(const std::string& filename)
         trackLength = std::stoul(match[4].str());
 
         // Find the track type
-        std::string trackTypeStr = match[2];
+        const std::string trackTypeStr = match[2];
 
         if (string_compare_insensitive(trackTypeStr.c_str(), "MODE1"))
             trackType = TrackType::Mode1_2048;
@@ -549,6 +549,9 @@ bool  CdromToc::loadChd(const std::string& filename)
             return false;
         }
 
+        const std::string pgTypeStr = match[6];
+        const bool isVAudio = string_compare_insensitive(pgTypeStr.c_str(), "VAUDIO");
+
         // Make the CHD position a multiple of 4
         if (chdPosition % 4)
             chdPosition += 4 - (chdPosition % 4);
@@ -559,7 +562,8 @@ bool  CdromToc::loadChd(const std::string& filename)
             m_toc.push_back({ -1, { static_cast<uint8_t>(trackNumber), 0 }, TrackType::Silence, 0, cdPosition, 0, pregapLength });
 
             // CHD WEIRDNESS: If the previous track was data don't move the chd position
-            if (!previousWasData)
+            // But do it if PGTYPE indicates 'VAUDIO' (newer CHDs)
+            if (!previousWasData || isVAudio)
             {
                 chdPosition += pregapLength;
 
