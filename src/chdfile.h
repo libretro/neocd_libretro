@@ -2,9 +2,10 @@
 #define CHDFILE_H 1
 
 #include <cstdint>
-#include <libchdr/chd.h>
 
 #include "abstractfile.h"
+
+#include <libchdr/chd.h>
 
 class ChdFile : public AbstractFile
 {

@@ -245,7 +245,7 @@ ifneq ($(GIT_VERSION)," unknown")
 	CXXFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 endif
 
-CFLAGS += -DHAVE_ZLIB -D_7ZIP_ST -DHAVE_FLAC -DUSE_LIBRETRO_VFS
+CFLAGS += -DHAVE_ZLIB -DZ7_ST -DHAVE_FLAC -DUSE_LIBRETRO_VFS
 CXXFLAGS += -std=c++14 -fno-exceptions -fno-rtti -DUSE_LIBRETRO_VFS
 
 include Makefile.common

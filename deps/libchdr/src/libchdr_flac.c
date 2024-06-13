@@ -28,7 +28,7 @@ static void flac_decoder_write_callback(void *userdata, void *buffer, size_t byt
 
 /* getters (valid after reset) */
 static inline uint32_t sample_rate(flac_decoder *decoder)  { return decoder->sample_rate; }
-static inline uint8_t channels(flac_decoder *decoder)  { return decoder->channels; }
+static uint8_t channels(flac_decoder *decoder)  { return decoder->channels; }
 static inline uint8_t bits_per_sample(flac_decoder *decoder) { return decoder->bits_per_sample; }
 
 /*-------------------------------------------------
@@ -60,9 +60,10 @@ int flac_decoder_init(flac_decoder *decoder)
 
 void flac_decoder_free(flac_decoder* decoder)
 {
-	if ((decoder != NULL) && (decoder->decoder != NULL))
+	if ((decoder != NULL) && (decoder->decoder != NULL)) {
 		drflac_close(decoder->decoder);
-	decoder->decoder = NULL;
+		decoder->decoder = NULL;
+	}
 }
 
 /*-------------------------------------------------
