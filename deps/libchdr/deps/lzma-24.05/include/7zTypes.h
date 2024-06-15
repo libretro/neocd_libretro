@@ -183,10 +183,12 @@ typedef unsigned int UInt32;
 
 #ifndef _WIN32
 
+#include <stdint.h>
+
 typedef int INT;
-typedef Int32 INT32;
+typedef int32_t INT32;
 typedef unsigned int UINT;
-typedef UInt32 UINT32;
+typedef uint32_t UINT32;
 typedef INT32 LONG;   // LONG, ULONG and DWORD must be 32-bit for _WIN32 compatibility
 typedef UINT32 ULONG;
 
