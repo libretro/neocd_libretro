@@ -171,27 +171,10 @@ SOURCES_C += \
 	$(ZSTD_DIR)/lib/common/zstd_common.c \
 	$(ZSTD_DIR)/lib/common/error_private.c \
 	$(ZSTD_DIR)/lib/common/xxhash.c \
-	$(ZSTD_DIR)/lib/compress/hist.c \
-	$(ZSTD_DIR)/lib/compress/fse_compress.c \
-	$(ZSTD_DIR)/lib/compress/huf_compress.c \
-	$(ZSTD_DIR)/lib/compress/zstd_compress.c \
-	$(ZSTD_DIR)/lib/compress/zstd_compress_literals.c \
-	$(ZSTD_DIR)/lib/compress/zstd_compress_sequences.c \
-	$(ZSTD_DIR)/lib/compress/zstd_compress_superblock.c \
-	$(ZSTD_DIR)/lib/compress/zstdmt_compress.c \
-	$(ZSTD_DIR)/lib/compress/zstd_fast.c \
-	$(ZSTD_DIR)/lib/compress/zstd_double_fast.c \
-	$(ZSTD_DIR)/lib/compress/zstd_lazy.c \
-	$(ZSTD_DIR)/lib/compress/zstd_opt.c \
-	$(ZSTD_DIR)/lib/compress/zstd_ldm.c \
 	$(ZSTD_DIR)/lib/decompress/huf_decompress.c \
 	$(ZSTD_DIR)/lib/decompress/zstd_decompress.c \
 	$(ZSTD_DIR)/lib/decompress/zstd_decompress_block.c \
-	$(ZSTD_DIR)/lib/decompress/zstd_ddict.c \
-	$(ZSTD_DIR)/lib/dictBuilder/cover.c \
-	$(ZSTD_DIR)/lib/dictBuilder/fastcover.c \
-	$(ZSTD_DIR)/lib/dictBuilder/divsufsort.c \
-	$(ZSTD_DIR)/lib/dictBuilder/zdict.c
+	$(ZSTD_DIR)/lib/decompress/zstd_ddict.c
 
 ifneq ($(STATIC_LINKING),1)
 SOURCES_C +=	$(SRC_LIBRETRO_COMMON)
