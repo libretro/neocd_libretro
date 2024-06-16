@@ -26,6 +26,14 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+#if LIBRETRO
+#if PS2
+/* Try to work around internal compiler error for PS2 toolchain */
+#pragma push(options)
+#pragma optimize(off)
+#endif
+#endif
+
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
