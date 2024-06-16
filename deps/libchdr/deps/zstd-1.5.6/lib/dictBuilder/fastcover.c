@@ -21,12 +21,7 @@
 #endif
 
 /* Try to work around internal compiler error for PS2 toolchain */
-#if defined(__LIBRETRO__)
-#if defined(PS2)
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
-#endif
-#endif
+#if !defined(__LIBRETRO__) && !defined(PS2)
 
 #include "../common/mem.h" /* read */
 #include "../common/pool.h"
@@ -774,8 +769,4 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
 }
 
 /* Try to work around internal compiler error for PS2 toolchain */
-#if defined(__LIBRETRO__)
-#if defined(PS2)
-#pragma GCC pop_options
-#endif
 #endif
