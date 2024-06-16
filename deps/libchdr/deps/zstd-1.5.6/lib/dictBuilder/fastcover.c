@@ -20,6 +20,14 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 
+/* Try to work around internal compiler error for PS2 toolchain */
+#if LIBRETRO
+#if PS2
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+#endif
+#endif
+
 #include "../common/mem.h" /* read */
 #include "../common/pool.h"
 #include "../common/threading.h"
@@ -764,3 +772,10 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     }
 
 }
+
+/* Try to work around internal compiler error for PS2 toolchain */
+#if LIBRETRO
+#if PS2
+#pragma GCC pop_options
+#endif
+#endif
