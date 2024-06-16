@@ -26,11 +26,11 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+/* Try to work around internal compiler error for PS2 toolchain */
 #if LIBRETRO
 #if PS2
-/* Try to work around internal compiler error for PS2 toolchain */
-#pragma push(options)
-#pragma optimize(off)
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 #endif
 #endif
 
@@ -1267,3 +1267,10 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     return dictSize;
   }
 }
+
+/* Try to work around internal compiler error for PS2 toolchain */
+#if LIBRETRO
+#if PS2
+#pragma GCC pop_options
+#endif
+#endif
