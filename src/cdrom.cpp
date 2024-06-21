@@ -332,8 +332,8 @@ void Cdrom::readAudioDirect(char* buffer, size_t size)
     }
 
 #ifdef BIG_ENDIAN_MACHINE
-    if (m_currentTrack->trackType == CdromToc::TrackType::AudioPCM ||
-	m_currentTrack->trackType == CdromToc::TrackType::AudioWav) {
+    if ((m_currentTrack->trackType == CdromToc::TrackType::AudioPCM ||
+	m_currentTrack->trackType == CdromToc::TrackType::AudioWav)  && (!m_file->isChd())) {
         int i;
 	uint16_t *buffer16 = (uint16_t *) buffer;
 	for (i = 0; i < size / 2; i++) {
