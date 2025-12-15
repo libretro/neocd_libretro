@@ -226,6 +226,11 @@ else
    SHARED += -Wl,--version-script=$(CORE_DIR)/link.T -Wl,--no-undefined
 endif
 
+# webOS
+ifneq (,$(or $(findstring webos,$(CROSS_COMPILE)),$(findstring starfish,$(CROSS_COMPILE))))
+   LDFLAGS += -ldl
+endif
+
 LDFLAGS += $(LIBM)
 
 ifeq ($(DEBUG), 1)
