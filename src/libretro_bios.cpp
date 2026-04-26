@@ -77,10 +77,13 @@ void Libretro::Bios::init()
 
     std::vector<std::string> fileList;
 
-    // Scan the system directory
-    StringList file_list(dir_list_new(systemPath.c_str(), nullptr, false, true, true, true));
+    auto scanDirectory = [&fileList](const char* dir) {
+        if (path_is_empty(dir))
+            return;
 
-    for(const string_list_elem& elem : file_list)
+        StringList file_list(dir_list_new(dir, nullptr, false, true, true, true));
+
+        for(const string_list_elem& elem : file_list)
         {
             if (path_is_bios_file(elem.data))
                 fileList.push_back(std::string(elem.data));
@@ -95,6 +98,11 @@ void Libretro::Bios::init()
                 }
             }
         }
+    };
+
+    // Scan both the bare system directory and the neocd subdirectory
+    scanDirectory(globals.systemDirectory);
+    scanDirectory(systemPath.c_str());
 
     // Load all files and check for validity
     lookForBIOSInternal(fileList);
