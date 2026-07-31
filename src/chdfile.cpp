@@ -9,7 +9,9 @@ constexpr int CD_SECTOR_SIZE = 2352;
 
 ChdFile::ChdFile() : 
     AbstractFile(),
-    m_file(nullptr),
+    m_chd(nullptr),
+    m_stream(nullptr),
+    m_io(),
     m_hunkSize(0),
     m_hunkLogicalSize(0),
     m_totalSize(0),
@@ -24,35 +26,85 @@ ChdFile::~ChdFile()
     close();
 }
 
+bool ChdFile::service(const rchd_request_t& request)
+{
+    // A differencing image would ask for its parent; the core has no way
+    // to resolve one, so refuse rather than feed the wrong bytes.
+    if (request.source != RCHD_SOURCE_SELF)
+        return false;
+
+    if (m_io.size() < request.length)
+        m_io.resize(request.length);
+
+    if (filestream_seek(m_stream, static_cast<int64_t>(request.offset), RETRO_VFS_SEEK_POSITION_START) < 0)
+        return false;
+
+    int64_t got = filestream_read(m_stream, m_io.data(), static_cast<int64_t>(request.length));
+    if (got <= 0)
+        return false;
+
+    // A short supply is legal: rchd reissues the remainder.
+    return rchd_feed(m_chd, m_io.data(), static_cast<size_t>(got)) == RCHD_OK;
+}
+
+bool ChdFile::pump(int (*step)(rchd_t*, rchd_request_t*))
+{
+    for (;;)
+    {
+        rchd_request_t request;
+        int status = step(m_chd, &request);
+
+        if (status == RCHD_OK)
+            return true;
+
+        if (status != RCHD_PENDING)
+            return false;
+
+        if (!service(request))
+            return false;
+    }
+}
+
 bool ChdFile::open(const std::string& filename)
 {
     close();
 
-    chd_file* chdFile = nullptr;
-    chd_error status = chd_open(filename.c_str(), CHD_OPEN_READ, nullptr, &chdFile);
-    if (status != CHDERR_NONE)
+    m_stream = filestream_open(filename.c_str(),
+        RETRO_VFS_FILE_ACCESS_READ,
+        RETRO_VFS_FILE_ACCESS_HINT_NONE);
+    if (!m_stream)
         return false;
 
-    m_file = chdFile;
-
-    const chd_header* chdHeader = chd_get_header(m_file);
-
-    if ((chdHeader->hunkbytes % CHD_SECTOR_SIZE) != 0)
+    m_chd = rchd_new();
+    if (!m_chd)
     {
         close();
         return false;
     }
 
-    m_hunkData = reinterpret_cast<char*>(malloc(chdHeader->hunkbytes));
+    if (!pump(rchd_open_step))
+    {
+        close();
+        return false;
+    }
+
+    const rchd_info_t* info = rchd_info(m_chd);
+    if (!info || !info->hunk_bytes || (info->hunk_bytes % CHD_SECTOR_SIZE) != 0)
+    {
+        close();
+        return false;
+    }
+
+    m_hunkData = reinterpret_cast<char*>(malloc(info->hunk_bytes));
     if (!m_hunkData)
     {
         close();
         return false;
     }
 
-    m_hunkSize = chdHeader->hunkbytes;
+    m_hunkSize = info->hunk_bytes;
     m_hunkLogicalSize = m_hunkSize / CHD_SECTOR_SIZE * CD_SECTOR_SIZE;
-    m_totalSize = static_cast<size_t>(m_hunkLogicalSize) * static_cast<size_t>(chdHeader->totalhunks);
+    m_totalSize = static_cast<size_t>(m_hunkLogicalSize) * static_cast<size_t>(info->hunk_count);
     m_readPointer = 0;
     m_isDataHunk = true;
     m_hunkNumber = -1;
@@ -62,7 +114,7 @@ bool ChdFile::open(const std::string& filename)
 
 bool ChdFile::isOpen() const
 {
-    return (m_file != nullptr);
+    return (m_chd != nullptr);
 }
 
 bool ChdFile::isChd() const
@@ -72,10 +124,16 @@ bool ChdFile::isChd() const
 
 void ChdFile::close()
 {
-    if (m_file)
+    if (m_chd)
     {
-        chd_close(m_file);
-        m_file = nullptr;
+        rchd_free(m_chd);
+        m_chd = nullptr;
+    }
+
+    if (m_stream)
+    {
+        filestream_close(m_stream);
+        m_stream = nullptr;
     }
 
     if (m_hunkData)
@@ -83,6 +141,9 @@ void ChdFile::close()
         free(m_hunkData);
         m_hunkData = nullptr;
     }
+
+    m_io.clear();
+    m_io.shrink_to_fit();
 
     m_hunkSize = 0;
     m_hunkLogicalSize = 0;
@@ -172,8 +233,13 @@ bool ChdFile::fetchHunk(uint32_t number, bool dataMode)
     if ((m_hunkNumber == static_cast<int32_t>(number)) && (m_isDataHunk == dataMode))
         return true;
 
-    chd_error status = chd_read(m_file, number, m_hunkData);
-    if (status != CHDERR_NONE)
+    if (rchd_read_hunk_begin(m_chd, number, m_hunkData) != RCHD_OK)
+    {
+        m_hunkNumber = -1;
+        return false;
+    }
+
+    if (!pump(rchd_read_step))
     {
         m_hunkNumber = -1;
         return false;
@@ -204,17 +270,22 @@ std::string ChdFile::readLine()
 
 std::string ChdFile::metadata(uint32_t searchTag, uint32_t searchIndex)
 {
-    if (!m_file)
+    if (!m_chd)
         return std::string();
 
-    char buffer[256];
-    uint32_t metadataLength;
-
-    chd_error err = chd_get_metadata(m_file, searchTag, searchIndex, buffer, 255, &metadataLength, nullptr, nullptr);
-    if (err != CHDERR_NONE)
+    // The chain is cached during open, so this needs no I/O and the
+    // payload can be read where it lies.
+    const rchd_metadata_t* entry = rchd_metadata_find(m_chd, searchTag, searchIndex);
+    if (!entry || !entry->data)
         return std::string();
 
-    buffer[metadataLength] = 0;
+    // The payload is NUL-terminated in every image that carries text,
+    // but nothing guarantees it, so bound the length rather than trust it.
+    uint32_t length = entry->length;
+    const char* text = reinterpret_cast<const char*>(entry->data);
+    const void* nul = std::memchr(text, 0, length);
+    if (nul)
+        length = static_cast<uint32_t>(reinterpret_cast<const char*>(nul) - text);
 
-    return std::string(buffer);
+    return std::string(text, length);
 }

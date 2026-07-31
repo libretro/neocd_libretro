@@ -2,10 +2,12 @@
 #define CHDFILE_H 1
 
 #include <cstdint>
+#include <vector>
 
 #include "abstractfile.h"
 
-#include <libchdr/chd.h>
+#include <formats/rchd.h>
+#include <streams/file_stream.h>
 
 class ChdFile : public AbstractFile
 {
@@ -44,9 +46,19 @@ protected:
 
     bool fetchHunk(uint32_t number, bool dataMode);
 
+    // rchd performs no file I/O of its own: it names a byte range and
+    // this supplies it. Returns false if the range could not be read.
+    bool service(const rchd_request_t& request);
+
+    // Drives an rchd operation to completion, servicing every request
+    // it raises. step is either rchd_open_step or rchd_read_step.
+    bool pump(int (*step)(rchd_t*, rchd_request_t*));
+
     static void swab(void* data, size_t size);
 
-    chd_file* m_file;
+    rchd_t* m_chd;
+    RFILE* m_stream;
+    std::vector<uint8_t> m_io;
     uint32_t m_hunkSize;
     uint32_t m_hunkLogicalSize;
     size_t m_totalSize;

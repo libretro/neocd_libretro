@@ -1,23 +1,14 @@
 LIBRETRO_DEPS_DIR    = $(CORE_DIR)/deps
+LIBRETRO_COMM_DIR    = $(LIBRETRO_DEPS_DIR)/libretro-common
 LIBOGG_DIR           = $(LIBRETRO_DEPS_DIR)/libogg
 LIBVORBIS_DIR        = $(LIBRETRO_DEPS_DIR)/libvorbis
-LIBCHDR_DIR          = $(LIBRETRO_DEPS_DIR)/libchdr
-LIBRETRO_COMM_DIR    = $(LIBRETRO_DEPS_DIR)/libretro-common
-ZLIB_DIR             = $(LIBCHDR_DIR)/deps/zlib-1.3.1
-LZMA_DIR             = $(LIBCHDR_DIR)/deps/lzma-24.05
-ZSTD_DIR             = $(LIBCHDR_DIR)/deps/zstd-1.5.6
 
 INCFLAGS :=  \
 	-I$(CORE_DIR)/src \
-	-I$(LIBRETRO_COMM_DIR)/include \
-	-I$(LIBRETRO_DEPS_DIR)/ \
-	-I$(LIBCHDR_DIR)/include \
-	-I$(LZMA_DIR)/include \
 	-I$(LIBOGG_DIR)/include \
 	-I$(LIBVORBIS_DIR)/include \
 	-I$(LIBVORBIS_DIR)/lib \
-	-I$(ZLIB_DIR) \
-	-I$(ZSTD_DIR)/lib 
+	-I$(LIBRETRO_COMM_DIR)/include
 
 SOURCES_CXX :=\
 	$(CORE_DIR)/src/archive.cpp \
@@ -71,13 +62,10 @@ SOURCES_C := \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c \
 	$(CORE_DIR)/src/3rdparty/musashi/softfloat/softfloat.c
 
-SOURCES_C += \
-	$(LIBCHDR_DIR)/src/libchdr_bitstream.c \
-	$(LIBCHDR_DIR)/src/libchdr_cdrom.c \
-	$(LIBCHDR_DIR)/src/libchdr_chd.c \
-	$(LIBCHDR_DIR)/src/libchdr_flac.c \
-	$(LIBCHDR_DIR)/src/libchdr_huffman.c
-
+# libretro-common. The CD image reader (rchd), the Vorbis, FLAC and WAV
+# decoders and the zip/deflate/lzma/zstd primitives all live here now:
+# libchdr, libogg, libvorbis, minizip and the zlib, LZMA and zstd copies
+# that came bundled with libchdr are gone.
 SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
@@ -106,30 +94,13 @@ SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/streams/file_stream.c \
 	$(LIBRETRO_COMM_DIR)/string/stdstring.c \
 	$(LIBRETRO_COMM_DIR)/time/rtime.c \
-	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c \
-	$(LIBRETRO_COMM_DIR)/streams/file_stream_transforms.c \
-	$(LIBRETRO_COMM_DIR)/streams/trans_stream.c \
-	$(LIBRETRO_COMM_DIR)/streams/trans_stream_pipe.c \
-	$(LIBRETRO_COMM_DIR)/streams/trans_stream_zlib.c
+	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
 
 ifeq ($(HAVE_CDROM), 1)
 SRC_LIBRETRO_COMMON += \
 	 $(LIBRETRO_COMM_DIR)/cdrom/cdrom.c \
 	 $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation_cdrom.c
 endif
-
-SRC_LIBRETRO_COMMON += \
-	$(LZMA_DIR)/src/Alloc.c \
-	$(LZMA_DIR)/src/Bra.c \
-	$(LZMA_DIR)/src/Bra86.c \
-	$(LZMA_DIR)/src/BraIA64.c \
-	$(LZMA_DIR)/src/CpuArch.c \
-	$(LZMA_DIR)/src/Delta.c \
-	$(LZMA_DIR)/src/LzFind.c \
-	$(LZMA_DIR)/src/Lzma86Dec.c \
-	$(LZMA_DIR)/src/LzmaDec.c \
-	$(LZMA_DIR)/src/LzmaEnc.c \
-	$(LZMA_DIR)/src/Sort.c
 
 SOURCES_C += \
 	$(LIBOGG_DIR)/src/bitwise.c \
@@ -156,31 +127,6 @@ SOURCES_C += \
 	$(LIBVORBIS_DIR)/lib/synthesis.c \
 	$(LIBVORBIS_DIR)/lib/vorbisfile.c \
 	$(LIBVORBIS_DIR)/lib/window.c
-
-SOURCES_C += \
-	$(ZLIB_DIR)/adler32.c \
-	$(ZLIB_DIR)/crc32.c \
-	$(ZLIB_DIR)/deflate.c \
-	$(ZLIB_DIR)/infback.c \
-	$(ZLIB_DIR)/inffast.c \
-	$(ZLIB_DIR)/inflate.c \
-	$(ZLIB_DIR)/inftrees.c \
-	$(ZLIB_DIR)/trees.c \
-	$(ZLIB_DIR)/zutil.c
-
-
-SOURCES_C += \
-	$(ZSTD_DIR)/lib/common/entropy_common.c \
-	$(ZSTD_DIR)/lib/common/fse_decompress.c \
-	$(ZSTD_DIR)/lib/common/threading.c \
-	$(ZSTD_DIR)/lib/common/pool.c \
-	$(ZSTD_DIR)/lib/common/zstd_common.c \
-	$(ZSTD_DIR)/lib/common/error_private.c \
-	$(ZSTD_DIR)/lib/common/xxhash.c \
-	$(ZSTD_DIR)/lib/decompress/huf_decompress.c \
-	$(ZSTD_DIR)/lib/decompress/zstd_decompress.c \
-	$(ZSTD_DIR)/lib/decompress/zstd_decompress_block.c \
-	$(ZSTD_DIR)/lib/decompress/zstd_ddict.c
 
 ifneq ($(STATIC_LINKING),1)
 SOURCES_C +=	$(SRC_LIBRETRO_COMMON)

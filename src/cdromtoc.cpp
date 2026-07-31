@@ -486,11 +486,11 @@ bool  CdromToc::loadChd(const std::string& filename)
         bool v2Metadata = true;
 
         // First, try to read V2 metadata
-        std::string metadata = chd.metadata(CDROM_TRACK_METADATA2_TAG, idx);
+        std::string metadata = chd.metadata(RCHD_META_CDROM_TRACK2, idx);
         if (metadata.empty())
         {
             // If that failed, try the old format
-            metadata = chd.metadata(CDROM_TRACK_METADATA_TAG, idx);
+            metadata = chd.metadata(RCHD_META_CDROM_TRACK, idx);
             v2Metadata = false;
         }
 
