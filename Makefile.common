@@ -97,8 +97,6 @@ SRC_LIBRETRO_COMMON += \
 	 $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation_cdrom.c
 endif
 
-
-
 ifneq ($(STATIC_LINKING),1)
 SOURCES_C +=	$(SRC_LIBRETRO_COMMON)
 endif
