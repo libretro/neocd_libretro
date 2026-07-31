@@ -3,103 +3,15 @@
 #include "libretro_log.h"
 #include "misc.h"
 #include "path.h"
-#include "streams/file_stream.h"
-#include "unzip.h"
 
-static voidpf ZCALLBACK fopen_file_func(voidpf opaque, const char* filename, int mode)
-{
-    UNUSED_ARG(opaque);
+#include <cstring>
 
-    RFILE* file = nullptr;
+#include <file/archive_file.h>
+#include <lists/string_list.h>
 
-    unsigned mode_fopen = 0;
-
-    if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER) == ZLIB_FILEFUNC_MODE_READ)
-        mode_fopen = RETRO_VFS_FILE_ACCESS_READ;
-    else if (mode & ZLIB_FILEFUNC_MODE_EXISTING)
-        mode_fopen = RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING;
-    else if (mode & ZLIB_FILEFUNC_MODE_CREATE)
-        mode_fopen = RETRO_VFS_FILE_ACCESS_WRITE;
-
-    if ((filename != nullptr) && (mode_fopen != 0))
-        file = filestream_open(filename, mode_fopen, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-
-    return file;
-}
-
-static int64_t ZCALLBACK fread_file_func(voidpf opaque, voidpf stream, void* buf, uLong size)
-{
-    UNUSED_ARG(opaque);
-
-    return filestream_read(reinterpret_cast<RFILE*>(stream), buf, int64_t(size));
-}
-
-static int64_t ZCALLBACK fwrite_file_func(voidpf opaque, voidpf stream, const void* buf, uLong size)
-{
-    UNUSED_ARG(opaque);
-
-    return filestream_write(reinterpret_cast<RFILE*>(stream), buf, int64_t(size));
-}
-
-static int64_t ZCALLBACK ftell_file_func(voidpf opaque, voidpf stream)
-{
-    UNUSED_ARG(opaque);
-
-    return filestream_tell(reinterpret_cast<RFILE*>(stream));
-}
-
-static int64_t ZCALLBACK fseek_file_func(voidpf  opaque, voidpf stream, uLong offset, int origin)
-{
-    int64_t ret = 0;
-    int fseek_origin = 0;
-
-    UNUSED_ARG(opaque);
-
-    switch (origin)
-    {
-    case ZLIB_FILEFUNC_SEEK_CUR :
-        fseek_origin = RETRO_VFS_SEEK_POSITION_CURRENT;
-        break;
-    case ZLIB_FILEFUNC_SEEK_END :
-        fseek_origin = RETRO_VFS_SEEK_POSITION_END;
-        break;
-    case ZLIB_FILEFUNC_SEEK_SET :
-        fseek_origin = RETRO_VFS_SEEK_POSITION_START;
-        break;
-    default: return -1;
-    }
-
-    if (filestream_seek(reinterpret_cast<RFILE*>(stream), offset, fseek_origin) != 0)
-        return -1;
-
-    return ret;
-}
-
-static int ZCALLBACK fclose_file_func(voidpf opaque, voidpf stream)
-{
-    UNUSED_ARG(opaque);
-
-    return filestream_close(reinterpret_cast<RFILE*>(stream));
-}
-
-static int ZCALLBACK ferror_file_func(voidpf opaque, voidpf stream)
-{
-    UNUSED_ARG(opaque);
-
-    return filestream_error(reinterpret_cast<RFILE*>(stream));
-}
-
-static void fill_callbacks(zlib_filefunc_def* callbacks)
-{
-    callbacks->zopen_file = fopen_file_func;
-    callbacks->zread_file = fread_file_func;
-    callbacks->zwrite_file = fwrite_file_func;
-    callbacks->ztell_file = ftell_file_func;
-    callbacks->zseek_file = fseek_file_func;
-    callbacks->zclose_file = fclose_file_func;
-    callbacks->zerror_file = ferror_file_func;
-    callbacks->opaque = NULL;
-}
+// libretro-common's archive backend does its own I/O through the VFS,
+// so the file-callback shim this file used to carry for minizip is gone
+// along with minizip itself.
 
 namespace ArchiveZip
 {
@@ -107,137 +19,79 @@ std::vector<std::string> getFileList(const std::string &archiveFilename)
 {
     std::vector<std::string> result;
 
-    zlib_filefunc_def callbacks;
-    fill_callbacks(&callbacks);
-
-    auto zipFile = unzOpen2(archiveFilename.c_str(), &callbacks);
-    if (!zipFile)
+    struct string_list* list = file_archive_get_file_list(archiveFilename.c_str(), nullptr);
+    if (!list)
     {
         Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s\n", archiveFilename.c_str());
         return result;
     }
 
-    while(1)
+    result.reserve(list->size);
+
+    for (size_t i = 0; i < list->size; ++i)
     {
-        unz_file_info fileInfo;
+        const char* name = list->elems[i].data;
+        if (!name || !*name)
+            continue;
 
-        if (unzGetCurrentFileInfo(zipFile, &fileInfo, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
-        {
-            Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Failed to enumerate files (1) %s\n", archiveFilename.c_str());
-            break;
-        }
+        // Directory entries carry a trailing separator; the old minizip
+        // path filtered them on the MS-DOS directory attribute instead.
+        size_t length = std::strlen(name);
+        if ((name[length - 1] == '/') || (name[length - 1] == '\\'))
+            continue;
 
-        if (!(fileInfo.external_fa & 16))
-        {
-            std::string filename(fileInfo.size_filename, 0x0);
-            if (unzGetCurrentFileInfo(zipFile, &fileInfo, &filename[0], filename.size(), nullptr, 0, nullptr, 0) != UNZ_OK)
-            {
-                Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Failed to enumerate files (2) %s\n", archiveFilename.c_str());
-                break;
-            }
-
-            result.emplace_back(make_path_separator(archiveFilename.c_str(), "#", filename.c_str()));
-        }
-
-        if (unzGoToNextFile(zipFile) != UNZ_OK)
-            break;
+        result.emplace_back(make_path_separator(archiveFilename.c_str(), "#", name));
     }
 
-    if (unzClose(zipFile) != UNZ_OK)
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s\n", archiveFilename.c_str());
+    string_list_free(list);
 
     return result;
 }
 
 int64_t getFileSize(const std::string &archive, const std::string &filename)
 {
-    zlib_filefunc_def callbacks;
-    fill_callbacks(&callbacks);
+    std::string path = make_path_separator(archive.c_str(), "#", filename.c_str());
 
-    auto zipFile = unzOpen2(archive.c_str(), &callbacks);
-    if (!zipFile)
-    {
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s\n", archive.c_str());
-        return -1;
-    }
+    uint64_t size = 0;
 
-    auto cleanup = [&](bool result) -> int64_t
-    {
-        if (unzClose(zipFile) != UNZ_OK)
-            Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s\n", archive.c_str());
-
-        return -1;
-    };
-
-    if (unzLocateFile(zipFile, filename.c_str(), 2) != UNZ_OK)
+    // Reads the central directory only: the member is not decompressed.
+    file_archive_get_file_crc32_and_size(path.c_str(), &size);
+    if (!size)
     {
         Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not find %s in archive %s\n", filename.c_str(), archive.c_str());
-        return cleanup(false);
+        return -1;
     }
 
-    if (unzOpenCurrentFile(zipFile) != UNZ_OK)
-    {
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s in archive %s\n", filename.c_str(), archive.c_str());
-        return cleanup(false);
-    }
-
-    unz_file_info64 file_info;
-    if (unzGetCurrentFileInfo64(zipFile, &file_info, 0, 0, 0, 0, 0, 0) != UNZ_OK)
-    {
-	Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not read file info %s in archive %s\n", filename.c_str(), archive.c_str());
-        return cleanup(false);
-    }
-
-    return file_info.uncompressed_size;
+    return static_cast<int64_t>(size);
 }
 
 bool readFile(const std::string &archive, const std::string &filename, void *buffer, size_t maximumSize, size_t *reallyRead)
 {
-    zlib_filefunc_def callbacks;
-    fill_callbacks(&callbacks);
+    std::string path = make_path_separator(archive.c_str(), "#", filename.c_str());
 
-    auto zipFile = unzOpen2(archive.c_str(), &callbacks);
-    if (!zipFile)
+    void* data = nullptr;
+    int64_t length = 0;
+
+    if (!file_archive_compressed_read(path.c_str(), &data, nullptr, &length) || !data)
     {
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s\n", archive.c_str());
+        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not read %s in archive %s\n", filename.c_str(), archive.c_str());
+        if (data)
+            free(data);
         return false;
     }
 
-    auto cleanup = [&](bool result) -> bool
-    {
-        if (unzClose(zipFile) != UNZ_OK)
-            Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s\n", archive.c_str());
+    // The backend allocates the whole member; the caller takes what fits.
+    size_t copied = static_cast<size_t>(length);
+    if (copied > maximumSize)
+        copied = maximumSize;
 
-        return result;
-    };
-
-    if (unzLocateFile(zipFile, filename.c_str(), 2) != UNZ_OK)
-    {
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not find %s in archive %s\n", filename.c_str(), archive.c_str());
-        return cleanup(false);
-    }
-
-    if (unzOpenCurrentFile(zipFile) != UNZ_OK)
-    {
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not open %s in archive %s\n", filename.c_str(), archive.c_str());
-        return cleanup(false);
-    }
-
-    auto result = unzReadCurrentFile(zipFile, buffer, maximumSize);
-    if (result < 0)
-    {
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not read %s in archive %s\n", filename.c_str(), archive.c_str());
-        unzCloseCurrentFile(zipFile);
-        return cleanup(false);
-    }
+    std::memcpy(buffer, data, copied);
+    free(data);
 
     if (reallyRead)
-        *reallyRead = result;
+        *reallyRead = copied;
 
-    if (unzCloseCurrentFile(zipFile) != UNZ_OK)
-        Libretro::Log::message(RETRO_LOG_ERROR, "Archive: Could not close %s in archive %s\n", filename.c_str(), archive.c_str());
-
-    return cleanup(true);
+    return true;
 }
 
 } // namespace ArchiveZip
