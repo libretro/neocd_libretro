@@ -1,13 +1,8 @@
 LIBRETRO_DEPS_DIR    = $(CORE_DIR)/deps
 LIBRETRO_COMM_DIR    = $(LIBRETRO_DEPS_DIR)/libretro-common
-LIBOGG_DIR           = $(LIBRETRO_DEPS_DIR)/libogg
-LIBVORBIS_DIR        = $(LIBRETRO_DEPS_DIR)/libvorbis
 
 INCFLAGS :=  \
 	-I$(CORE_DIR)/src \
-	-I$(LIBOGG_DIR)/include \
-	-I$(LIBVORBIS_DIR)/include \
-	-I$(LIBVORBIS_DIR)/lib \
 	-I$(LIBRETRO_COMM_DIR)/include
 
 SOURCES_CXX :=\
@@ -102,31 +97,7 @@ SRC_LIBRETRO_COMMON += \
 	 $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation_cdrom.c
 endif
 
-SOURCES_C += \
-	$(LIBOGG_DIR)/src/bitwise.c \
-	$(LIBOGG_DIR)/src/framing.c
 
-SOURCES_C += \
-	$(LIBVORBIS_DIR)/lib/bitrate.c \
-	$(LIBVORBIS_DIR)/lib/block.c \
-	$(LIBVORBIS_DIR)/lib/codebook.c \
-	$(LIBVORBIS_DIR)/lib/envelope.c \
-	$(LIBVORBIS_DIR)/lib/floor0.c \
-	$(LIBVORBIS_DIR)/lib/floor1.c \
-	$(LIBVORBIS_DIR)/lib/info.c \
-	$(LIBVORBIS_DIR)/lib/lookup.c \
-	$(LIBVORBIS_DIR)/lib/lpc.c \
-	$(LIBVORBIS_DIR)/lib/lsp.c \
-	$(LIBVORBIS_DIR)/lib/mapping0.c \
-	$(LIBVORBIS_DIR)/lib/mdct.c \
-	$(LIBVORBIS_DIR)/lib/psy.c \
-	$(LIBVORBIS_DIR)/lib/registry.c \
-	$(LIBVORBIS_DIR)/lib/res0.c \
-	$(LIBVORBIS_DIR)/lib/sharedbook.c \
-	$(LIBVORBIS_DIR)/lib/smallft.c \
-	$(LIBVORBIS_DIR)/lib/synthesis.c \
-	$(LIBVORBIS_DIR)/lib/vorbisfile.c \
-	$(LIBVORBIS_DIR)/lib/window.c
 
 ifneq ($(STATIC_LINKING),1)
 SOURCES_C +=	$(SRC_LIBRETRO_COMMON)
