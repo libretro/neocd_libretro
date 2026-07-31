@@ -16,6 +16,7 @@
 #include "datapacker.h"
 #include "file.h"
 #include "flacfile.h"
+#include "mp3file.h"
 #include "oggfile.h"
 #include "trackindex.h"
 #include "wavfile.h"
@@ -291,6 +292,9 @@ protected:
 
     /// OGG file decoder
     OggFile m_oggFile;
+
+    /// MP3 file reader
+    Mp3File m_mp3File;
 
     /// WAV file decoder
     WavFile m_wavFile;

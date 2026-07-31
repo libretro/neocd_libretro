@@ -7,6 +7,7 @@
 #include "flacfile.h"
 #include "libretro_log.h"
 #include "misc.h"
+#include "mp3file.h"
 #include "oggfile.h"
 #include "path.h"
 #include "wavfile.h"
@@ -111,8 +112,11 @@ bool CdromToc::loadCueSheet(const std::string &filename)
             std::string type = match[2].str();
             bool isBinary = string_compare_insensitive(type.c_str(), "BINARY");
             bool isWave = string_compare_insensitive(type.c_str(), "WAVE");
+            // Rips with MP3 tracks declare the type as MP3 rather than
+            // WAVE, which is what the sheet means by "not raw sectors".
+            bool isMp3 = string_compare_insensitive(type.c_str(), "MP3");
 
-            if (!isBinary && !isWave)
+            if (!isBinary && !isWave && !isMp3)
             {
                 Libretro::Log::message(RETRO_LOG_ERROR, "File type %s is not supported.\n", type.c_str());
                 return false;
@@ -664,6 +668,23 @@ bool CdromToc::findAudioFileSize(const std::string& path, File &file, int64_t &f
         trackType = TrackType::AudioFlac;
 
         flacFile.cleanup();
+
+        return true;
+    }
+    else if (string_compare_insensitive(extension.c_str(), "MP3"))
+    {
+        Mp3File mp3File;
+
+        if (!mp3File.initialize(&file))
+        {
+            Libretro::Log::message(RETRO_LOG_ERROR, "File %s%s is not a valid MP3 file.", filename.c_str(), extension.c_str());
+            return false;
+        }
+
+        fileSize = static_cast<int64_t>(mp3File.length());
+        trackType = TrackType::AudioMp3;
+
+        mp3File.cleanup();
 
         return true;
     }

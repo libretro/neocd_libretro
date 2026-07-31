@@ -37,6 +37,7 @@ SOURCES_CXX :=\
 	$(CORE_DIR)/src/memory_video.cpp \
 	$(CORE_DIR)/src/memory_z80comm.cpp \
 	$(CORE_DIR)/src/memory.cpp \
+	$(CORE_DIR)/src/mp3file.cpp \
 	$(CORE_DIR)/src/neogeocd.cpp \
 	$(CORE_DIR)/src/oggfile.cpp \
 	$(CORE_DIR)/src/path.cpp \
@@ -80,6 +81,7 @@ SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/formats/7z/r7z_lzma.c \
 	$(LIBRETRO_COMM_DIR)/formats/chd/rchd.c \
 	$(LIBRETRO_COMM_DIR)/formats/flac/rflac.c \
+	$(LIBRETRO_COMM_DIR)/formats/mp3/rmp3.c \
 	$(LIBRETRO_COMM_DIR)/formats/vorbis/rvorbis.c \
 	$(LIBRETRO_COMM_DIR)/formats/wav/rwav.c \
 	$(LIBRETRO_COMM_DIR)/lists/dir_list.c \

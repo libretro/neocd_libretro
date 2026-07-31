@@ -26,6 +26,7 @@ Cdrom::Cdrom() :
     m_chdFile(),
     m_flacFile(),
     m_oggFile(),
+    m_mp3File(),
     m_wavFile(),
     m_toc()
 {
@@ -322,6 +323,10 @@ void Cdrom::readAudioDirect(char* buffer, size_t size)
     {
         done = m_flacFile.read(buffer, size);
     }
+    else if (m_currentTrack->trackType == CdromToc::TrackType::AudioMp3)
+    {
+        done = m_mp3File.read(buffer, size);
+    }
     else if (m_currentTrack->trackType == CdromToc::TrackType::AudioOgg)
     {
         done = m_oggFile.read(buffer, size);
@@ -380,6 +385,7 @@ bool Cdrom::isTocEmpty() const
 void Cdrom::cleanup()
 {
     m_oggFile.cleanup();
+    m_mp3File.cleanup();
     m_flacFile.cleanup();
     m_wavFile.cleanup();
 
@@ -452,6 +458,8 @@ void Cdrom::handleTrackChange(bool doInitialSeek)
 
         if (m_currentTrack->trackType == CdromToc::TrackType::AudioFlac)
             m_flacFile.initialize(m_file);
+        else if (m_currentTrack->trackType == CdromToc::TrackType::AudioMp3)
+            m_mp3File.initialize(m_file);
         else if (m_currentTrack->trackType == CdromToc::TrackType::AudioOgg)
             m_oggFile.initialize(m_file);
         else if (m_currentTrack->trackType == CdromToc::TrackType::AudioWav)
@@ -485,6 +493,8 @@ void Cdrom::seekAudio()
         m_file->seek(trackOffset + m_currentTrack->fileOffset);
     else if (m_currentTrack->trackType == CdromToc::TrackType::AudioFlac)
         m_flacFile.seek(trackOffset + m_currentTrack->fileOffset);
+    else if (m_currentTrack->trackType == CdromToc::TrackType::AudioMp3)
+        m_mp3File.seek(trackOffset + m_currentTrack->fileOffset);
     else if (m_currentTrack->trackType == CdromToc::TrackType::AudioOgg)
         m_oggFile.seek(trackOffset + m_currentTrack->fileOffset);
     else if (m_currentTrack->trackType == CdromToc::TrackType::AudioWav)

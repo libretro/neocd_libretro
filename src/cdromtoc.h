@@ -20,7 +20,8 @@ public:
         AudioPCM,    /// PCM audio (raw track)
         AudioFlac,   /// FLAC audio
         AudioOgg,    /// Ogg audio
-        AudioWav     /// WAV audio
+        AudioWav,    /// WAV audio
+        AudioMp3     /// MP3 audio
     };
 
     struct Entry
