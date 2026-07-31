@@ -2,8 +2,12 @@
 #define WAVFILE_H
 
 #include <cstdint>
+#include <cstddef>
+#include <vector>
 
 #include "abstractfile.h"
+
+#include <formats/rwav.h>
 
 class WavFile
 {
@@ -28,10 +32,16 @@ public:
     void cleanup();
 
 protected:
+    // Reads the RIFF chunk list, growing the resident head until the
+    // 'data' chunk header is inside it. The payload is never resident.
+    bool parseHeader();
+
     AbstractFile* m_file;
-    int64_t m_currentPosition;
-    int64_t m_dataStart;
-    int64_t m_dataSize;
+    rwav_t m_wav;
+    std::vector<uint8_t> m_chunk;   // scratch for one read's byte extent
+    int64_t m_currentFrame;
+    int64_t m_totalFrames;
+    bool m_isOpen;
 };
 
 #endif // WAVFILE_H
