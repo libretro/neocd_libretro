@@ -1,4 +1,6 @@
 LOCAL_PATH := $(call my-dir)
+NEED_RWAV      := 1
+NEED_RVORBIS   := 1
 
 CORE_DIR   := $(LOCAL_PATH)/..
 
