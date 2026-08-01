@@ -516,20 +516,23 @@ void HleBios::callUser(uint8_t request)
 {
     neocd->memory.ram[BIOS_USER_REQUEST] = request;
 
-    // A game hands control back by jumping to SYSTEM_RETURN rather than
-    // returning, so whatever it left on the stack is abandoned; the
-    // stack is put back where the BIOS keeps it before each call.
+    // Entered with the stack exactly where a real BIOS leaves it. That
+    // matters: a game gives control back by jumping to SYSTEM_RETURN
+    // rather than returning, so it is not expecting a return address to
+    // have been pushed, and pushing one leaves its stack four bytes out
+    // for as long as it runs.
+    //
+    // Somewhere to land is still wanted for the games that do return,
+    // so the address goes at the top of the stack rather than below it:
+    // the stack pointer reads the same as on hardware, and a return
+    // finds something better than address zero.
+    m68k_write_memory_32(0x0010F300, USER_RETURN);
     m68k_set_reg(M68K_REG_SP, 0x0010F300);
 
     // Supervisor, interrupts allowed: the vertical blank is what drives
     // a game once it is running.
     m68k_set_reg(M68K_REG_SR, 0x2000);
 
-    // Enter the game's USER routine with a return address that lands
-    // back here, so the call can be driven from C++.
-    uint32_t sp = m68k_get_reg(nullptr, M68K_REG_SP) - 4;
-    m68k_write_memory_32(sp, USER_RETURN);
-    m68k_set_reg(M68K_REG_SP, sp);
     m68k_set_reg(M68K_REG_PC, USER_VECTOR);
 }
 
