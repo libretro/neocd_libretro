@@ -304,9 +304,6 @@ bool OggFile::seekToFrame(uint64_t frame)
                     want = static_cast<size_t>(frame - position);
             }
 
-            if (!refill() && !m_filled)
-                break;
-
             rvorbis_stream_set_out_s16(m_stream, scratch, want);
             rvorbis_stream_set_in(m_stream, m_window, m_filled);
 
@@ -319,8 +316,28 @@ bool OggFile::seekToFrame(uint64_t frame)
             if (status == RVORBIS_STREAM_ERROR || status == RVORBIS_STREAM_EOS)
                 break;
 
+            // Only reached for once the window is spent, the same as the
+            // read path: the last packet's frames are handed over after
+            // its last byte is consumed, and a target inside them is
+            // reached only by asking again with nothing left to give.
+            if (status == RVORBIS_STREAM_NEED_IN)
+            {
+                if (!refill() && !m_filled)
+                    break;
+            }
+
             if (!consumed && !produced && !m_filled)
                 break;
+        }
+
+        // The loop above leaves on end of stream without looking, and
+        // the frames the decoder let go of on the way out can be the
+        // ones the target is in.
+        if (rvorbis_stream_pos_known(m_stream)
+            && (rvorbis_stream_tell(m_stream) == frame))
+        {
+            m_fileOffset = at;
+            return true;
         }
 
         if (!overshot || !start)
