@@ -928,13 +928,27 @@ static INLINE uint32_t rflac__reload_l1_cache_from_l2(rflac_bs* bs)
 
    /* If we get here it means we've run out of data in the L2 cache. We'll need
     * to fetch more from the client, if there's any left.
-    */
+    *
+    * Upstream refuses to ask while unaligned bytes are pending: there a
+    * short read can only mean the file underneath ended, so the pending
+    * tail is the last of the stream and asking again is pointless.  A
+    * push source is short every time a span runs out, and more bytes
+    * usually follow, so here the pending tail is spliced back in front
+    * of whatever the client has next.  When the client has nothing the
+    * arithmetic below reduces to what upstream did: the tail comes back
+    * out of the partial-read path unchanged, to be served by the
+    * unaligned fallback in rflac__reload_cache. */
    if (bs->unalignedByteCount > 0)
-      /* If we have any unaligned bytes it means there's no more aligned bytes
-       * left in the client. */
-      return 0;
-
-   bytesRead = bs->onRead(bs->pUserData, bs->cacheL2, RFLAC_CACHE_L2_SIZE_BYTES(bs));
+   {
+      size_t tailByteCount = bs->unalignedByteCount;
+      memcpy(bs->cacheL2, &bs->unalignedCache, tailByteCount);
+      bs->unalignedByteCount = 0;
+      bytesRead = tailByteCount + bs->onRead(bs->pUserData,
+            (uint8_t*)bs->cacheL2 + tailByteCount,
+            RFLAC_CACHE_L2_SIZE_BYTES(bs) - tailByteCount);
+   }
+   else
+      bytesRead = bs->onRead(bs->pUserData, bs->cacheL2, RFLAC_CACHE_L2_SIZE_BYTES(bs));
 
    bs->nextL2Line = 0;
    if (bytesRead == RFLAC_CACHE_L2_SIZE_BYTES(bs))
@@ -3329,26 +3343,39 @@ static uint32_t rflac__decode_subframe(rflac_bs* bs, rflac_frame* frame,
 
    pSubframe->pSamplesS32 = pDecodedSamplesOut;
 
+   /* A subframe whose sample decode fails has not been decoded, and the
+    * caller must know.  These returns were discarded, as they are
+    * upstream, where a failed read can only mean the file underneath
+    * ended and the frame's CRC check was going to reject whatever came
+    * of it anyway.  Here a failed read usually means the push source
+    * ran dry mid-frame: reporting success leaves the bit reader inside
+    * this subframe's residual while the caller goes on to read the next
+    * subframe's header from it, which turns "feed more input" into a
+    * hard error on a healthy stream. */
    switch (pSubframe->subframeType)
    {
       case RFLAC_SUBFRAME_CONSTANT:
       {
-         rflac__decode_samples__constant(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->pSamplesS32);
+         if (!rflac__decode_samples__constant(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->pSamplesS32))
+            return 0;
       } break;
 
       case RFLAC_SUBFRAME_VERBATIM:
       {
-         rflac__decode_samples__verbatim(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->pSamplesS32);
+         if (!rflac__decode_samples__verbatim(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->pSamplesS32))
+            return 0;
       } break;
 
       case RFLAC_SUBFRAME_FIXED:
       {
-         rflac__decode_samples__fixed(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->lpcOrder, pSubframe->pSamplesS32);
+         if (!rflac__decode_samples__fixed(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->lpcOrder, pSubframe->pSamplesS32))
+            return 0;
       } break;
 
       case RFLAC_SUBFRAME_LPC:
       {
-         rflac__decode_samples__lpc(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->lpcOrder, pSubframe->pSamplesS32);
+         if (!rflac__decode_samples__lpc(bs, frame->header.blockSizeInPCMFrames, subframeBitsPerSample, pSubframe->lpcOrder, pSubframe->pSamplesS32))
+            return 0;
       } break;
 
       default: return 0;
@@ -6359,6 +6386,7 @@ struct rflac_ctx
    size_t             span_taken;    /* of the current span, last call   */
    int                eof_in;        /* caller has no more input to give */
    int                need_header;   /* set until a header is parsed */
+   int                raw;           /* made by rflac_new_raw()          */
 };
 
 static size_t rflac__on_read_push(void *pUserData, void *bufferOut,
@@ -6538,6 +6566,7 @@ rflac_t *rflac_new_raw(const rflac_format_t *fmt)
       return NULL;
 
    f->fmt = *fmt;
+   f->raw = 1;
    if (!(f->dec = rflac__alloc_raw(fmt, &f->src)))
    {
       free(f);
@@ -6719,7 +6748,11 @@ int rflac_process(rflac_t *f, size_t *read, size_t *wrote)
    {
       /* The span ran out mid-frame. Put everything back so the frame
        * can be decoded once from the start when the rest arrives; the
-       * decode core is never told this happened.
+       * decode core is never told this happened.  The bit reader's
+       * refill polls the source whenever it runs dry, so every way of
+       * running out passes through the read callback and raises the
+       * underrun flag; a failed attempt without it did not stop for
+       * lack of input.
        *
        * Unless there is nothing more to arrive. A stream's last frame is
        * shorter than the longest one it could legally be, so the tail of
@@ -6748,6 +6781,14 @@ int rflac_process(rflac_t *f, size_t *read, size_t *wrote)
        * rolled back. */
       f->ended = 1;
    }
+   else if (produced == 0 && want > 0)
+      /* Nothing came out and the source was never short: the decoder
+       * hit something it cannot decode, and trying again from the same
+       * position with the same bytes will hit it again.  Returning
+       * NEXT here asks the caller to feed the rest of the stream into
+       * an attempt that can never move - the shape of a hang, reported
+       * as progress. */
+      return RFLAC_PROCESS_ERROR;
 
    f->out_done += produced;
 
@@ -6832,9 +6873,43 @@ void rflac_reset(rflac_t *f)
 {
    if (!f)
       return;
+
+   /* The span, and whatever a rolled-back frame left in the carry,
+    * belong to wherever the stream used to be. A caller re-presenting
+    * the stream from its start must not find them prepended to it, and
+    * the position the decoder reports must not still be the old one. */
    rflac_set_in(f, NULL, 0);
-   f->out_done = 0;
-   f->ended    = 0;
+   f->src.carry_len = 0;
+   f->src.underrun  = 0;
+   f->eof_in        = 0;
+   f->out_done      = 0;
+   f->span_taken    = 0;
+   f->ended         = 0;
+
+   if (!f->dec)
+      return;
+
+   if (f->raw)
+   {
+      /* Headerless: nothing to parse again, so the decode state goes
+       * back to the start of the stream where it stands. */
+      memset(&f->dec->bs, 0, sizeof(f->dec->bs));
+      f->dec->bs.onRead       = rflac__on_read_push;
+      f->dec->bs.onSeek       = rflac__on_seek_push;
+      f->dec->bs.pUserData    = &f->src;
+      f->dec->currentPCMFrame = 0;
+      memset(&f->dec->currentFLACFrame, 0, sizeof(f->dec->currentFLACFrame));
+      return;
+   }
+
+   /* Otherwise the caller has only the file to hand back, from its
+    * first byte - where the first frame begins is not a figure this
+    * decoder exposes - so the header is parsed again from it. The
+    * geometry that comes back is the same, so nothing a caller sized
+    * against it moves. */
+   free(f->dec);
+   f->dec         = NULL;
+   f->need_header = 1;
 }
 
 size_t rflac_span_taken(const rflac_t *f)
