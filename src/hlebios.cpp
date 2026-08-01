@@ -175,11 +175,23 @@ static inline uint32_t leWord(const uint8_t* p)
 
 bool HleBios::findFile(const std::string& name, uint32_t& lba, uint32_t& size)
 {
-    std::vector<uint8_t> dir(m_rootSize);
+    // The root directory size comes straight from the volume descriptor,
+    // which a malicious or corrupt disc controls. Reject an absurd value
+    // before it becomes a huge allocation, and round the buffer up to a
+    // whole number of sectors: readSector always writes a full 2048 bytes,
+    // so a size that is not sector-aligned would overflow the vector on
+    // the final sector.
+    static const uint32_t MAX_ROOT_DIR_SIZE = 1u << 20;
 
-    for (uint32_t i = 0; i * 2048 < m_rootSize; ++i)
+    if ((!m_rootSize) || (m_rootSize > MAX_ROOT_DIR_SIZE))
+        return false;
+
+    const uint32_t sectorCount = (m_rootSize + 2047) / 2048;
+    std::vector<uint8_t> dir(static_cast<size_t>(sectorCount) * 2048, 0);
+
+    for (uint32_t i = 0; i < sectorCount; ++i)
     {
-        if (!readSector(m_rootLba + i, &dir[i * 2048]))
+        if (!readSector(m_rootLba + i, &dir[static_cast<size_t>(i) * 2048]))
             return false;
     }
 
@@ -197,7 +209,18 @@ bool HleBios::findFile(const std::string& name, uint32_t& lba, uint32_t& size)
             continue;
         }
 
+        // Every field below is read at a fixed offset from p, and the
+        // name runs past those. A record that would reach beyond the
+        // directory, or is too short to hold the fixed fields, or whose
+        // name spills past its own length, lets the disc steer these
+        // reads out of bounds. Stop rather than read past the buffer.
+        if ((length < 33) || ((p + length) > m_rootSize))
+            break;
+
         uint32_t nameLength = dir[p + 32];
+        if (nameLength > (length - 33))
+            break;
+
         std::string entry(reinterpret_cast<const char*>(&dir[p + 33]), nameLength);
 
         // Names carry a version suffix that the boot list does not.
