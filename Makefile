@@ -257,8 +257,24 @@ ifeq ($(HAVE_CDROM), 1)
 endif
 
 ifeq ($(USE_LTO), 1)
-   CFLAGS += -flto -fuse-linker-plugin
-   CXXFLAGS += -flto -fuse-linker-plugin
+   # GCC splits the link-time stage into LTRANS jobs and runs them in
+   # parallel only when it knows how many to allow.  Plain -flto tells it
+   # nothing, so it runs them one at a time and says so on every link:
+   #
+   #   lto-wrapper: warning: using serial compilation of N LTRANS jobs
+   #
+   # -flto=auto has it take that figure from make's jobserver, or from
+   # the processor count when there is no jobserver to ask.  GCC before
+   # 10 and clang do not know the option and would stop, so ask the
+   # compiler rather than assume; anything that does not answer keeps
+   # plain -flto, which is what it was doing already.
+   LTO_FLAG := -flto
+   LTO_AUTO := $(shell $(CC) -flto=auto -E -xc /dev/null >/dev/null 2>&1 && echo 1)
+   ifeq ($(LTO_AUTO), 1)
+      LTO_FLAG := -flto=auto
+   endif
+   CFLAGS += $(LTO_FLAG) -fuse-linker-plugin
+   CXXFLAGS += $(LTO_FLAG) -fuse-linker-plugin
 endif
 
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
