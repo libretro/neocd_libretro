@@ -650,6 +650,23 @@ int HleBios::trap(uint32_t pc)
         neocd->updateInterrupts();
         return 1;
 
+    case CD_IRQ_54:
+    case CD_IRQ_58:
+    case CD_IRQ_5C:
+    case CD_IRQ_60:
+        // The CD interrupts a game's level 2 handler hands on to.
+        //
+        // A real BIOS does work here: it polls the drive and leaves the
+        // result in its own area - the position at 0x10F750, and flags
+        // at 0x10F65B, 0x10F703 and 0x10F717. None of that is
+        // reproduced yet, so this only acknowledges. The entries have
+        // to exist regardless: without them a game that reaches one
+        // stops dead.
+        neocd->clearInterrupt(NeoGeoCD::CdromDecoder);
+        neocd->clearInterrupt(NeoGeoCD::CdromCommunication);
+        neocd->updateInterrupts();
+        return 1;
+
     case SYSTEM_INT2:
         // Ending an interrupt, whichever one it was. A game reaches
         // this from its vertical blank handler as readily as from a CD
@@ -676,18 +693,12 @@ int HleBios::trap(uint32_t pc)
         return 1;
 
     case CARD_ERROR:
-        // Watched under a real BIOS: it leaves a pointer behind, sets
-        // one flag, and answers 0xFFFF.
-        {
-            uint8_t* ram = neocd->memory.ram;
-            ram[0x10F3F4] = 0xFF;
-            ram[0x10F3F6] = 0x00;
-            ram[0x10F3F7] = 0x10;
-            ram[0x10F3F8] = 0xF2;
-            ram[0x10F3F9] = 0xEC;
-            ram[0x10FDC6] = 0x81;
-        }
-        m68k_set_reg(M68K_REG_D0, 0x0000FFFF);
+        // Left alone deliberately. Watched under one game it leaves a
+        // pointer and a flag behind and answers 0xFFFF, and doing that
+        // for every game turned out to send another one somewhere it
+        // never goes on hardware - it drew nothing at all afterwards.
+        // Whatever this routine really decides, it is not the same
+        // answer every time it is asked.
         return 1;
 
     case CREDIT_DOWN:
