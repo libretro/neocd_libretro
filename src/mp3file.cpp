@@ -17,6 +17,8 @@ Mp3File::Mp3File() :
     m_filled(0),
     m_fileOffset(0),
     m_totalFrames(0),
+    m_skipFrames(0),
+    m_playFrames(0),
     m_position(0),
     m_index(),
     m_eofSent(false),
@@ -126,6 +128,144 @@ bool Mp3File::scan()
     return (m_totalFrames != 0);
 }
 
+void Mp3File::parseGapless()
+{
+    // Enough for an ID3v2 tag of the size a ripper writes plus the
+    // frame behind it. A larger one puts the header out of reach and
+    // the stream is played as though it had none, which is what a
+    // stream without one gets anyway.
+    constexpr size_t HEAD = 8192;
+
+    uint8_t head[HEAD];
+
+    m_skipFrames = 0;
+    m_playFrames = m_totalFrames;
+
+    if (!m_file->seek(0))
+        return;
+
+    size_t got = m_file->readData(head, HEAD);
+    size_t at = 0;
+
+    if ((got > 10) && (std::memcmp(head, "ID3", 3) == 0))
+    {
+        // Syncsafe: seven bits to the byte.
+        size_t size = (static_cast<size_t>(head[6] & 0x7F) << 21)
+                    | (static_cast<size_t>(head[7] & 0x7F) << 14)
+                    | (static_cast<size_t>(head[8] & 0x7F) << 7)
+                    | (static_cast<size_t>(head[9] & 0x7F));
+
+        at = 10 + size;
+
+        if (head[5] & 0x10)
+            at += 10;
+    }
+
+    if ((at + 4) > got)
+        return;
+    if ((head[at] != 0xFF) || ((head[at + 1] & 0xE0) != 0xE0))
+        return;
+
+    unsigned version = (head[at + 1] >> 3) & 0x03;
+    unsigned mode = (head[at + 3] >> 6) & 0x03;
+    bool mono = (mode == 3);
+
+    // Side information sits between the header and the tag, and how
+    // much of it there is depends on both.
+    size_t sideInfo;
+    if (version == 3)             // MPEG 1
+        sideInfo = mono ? 17 : 32;
+    else                          // MPEG 2 / 2.5
+        sideInfo = mono ? 9 : 17;
+
+    size_t tag = at + 4 + sideInfo;
+
+    if ((tag + 8) > got)
+        return;
+    if ((std::memcmp(head + tag, "Xing", 4) != 0)
+        && (std::memcmp(head + tag, "Info", 4) != 0))
+        return;
+
+    uint32_t flags = (static_cast<uint32_t>(head[tag + 4]) << 24)
+                   | (static_cast<uint32_t>(head[tag + 5]) << 16)
+                   | (static_cast<uint32_t>(head[tag + 6]) << 8)
+                   | (static_cast<uint32_t>(head[tag + 7]));
+
+    size_t field = tag + 8;
+    uint64_t statedFrames = 0;
+
+    if (flags & 0x01)
+    {
+        if ((field + 4) > got)
+            return;
+        statedFrames = (static_cast<uint64_t>(head[field]) << 24)
+                     | (static_cast<uint64_t>(head[field + 1]) << 16)
+                     | (static_cast<uint64_t>(head[field + 2]) << 8)
+                     | (static_cast<uint64_t>(head[field + 3]));
+        field += 4;
+    }
+    if (flags & 0x02)
+        field += 4;
+    if (flags & 0x04)
+        field += 100;
+    if (flags & 0x08)
+        field += 4;
+
+    // The frame carrying the tag is not one of the stated frames, and
+    // it decodes to silence like any other. The walk counted it.
+    uint64_t header = MPEG_FRAME_SAMPLES;
+
+    if ((field + 24) > got)
+    {
+        // A bare Xing header with no encoder extension states the frame
+        // count but no delay. Dropping the tag frame is still right.
+        if (statedFrames)
+        {
+            m_skipFrames = header;
+            m_playFrames = statedFrames * MPEG_FRAME_SAMPLES;
+        }
+        return;
+    }
+
+    // The extension is only meaningful if an encoder wrote its name in
+    // front of it; some muxers leave the space zeroed.
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        uint8_t c = head[field + i];
+        if ((c < 0x20) || (c > 0x7E))
+        {
+            if (statedFrames)
+            {
+                m_skipFrames = header;
+                m_playFrames = statedFrames * MPEG_FRAME_SAMPLES;
+            }
+            return;
+        }
+    }
+
+    uint64_t delay = (static_cast<uint64_t>(head[field + 21]) << 4)
+                   | (static_cast<uint64_t>(head[field + 22]) >> 4);
+    uint64_t padding = (static_cast<uint64_t>(head[field + 22] & 0x0F) << 8)
+                     | (static_cast<uint64_t>(head[field + 23]));
+
+    uint64_t decoded = statedFrames
+        ? (statedFrames * MPEG_FRAME_SAMPLES)
+        : ((m_totalFrames > header) ? (m_totalFrames - header) : 0);
+
+    if (decoded <= (delay + padding))
+        return;
+
+    m_skipFrames = header + delay + DECODER_DELAY;
+    m_playFrames = decoded - delay - padding;
+
+    // The tail the shift needs comes out of the padding. Where the
+    // encoder left less than the filterbank costs, the track runs to
+    // the end of what there is instead of past it.
+    if ((m_skipFrames + m_playFrames) > m_totalFrames)
+        m_playFrames = (m_totalFrames > m_skipFrames)
+            ? (m_totalFrames - m_skipFrames) : 0;
+}
+
 bool Mp3File::initialize(AbstractFile *file)
 {
     cleanup();
@@ -167,9 +307,11 @@ bool Mp3File::initialize(AbstractFile *file)
         return false;
     }
 
+    parseGapless();
+
     m_isOpen = true;
 
-    return seekToFrame(0);
+    return seekToFrame(m_skipFrames);
 }
 
 bool Mp3File::seekToFrame(uint64_t frame)
@@ -306,8 +448,14 @@ size_t Mp3File::read(char *data, size_t size)
     size_t frames = size / BYTES_PER_FRAME;
     size_t done = 0;
 
-    if (m_position + frames > m_totalFrames)
-        frames = static_cast<size_t>(m_totalFrames - m_position);
+    // The end of the track, not the end of the stream: what follows is
+    // the encoder's padding, which is not part of the recording.
+    uint64_t last = m_skipFrames + m_playFrames;
+
+    if (m_position >= last)
+        return 0;
+    if ((m_position + frames) > last)
+        frames = static_cast<size_t>(last - m_position);
 
     while (done < frames)
     {
@@ -350,7 +498,8 @@ bool Mp3File::seek(size_t position)
     if (!m_isOpen)
         return false;
 
-    return seekToFrame(position / BYTES_PER_FRAME);
+    // Positions are in the track; the stream begins before it.
+    return seekToFrame((position / BYTES_PER_FRAME) + m_skipFrames);
 }
 
 size_t Mp3File::length()
@@ -358,7 +507,7 @@ size_t Mp3File::length()
     if (!m_isOpen)
         return 0;
 
-    return static_cast<size_t>(m_totalFrames) * BYTES_PER_FRAME;
+    return static_cast<size_t>(m_playFrames) * BYTES_PER_FRAME;
 }
 
 void Mp3File::cleanup()
@@ -373,6 +522,8 @@ void Mp3File::cleanup()
     m_filled = 0;
     m_fileOffset = 0;
     m_totalFrames = 0;
+    m_skipFrames = 0;
+    m_playFrames = 0;
     m_position = 0;
     m_index.clear();
     m_index.shrink_to_fit();

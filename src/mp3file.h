@@ -47,7 +47,19 @@ protected:
     // taken far enough back for that to have washed out.
     bool seekToFrame(uint64_t frame);
 
+    // Reads the Xing/Info frame a ripper's encoder puts at the head of
+    // the stream, where the count of real frames and the delay and
+    // padding it introduced are stated. Without it a stream says
+    // nothing about either, and there is no honest figure to apply.
+    void parseGapless();
+
     static constexpr size_t WINDOW_SIZE = 16384;
+
+    // Every MP3 decoder emits this many samples of its own before the
+    // first real one, on top of whatever the encoder stated. It is a
+    // property of the filterbank rather than of the stream, and rmp3
+    // does not take it off.
+    static constexpr uint64_t DECODER_DELAY = 529;
 
     // One index entry per this many MPEG frames. At 1152 samples each,
     // 64 frames is about 1.7s: enough to keep the index small on a long
@@ -65,7 +77,9 @@ protected:
     uint8_t m_window[WINDOW_SIZE];
     size_t m_filled;
     uint64_t m_fileOffset;
-    uint64_t m_totalFrames;
+    uint64_t m_totalFrames;   // everything the stream decodes to
+    uint64_t m_skipFrames;    // of that, what precedes the first real sample
+    uint64_t m_playFrames;    // and how much of the rest is the track
     uint64_t m_position;
     std::vector<uint64_t> m_index;   // byte offset every INDEX_INTERVAL frames
     bool m_eofSent;
