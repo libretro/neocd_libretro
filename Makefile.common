@@ -69,8 +69,6 @@ SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/compat/fopen_utf8.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_crc32.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_deflate.c \
-	$(LIBRETRO_COMM_DIR)/encodings/encoding_huffman.c \
-	$(LIBRETRO_COMM_DIR)/encodings/encoding_rzstd.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
 	$(LIBRETRO_COMM_DIR)/features/features_cpu.c \
 	$(LIBRETRO_COMM_DIR)/file/archive_file.c \
@@ -89,11 +87,19 @@ SRC_LIBRETRO_COMMON = \
 
 SRC_LIBRETRO_COMMON_NEEDED = \
 	$(LIBRETRO_COMM_DIR)/formats/chd/rchd.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_huffman.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_rzstd.c \
 	$(LIBRETRO_COMM_DIR)/formats/flac/rflac.c \
 	$(LIBRETRO_COMM_DIR)/formats/mp3/rmp3.c \
-	$(LIBRETRO_COMM_DIR)/formats/vorbis/rvorbis.c \
-	$(LIBRETRO_COMM_DIR)/formats/wav/rwav.c \
 	$(LIBRETRO_COMM_DIR)/formats/7z/r7z_lzma.c
+
+ifeq ($(NEED_RWAV), 1)
+SRC_LIBRETRO_COMMON_NEEDED += $(LIBRETRO_COMM_DIR)/formats/wav/rwav.c
+endif
+
+ifeq ($(NEED_RVORBIS), 1)
+SRC_LIBRETRO_COMMON_NEEDED += $(LIBRETRO_COMM_DIR)/formats/vorbis/rvorbis.c
+endif
 
 ifeq ($(HAVE_CDROM), 1)
 SRC_LIBRETRO_COMMON += \

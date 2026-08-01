@@ -2,6 +2,8 @@ STATIC_LINKING := 0
 AR             := ar
 HAVE_CDROM     := 0
 USE_LTO        := 0
+NEED_RWAV      := 1
+NEED_RVORBIS   := 1
 
 ifneq ($(V),1)
    Q := @
@@ -178,6 +180,7 @@ else ifeq ($(platform), ps2)
 	CFLAGS += -G0 -DPS2 -DABGR1555 -DSYNC_CDROM=1
 	CXXFLAGS += -G0 -DPS2 -DABGR1555 -DSYNC_CDROM=1
 	STATIC_LINKING=1
+   NEED_RWAV = 0
 else ifeq ($(platform), vita)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = arm-vita-eabi-gcc
@@ -186,6 +189,8 @@ else ifeq ($(platform), vita)
    CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard -DSYNC_CDROM=1
    CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations -DSYNC_CDROM=1
 	STATIC_LINKING = 1
+   NEED_RWAV = 0
+   NEED_RVORBIS = 0
 # Nintendo WiiU
 else ifeq ($(platform), wiiu)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
@@ -195,6 +200,7 @@ else ifeq ($(platform), wiiu)
    CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1 -D_BSD_SOURCE
    CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1 -D_BSD_SOURCE
    STATIC_LINKING=1
+   NEED_RWAV = 0
 else ifeq ($(platform), ctr)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = $(DEVKITARM)/bin/arm-none-eabi-gcc$(EXE_EXT)
@@ -203,6 +209,7 @@ else ifeq ($(platform), ctr)
    CFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
    CXXFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
    STATIC_LINKING = 1
+   NEED_RWAV = 0
 # Lightweight PS3 Homebrew SDK
 else ifeq ($(platform), psl1ght)
    EXT=a
