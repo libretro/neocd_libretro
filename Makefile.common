@@ -78,12 +78,6 @@ SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/file/file_path_io.c \
 	$(LIBRETRO_COMM_DIR)/file/file_path.c \
 	$(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
-	$(LIBRETRO_COMM_DIR)/formats/7z/r7z_lzma.c \
-	$(LIBRETRO_COMM_DIR)/formats/chd/rchd.c \
-	$(LIBRETRO_COMM_DIR)/formats/flac/rflac.c \
-	$(LIBRETRO_COMM_DIR)/formats/mp3/rmp3.c \
-	$(LIBRETRO_COMM_DIR)/formats/vorbis/rvorbis.c \
-	$(LIBRETRO_COMM_DIR)/formats/wav/rwav.c \
 	$(LIBRETRO_COMM_DIR)/lists/dir_list.c \
 	$(LIBRETRO_COMM_DIR)/lists/file_list.c \
 	$(LIBRETRO_COMM_DIR)/lists/string_list.c \
@@ -93,6 +87,14 @@ SRC_LIBRETRO_COMMON = \
 	$(LIBRETRO_COMM_DIR)/time/rtime.c \
 	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
 
+SRC_LIBRETRO_COMMON_NEEDED = \
+	$(LIBRETRO_COMM_DIR)/formats/chd/rchd.c \
+	$(LIBRETRO_COMM_DIR)/formats/flac/rflac.c \
+	$(LIBRETRO_COMM_DIR)/formats/mp3/rmp3.c \
+	$(LIBRETRO_COMM_DIR)/formats/vorbis/rvorbis.c \
+	$(LIBRETRO_COMM_DIR)/formats/wav/rwav.c \
+	$(LIBRETRO_COMM_DIR)/formats/7z/r7z_lzma.c
+
 ifeq ($(HAVE_CDROM), 1)
 SRC_LIBRETRO_COMMON += \
 	 $(LIBRETRO_COMM_DIR)/cdrom/cdrom.c \
@@ -100,5 +102,6 @@ SRC_LIBRETRO_COMMON += \
 endif
 
 ifneq ($(STATIC_LINKING),1)
-SOURCES_C +=	$(SRC_LIBRETRO_COMMON)
+SOURCES_C += $(SRC_LIBRETRO_COMMON)
 endif
+SOURCES_C += $(SRC_LIBRETRO_COMMON_NEEDED)
