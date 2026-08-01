@@ -71,12 +71,22 @@ public:
     static constexpr uint32_t SYSTEM_INT2    = 0xC00438;
     static constexpr uint32_t SYSTEM_RETURN  = 0xC0043E;
     static constexpr uint32_t SYSTEM_IO      = 0xC00444;
-    static constexpr uint32_t CREDIT_CHECK   = 0xC0044A;
+    // Per-frame housekeeping: steps the frame counter, winds the pads'
+    // auto-repeat timers down, and clears two flags. Named for what it
+    // was watched doing rather than for what the slot was assumed to
+    // be.
+    static constexpr uint32_t FRAME_UPDATE   = 0xC0044A;
     static constexpr uint32_t CREDIT_DOWN    = 0xC00450;
     static constexpr uint32_t READ_CALENDAR  = 0xC00456;
     static constexpr uint32_t SETUP_CALENDAR = 0xC0045C;
     static constexpr uint32_t CARD           = 0xC00462;
     static constexpr uint32_t CARD_ERROR     = 0xC00468;
+
+    // The timers the frame update winds down, and the flags it clears.
+    static constexpr uint32_t BIOS_P1TIMER    = 0x10FD99;
+    static constexpr uint32_t BIOS_P2TIMER    = 0x10FD9F;
+    static constexpr uint32_t BIOS_P1TIMER2   = 0x10FEED;
+    static constexpr uint32_t BIOS_P2TIMER2   = 0x10FEF3;
     static constexpr uint32_t HOW_TO_PLAY    = 0xC0046E;
     static constexpr uint32_t CHECKSUM       = 0xC00474;
 

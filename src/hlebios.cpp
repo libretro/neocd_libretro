@@ -88,7 +88,7 @@ void HleBios::buildRom(uint8_t* rom)
     poke16(rom, HALT, 0x60FE);   // BRA.S to itself
 
     static const uint32_t calls[] = {
-        SYSTEM_RETURN, SYSTEM_IO, CREDIT_CHECK, CREDIT_DOWN,
+        SYSTEM_RETURN, SYSTEM_IO, FRAME_UPDATE, CREDIT_DOWN,
         READ_CALENDAR, SETUP_CALENDAR, CARD, CARD_ERROR,
         HOW_TO_PLAY, CHECKSUM
     };
@@ -127,6 +127,7 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_UPLOAD, OP_RTS);
     entryPoint(rom, CD_WAIT, OP_RTS);
     entryPoint(rom, CD_QUIET_2, OP_RTS);
+    entryPoint(rom, FRAME_UPDATE, OP_RTS);
     entryPoint(rom, CD_STATE_SET, OP_RTS);
 
     // The random number table. What matters is that the values are well
@@ -657,12 +658,39 @@ int HleBios::trap(uint32_t pc)
         neocd->updateInterrupts();
         return 1;
 
-    case CREDIT_CHECK:
+    case FRAME_UPDATE:
+        // Watched under a real BIOS: the frame counter moves on, the
+        // pads' repeat timers wind down, and two flags are cleared.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            ++ram[0x10F749];
+            for (uint32_t t : { BIOS_P1TIMER, BIOS_P2TIMER, BIOS_P1TIMER2, BIOS_P2TIMER2 })
+                if (ram[t])
+                    --ram[t];
+            ram[0x10F680] = 0x00;
+            ram[0x10F6C3] = 0x00;
+        }
+        return 1;
+
+    case CARD_ERROR:
+        // Watched under a real BIOS: it leaves a pointer behind, sets
+        // one flag, and answers 0xFFFF.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            ram[0x10F3F4] = 0xFF;
+            ram[0x10F3F6] = 0x00;
+            ram[0x10F3F7] = 0x10;
+            ram[0x10F3F8] = 0xF2;
+            ram[0x10F3F9] = 0xEC;
+            ram[0x10FDC6] = 0x81;
+        }
+        m68k_set_reg(M68K_REG_D0, 0x0000FFFF);
+        return 1;
+
     case CREDIT_DOWN:
     case READ_CALENDAR:
     case SETUP_CALENDAR:
     case CARD:
-    case CARD_ERROR:
     case HOW_TO_PLAY:
     case CHECKSUM:
         // Reached but not implemented. Say so once per address so a
