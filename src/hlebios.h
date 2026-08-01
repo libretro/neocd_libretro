@@ -130,6 +130,23 @@ public:
     static constexpr uint32_t BIOS_GAME_DIP   = 0x10FD84;
     static constexpr uint32_t BIOS_FRAME_COUNTER = 0x10FCF8;
 
+    // Where the pads land. Each player has three bytes in a row: what
+    // was held last frame, what is held now, and what has just been
+    // pressed. Which is which was settled by dumping the moment a
+    // button goes down and again while it is held - the edge byte is
+    // the one that reads back to zero.
+    static constexpr uint32_t BIOS_P1PREVIOUS = 0x10FD95;
+    static constexpr uint32_t BIOS_P1CURRENT  = 0x10FD96;
+    static constexpr uint32_t BIOS_P1CHANGE   = 0x10FD97;
+    static constexpr uint32_t BIOS_P2PREVIOUS = 0x10FD9B;
+    static constexpr uint32_t BIOS_P2CURRENT  = 0x10FD9C;
+    static constexpr uint32_t BIOS_P2CHANGE   = 0x10FD9D;
+
+    // Start and select share a byte, one bit per player, with the same
+    // held-then-edge pairing.
+    static constexpr uint32_t BIOS_STATCURNT  = 0x10FDAC;
+    static constexpr uint32_t BIOS_STATCHANGE = 0x10FDAD;
+
     // The game's own entry points, in its header.
     static constexpr uint32_t USER_VECTOR     = 0x000122;
 
@@ -156,6 +173,9 @@ protected:
     static uint32_t m_rootLba;
     static uint32_t m_rootSize;
     static uint8_t m_userRequest;
+    static uint8_t m_lastP1;
+    static uint8_t m_lastP2;
+    static uint8_t m_lastStatus;
 };
 
 #endif // HLEBIOS_H

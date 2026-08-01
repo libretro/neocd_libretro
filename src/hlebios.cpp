@@ -14,6 +14,9 @@ bool HleBios::m_booted = false;
 uint32_t HleBios::m_rootLba = 0;
 uint32_t HleBios::m_rootSize = 0;
 uint8_t HleBios::m_userRequest = 0;
+uint8_t HleBios::m_lastP1 = 0;
+uint8_t HleBios::m_lastP2 = 0;
+uint8_t HleBios::m_lastStatus = 0;
 
 // 68000 opcodes the synthesised ROM is built from.
 static constexpr uint16_t OP_ILLEGAL = 0x4AFC;
@@ -471,15 +474,41 @@ void HleBios::initBiosRam()
 
 void HleBios::pollInput()
 {
-    // The real BIOS reads the pads every frame and leaves the result in
-    // RAM for the game to find. Reading the hardware here keeps the
-    // existing input path as the single source of that state.
+    // Where a real BIOS leaves the pads, established by holding one
+    // button at a time and watching which bytes move rather than by
+    // assuming the layout. The first byte of each pair is what is held
+    // now; the second is what a game reads to see it. Start and select
+    // share a byte of their own, one bit per player.
     uint8_t* ram = neocd->memory.ram;
 
     // The hardware reports a pressed button as a zero bit; what the
     // BIOS leaves in RAM is the other way round.
-    ram[0x10FD94] = static_cast<uint8_t>(~neocd->input.input1);
-    ram[0x10FD95] = static_cast<uint8_t>(~neocd->input.input2);
+    uint8_t p1 = static_cast<uint8_t>(~neocd->input.input1);
+    uint8_t p2 = static_cast<uint8_t>(~neocd->input.input2);
+    // Only the low four bits of the third port are start and select;
+    // the rest is not the BIOS's to report and a real one leaves them
+    // clear.
+    uint8_t st = static_cast<uint8_t>(~neocd->input.input3) & 0x0F;
+
+    uint8_t p1Change = static_cast<uint8_t>(p1 & ~m_lastP1);
+    uint8_t p2Change = static_cast<uint8_t>(p2 & ~m_lastP2);
+    uint8_t stChange = static_cast<uint8_t>(st & ~m_lastStatus);
+
+    ram[BIOS_P1PREVIOUS] = m_lastP1;
+    ram[BIOS_P1CURRENT]  = p1;
+    ram[BIOS_P1CHANGE]   = p1Change;
+    ram[BIOS_P2PREVIOUS] = m_lastP2;
+    ram[BIOS_P2CURRENT]  = p2;
+    ram[BIOS_P2CHANGE]   = p2Change;
+
+    // Start and select, both players: bit 0 and 1 are player one's
+    // start and select, bits 2 and 3 player two's.
+    ram[BIOS_STATCURNT]  = st;
+    ram[BIOS_STATCHANGE] = stChange;
+
+    m_lastP1 = p1;
+    m_lastP2 = p2;
+    m_lastStatus = st;
 }
 
 void HleBios::callUser(uint8_t request)
