@@ -2,6 +2,8 @@
 
 #include "3rdparty/ym/ym2610.h"
 #include "3rdparty/z80/z80.h"
+#include "hlebios.h"
+#include "libretro_common.h"
 #include "m68kintf.h"
 #include "neogeocd.h"
 #include "timeprofiler.h"
@@ -38,7 +40,8 @@ NeoGeoCD::NeoGeoCD() :
     currentTimeSeconds(0.0),
     audioCommand(0),
     audioResult(0),
-    biosType(Bios::Unknown)
+    biosType(Bios::Unknown),
+    usingHleBios(false)
 {
     // Create the worker thread to buffer & decode audio data
     cdrom.createWorkerThread();
@@ -55,6 +58,7 @@ void NeoGeoCD::initialize()
     // Initialize the 68000 emulation core
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     m68k_init();
+
 
     // Inizialize the z80 core
     z80_init(0, Timer::Z80_CLOCK, NULL, z80_irq_callback);

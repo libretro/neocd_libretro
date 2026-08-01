@@ -1,5 +1,6 @@
-#include "libretro_common.h"
 #include "3rdparty/musashi/m68k.h"
+#include "hlebios.h"
+#include "libretro_common.h"
 #include "m68kintf.h"
 #include "neogeocd.h"
 
@@ -142,6 +143,18 @@ extern "C"
         {
             SET_CYCLES(0);
             return 1;
+        }
+
+        // The stand-in BIOS is built out of ILLEGAL instructions: one at
+        // each entry point, so reaching a routine traps here and the
+        // routine runs as C++.
+        if (((instruction & 0xFFFF) == 0x4AFC) && neocd && neocd->usingHleBios)
+        {
+            if (HleBios::trap(m68k_get_reg(nullptr, M68K_REG_PPC)))
+            {
+                SET_CYCLES(0);
+                return 1;
+            }
         }
 
         return 0;

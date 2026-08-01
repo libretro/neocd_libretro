@@ -135,6 +135,11 @@ public:
     uint32_t    audioResult;
     uint32_t    biosType;
     // End variables to save in savestate
+
+    /// True when no BIOS file was found and the stand-in is in use.
+    /// Not saved: it follows from how the core was started, not from
+    /// where the machine has got to.
+    bool        usingHleBios;
 };
 
 #endif // NEOGEOCD_H

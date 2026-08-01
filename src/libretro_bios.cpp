@@ -5,6 +5,7 @@
 #include "archive.h"
 #include "bios.h"
 #include "libretro_bios.h"
+#include "hlebios.h"
 #include "libretro_common.h"
 #include "libretro_log.h"
 #include "memory.h"
@@ -110,9 +111,20 @@ bool Libretro::Bios::load()
 {
     if (!globals.biosList.size())
     {
-        Libretro::Log::message(RETRO_LOG_ERROR, "No BIOS detected!\n");
-        return false;
+        // Nothing to load, so stand in for it. What this can do is
+        // narrower than the real thing, but it is the difference
+        // between the core running and not.
+        Libretro::Log::message(RETRO_LOG_WARN,
+            "No BIOS found. Falling back to the built-in high level BIOS, which is incomplete.\n");
+
+        HleBios::reset();
+        HleBios::buildRom(neocd->memory.rom);
+        neocd->biosType = ::Bios::Family::CDZ;
+        neocd->usingHleBios = true;
+        return true;
     }
+
+    neocd->usingHleBios = false;
 
     size_t reallyRead;
 
