@@ -16,11 +16,6 @@ Cdrom::Cdrom() :
     m_circularBuffer(),
     m_audioWorkerThreadCreated(false),
     m_exitFlag(false),
-#ifndef SYNC_CDROM
-    m_workerThread(),
-    m_workerMutex(),
-    m_workerConditionVariable(),
-#endif
     m_file(nullptr),
     m_imageFile(),
     m_chdFile(),
@@ -44,12 +39,7 @@ void Cdrom::createWorkerThread()
     m_exitFlag = false;
 
     if (!m_audioWorkerThreadCreated)
-    {
         m_audioWorkerThreadCreated = true;
-#ifndef SYNC_CDROM
-        m_workerThread = std::thread(&Cdrom::audioBufferWorker, this);
-#endif
-    }
 }
 
 void Cdrom::endWorkerThread()
@@ -57,15 +47,7 @@ void Cdrom::endWorkerThread()
     m_exitFlag = true;
 
     if (m_audioWorkerThreadCreated)
-    {
-#ifndef SYNC_CDROM
-        m_workerConditionVariable.notify_all();
-        if (m_workerThread.joinable())
-            m_workerThread.join();
-#endif
-
         m_audioWorkerThreadCreated = false;
-    }
 }
 
 void Cdrom::initialize()
@@ -263,25 +245,6 @@ void Cdrom::fillCircularBuffer()
      m_circularBuffer.push_back(buffer, slice);
 }
 
-#ifndef SYNC_CDROM
-void Cdrom::audioBufferWorker()
-{
-    while (1)
-    {
-        std::unique_lock<std::mutex> lock(m_workerMutex);
-        m_workerConditionVariable.wait(lock, [&]{ return (m_circularBuffer.availableToWrite() && isAudio() && isPlaying()) || (m_exitFlag); });
-
-        if (m_exitFlag)
-            break;
-
-	fillCircularBuffer();
-
-        lock.unlock();
-        m_workerConditionVariable.notify_one();
-    }
-}
-#endif
-
 bool Cdrom::filenameIsChd(const std::string &path)
 {
     return (string_compare_insensitive(path_get_extension(path.c_str()), "CHD"));
@@ -289,20 +252,9 @@ bool Cdrom::filenameIsChd(const std::string &path)
 
 void Cdrom::readAudio(char* buffer, size_t size)
 {
-#ifndef SYNC_CDROM
-    std::unique_lock<std::mutex> lock(m_workerMutex);
-    m_workerConditionVariable.wait(lock, [&]{ return (m_circularBuffer.availableToRead() >= size); });
-#else
     while (m_circularBuffer.availableToRead() < size)
 	    fillCircularBuffer();
-#endif
-
     m_circularBuffer.pop_front(buffer, size);
-
-#ifndef SYNC_CDROM
-    lock.unlock();
-    m_workerConditionVariable.notify_one();
-#endif
 }
 
 void Cdrom::readAudioDirect(char* buffer, size_t size)
@@ -425,10 +377,6 @@ void Cdrom::handleTrackChange(bool doInitialSeek)
         return;
     }
 
-#ifndef SYNC_CDROM
-    std::unique_lock<std::mutex> lock(m_workerMutex);
-#endif
-
     m_circularBuffer.clear();
 
     cleanup();
@@ -436,13 +384,7 @@ void Cdrom::handleTrackChange(bool doInitialSeek)
     m_currentTrack = current;
 
     if (m_currentTrack->trackType == CdromToc::TrackType::Silence)
-    {
-#ifndef SYNC_CDROM
-        lock.unlock();
-        m_workerConditionVariable.notify_one();
-#endif
         return;
-    }
 
     std::string filename = m_toc.fileList().at(static_cast<size_t>(m_currentTrack->fileIndex)).fileName;
 
@@ -467,22 +409,13 @@ void Cdrom::handleTrackChange(bool doInitialSeek)
     }
 
     if (doInitialSeek)
-    {
-#ifndef SYNC_CDROM
-        lock.unlock();
-#endif
         seekAudio();
-    }
 }
 
 void Cdrom::seekAudio()
 {
     if ((!m_currentTrack) || (!m_file) || !isAudio())
         return;
-
-#ifndef SYNC_CDROM
-    std::unique_lock<std::mutex> lock(m_workerMutex);
-#endif
 
     m_circularBuffer.clear();
 
@@ -499,11 +432,6 @@ void Cdrom::seekAudio()
         m_oggFile.seek(trackOffset + m_currentTrack->fileOffset);
     else if (m_currentTrack->trackType == CdromToc::TrackType::AudioWav)
         m_wavFile.seek(static_cast<int64_t>(trackOffset + m_currentTrack->fileOffset));
-
-#ifndef SYNC_CDROM
-    lock.unlock();
-    m_workerConditionVariable.notify_one();
-#endif
 }
 
 DataPacker& operator<<(DataPacker& out, const Cdrom& cdrom)

@@ -151,8 +151,6 @@ else ifeq ($(platform), emscripten)
    fpic := -fPIC
    AR=emar
    SHARED :=
-   CFLAGS += -DSYNC_CDROM=1
-   CXXFLAGS += -DSYNC_CDROM=1
    STATIC_LINKING = 1
 # DOS
 else ifeq ($(platform), dos)
@@ -160,8 +158,8 @@ else ifeq ($(platform), dos)
 	CC = i586-pc-msdosdjgpp-gcc
 	AR = i586-pc-msdosdjgpp-ar
 	CXX = i586-pc-msdosdjgpp-g++
-	CFLAGS += -march=i386 -DSYNC_CDROM=1
-	CXXFLAGS += -march=i386 -DSYNC_CDROM=1
+	CFLAGS += -march=i386
+	CXXFLAGS += -march=i386
 	STATIC_LINKING=1
 else ifeq ($(platform), libnx)
    include $(DEVKITPRO)/libnx/switch_rules
@@ -177,8 +175,8 @@ else ifeq ($(platform), ps2)
 	CC = mips64r5900el-ps2-elf-gcc
 	CXX = mips64r5900el-ps2-elf-g++
 	AR = mips64r5900el-ps2-elf-ar
-	CFLAGS += -G0 -DPS2 -DABGR1555 -DSYNC_CDROM=1
-	CXXFLAGS += -G0 -DPS2 -DABGR1555 -DSYNC_CDROM=1
+	CFLAGS += -G0 -DPS2 -DABGR1555
+	CXXFLAGS += -G0 -DPS2 -DABGR1555
 	STATIC_LINKING=1
    NEED_RWAV = 0
 else ifeq ($(platform), vita)
@@ -186,8 +184,8 @@ else ifeq ($(platform), vita)
    CC = arm-vita-eabi-gcc
    CXX = arm-vita-eabi-g++
    AR = arm-vita-eabi-ar
-   CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard -DSYNC_CDROM=1
-   CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations -DSYNC_CDROM=1
+   CFLAGS += -DVITA -march=armv7-a -mfpu=neon -mfloat-abi=hard
+   CXXFLAGS += -DVITA -Wl,-q -Wall  -march=armv7-a -mfpu=neon -mfloat-abi=hard -mword-relocations
 	STATIC_LINKING = 1
    NEED_RWAV = 0
    NEED_RVORBIS = 0
@@ -197,8 +195,8 @@ else ifeq ($(platform), wiiu)
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++$(EXE_EXT)
    AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
-   CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1 -D_BSD_SOURCE
-   CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float  -DSYNC_CDROM=1 -D_BSD_SOURCE
+   CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float -D_BSD_SOURCE
+   CXXFLAGS += -DGEKKO -DHW_RVL -DWIIU -mcpu=750 -meabi -mhard-float -D_BSD_SOURCE
    STATIC_LINKING=1
    NEED_RWAV = 0
 else ifeq ($(platform), ctr)
@@ -206,8 +204,8 @@ else ifeq ($(platform), ctr)
    CC = $(DEVKITARM)/bin/arm-none-eabi-gcc$(EXE_EXT)
    CXX = $(DEVKITARM)/bin/arm-none-eabi-g++$(EXE_EXT)
    AR = $(DEVKITARM)/bin/arm-none-eabi-ar$(EXE_EXT)
-   CFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
-   CXXFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -DSYNC_CDROM=1 -D_BSD_SOURCE
+   CFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -D_BSD_SOURCE
+   CXXFLAGS += -D_3DS -DARM11 -march=armv6k -mtune=mpcore -mfloat-abi=hard -D_BSD_SOURCE
    STATIC_LINKING = 1
    NEED_RWAV = 0
 # Lightweight PS3 Homebrew SDK
@@ -218,8 +216,8 @@ else ifeq ($(platform), psl1ght)
    CXX = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
    CC_AS = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
    AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
-   CFLAGS += -D__PSL1GHT__ -mcpu=cell -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
-   CXXFLAGS += -D__PSL1GHT__ -mcpu=cell -DDISABLE_AUDIO_THREAD=1 -D_XOPEN_SOURCE=500  -DSYNC_CDROM=1
+   CFLAGS += -D__PSL1GHT__ -mcpu=cell -D_XOPEN_SOURCE=500
+   CXXFLAGS += -D__PSL1GHT__ -mcpu=cell -DDISABLE_AUDIO_THREAD=1 -D_XOPEN_SOURCE=500
    STATIC_LINKING = 1
 else
    CC ?= gcc
