@@ -222,7 +222,10 @@ protected:
     inline void decrementIndex(size_t& index, size_t displacement) const
     {
         assert(m_capacity != 0);
-        index = (index - displacement - 1) % m_capacity;
+        // Inverse of incrementIndex. Reduce the displacement first and add a
+        // full capacity so the subtraction can't wrap around zero, and drop
+        // the stray -1 that moved the index one slot too far.
+        index = (index + m_capacity - (displacement % m_capacity)) % m_capacity;
     }
 
     inline size_t indexDistance(const size_t& index1, const size_t& index2) const
