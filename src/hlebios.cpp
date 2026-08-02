@@ -538,6 +538,51 @@ bool HleBios::loadDisc()
     return true;
 }
 
+void HleBios::buildTrackTable()
+{
+    // Where a BIOS writes down the disc: two bytes a track, the minute
+    // and the second the track starts at, each as a pair of decimal
+    // digits in a byte. Track one comes out at 00:02 because the count
+    // starts two seconds before the first sector, as it does on a disc.
+    //
+    // Nothing filled this in, so games and the CD routines that work out
+    // where a track begins were reading zero for every one of them.
+    uint8_t* ram = neocd->memory.ram;
+    uint8_t highest = 0;
+
+    auto write = [ram](uint8_t slot, uint32_t sector)
+    {
+        uint32_t frames = sector + 150;
+        uint32_t seconds = frames / 75;
+        uint32_t minutes = seconds / 60;
+
+        seconds %= 60;
+
+        ram[BIOS_TRACK_TABLE + slot * 2]     =
+            static_cast<uint8_t>(((minutes / 10) << 4) | (minutes % 10));
+        ram[BIOS_TRACK_TABLE + slot * 2 + 1] =
+            static_cast<uint8_t>(((seconds / 10) << 4) | (seconds % 10));
+    };
+
+    for (const CdromToc::Entry& entry : neocd->cdrom.toc().toc())
+    {
+        uint8_t track = entry.trackIndex.track();
+
+        if ((entry.trackIndex.index() != 1) || !track || (track > 99))
+            continue;
+
+        write(track, entry.startSector);
+
+        if (track > highest)
+            highest = track;
+    }
+
+    // The slot after the last track holds where the disc runs out, which
+    // is what a length is worked out against.
+    if (highest && (highest < 99))
+        write(static_cast<uint8_t>(highest + 1), neocd->cdrom.leadout());
+}
+
 void HleBios::initBiosRam()
 {
     // The area above 0x10F300 is the BIOS's own, and games read it
@@ -701,6 +746,7 @@ int HleBios::trap(uint32_t pc)
         }
 
         initBiosRam();
+        buildTrackTable();
         neocd->memory.mapVectorsToRam();
         m_booted = true;
 

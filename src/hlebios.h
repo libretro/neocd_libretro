@@ -103,6 +103,7 @@ public:
     static constexpr uint32_t CD_PLAY_TRACK  = 0xC0056A;
     static constexpr uint32_t CD_MODE_VAR    = 0x10F6F6;
     static constexpr uint32_t CD_TRACK_VAR   = 0x10F64B;
+    static constexpr uint32_t BIOS_TRACK_TABLE = 0x10F570;
 
     // Watched under a real BIOS and seen to change nothing a game can
     // observe: called with a mode in D0, returns, leaves BIOS RAM
@@ -202,6 +203,9 @@ protected:
     static void streamFiles(uint32_t listAddress);
 
     static void initBiosRam();
+
+    /// Writes the disc's track start times where a BIOS keeps them.
+    static void buildTrackTable();
     static void callUser(uint8_t request);
     static void pollInput();
 
