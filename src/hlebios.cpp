@@ -139,7 +139,7 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CLEAR_SPRITES, OP_RTS);
     entryPoint(rom, CD_QUIET_2, OP_RTS);
     entryPoint(rom, FRAME_UPDATE, OP_RTS);
-    entryPoint(rom, CD_STATE_SET, OP_RTS);
+    entryPoint(rom, UPLOAD, OP_RTS);
 
     // The random number table. What matters is that the values are well
     // spread and unchanging, not what they are, so these are generated
@@ -922,13 +922,71 @@ int HleBios::trap(uint32_t pc)
     case CD_QUIET_2:
         return 1;
 
-    case CD_STATE_SET:
-        // Watched under a real BIOS: these four bytes, and nothing else
-        // a game can see.
-        neocd->memory.ram[0x10FDE4] = 0x00;
-        neocd->memory.ram[0x10FDE5] = 0x80;
-        neocd->memory.ram[0x10FEC3] = 0x86;
-        neocd->memory.ram[0x10FEF7] = 0x80;
+    case UPLOAD:
+        // A queued upload, read out of a BIOS rather than guessed at.
+        // The type at 0x10FEDA picks which area it lands in and the
+        // three longs beside it say where from, where to and how much:
+        //
+        //   0x10FEF8  source, in the game's own memory
+        //   0x10FEF4  destination, an offset into the area
+        //   0x10FEFC  length in bytes
+        //   0x10FEDB  which bank, for the areas that have them
+        //
+        // A BIOS selects the area, hands the three to the transfer
+        // hardware and lets it run. The same thing happens here by
+        // writing through the upload window at 0xE00000, which is what
+        // that hardware writes through - so the area select, the bank
+        // and the halved addressing the sample memory wants are all
+        // applied by the same code that applies them to a game.
+        //
+        // This used to set four bytes watched in a real BIOS run and
+        // move nothing at all.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            uint8_t type = static_cast<uint8_t>(ram[0x10FEDA] & 0x0F);
+
+            uint32_t source = m68k_read_memory_32(0x0010FEF8);
+            uint32_t destination = m68k_read_memory_32(0x0010FEF4);
+            uint32_t length = m68k_read_memory_32(0x0010FEFC);
+
+            // Which area, and the bank register that goes with it.
+            switch (type)
+            {
+            case 1:  m68k_write_memory_8(0x00FF0105, 5); break;
+            case 2:  m68k_write_memory_8(0x00FF0105, 0);
+                     m68k_write_memory_8(0x00FF01A1, ram[0x10FEDB]); break;
+            case 3:  m68k_write_memory_8(0x00FF0105, 4); break;
+            case 4:  m68k_write_memory_8(0x00FF0105, 1);
+                     m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]); break;
+            default: break;
+            }
+
+            // Word at a time through the window, stepping the bank when
+            // the destination runs past the end of one, which is what a
+            // BIOS does rather than letting it wrap.
+            uint8_t bank = ram[0x10FEDB];
+
+            for (uint32_t done = 0; (done + 1) < length; done += 2)
+            {
+                if (destination >= 0x100000)
+                {
+                    destination -= 0x100000;
+                    ++bank;
+                    ram[0x10FEDB] = bank;
+                    if (type == 2) m68k_write_memory_8(0x00FF01A1, bank);
+                    if (type == 4) m68k_write_memory_8(0x00FF01A3, bank);
+                }
+
+                m68k_write_memory_16(0x00E00000 + destination,
+                                     m68k_read_memory_16(source));
+                source += 2;
+                destination += 2;
+            }
+
+            m68k_write_memory_32(0x0010FEF8, source);
+            m68k_write_memory_32(0x0010FEF4, destination);
+            m68k_write_memory_32(0x0010FEFC, 0);
+        }
         return 1;
 
     case CLEAR_SPRITES:

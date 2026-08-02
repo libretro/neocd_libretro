@@ -140,7 +140,9 @@ public:
 
     // Eighty-four instructions that set four bytes of BIOS state and
     // leave D0 alone. Reproduced by its effect.
-    static constexpr uint32_t CD_STATE_SET   = 0xC00546;
+    // Performs a queued upload: type at 0x10FEDA picks where it lands,
+    // with source, destination and length beside it.
+    static constexpr uint32_t UPLOAD         = 0xC00546;
 
     // The CD interrupt handlers, again taken from a game's vectors.
     static constexpr uint32_t CD_IRQ_54      = 0xC004F2;
