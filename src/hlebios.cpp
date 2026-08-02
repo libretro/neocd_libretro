@@ -762,10 +762,15 @@ int HleBios::trap(uint32_t pc)
         return 1;
 
     case CD_PLAY_TRACK:
-        // The music. A game names a track in the low byte of D0 and says
-        // what to do with it in the high byte, and a BIOS puts the drive
-        // on that track and starts it. Without this a game runs in
-        // silence, which is what it did.
+        // The music. A game names a track in the low byte of D0 and what
+        // to do with it in the high byte.
+        //
+        // Bit 1 of that does not mean stop, which is what this had it
+        // meaning and why King of Fighters '99 fell silent the moment it
+        // asked for music: a BIOS tests the same bit to decide whether
+        // to take the track from D0 at all, so with it set the track
+        // already asked for stands and only the mode is new. Reading it
+        // as stop turned every one of those into silence.
         {
             uint8_t* ram = neocd->memory.ram;
             uint32_t d0 = m68k_get_reg(nullptr, M68K_REG_D0);
@@ -774,29 +779,30 @@ int HleBios::trap(uint32_t pc)
 
             ram[CD_MODE_VAR] = mode;
 
-            // Bit 1 of the mode means stop; anything else is a track to
-            // put on.
-            if (mode & 0x02)
+            if (!(mode & 0x02))
             {
-                neocd->cdrom.stop();
-                return 1;
+                ram[CD_TRACK_VAR] = track;
+                ram[0x10F6F8] = track;
+                ram[0x10F6F7] = mode;
+            }
+            else
+            {
+                // Keep the track already asked for.
+                track = ram[CD_TRACK_VAR];
             }
 
-            ram[CD_TRACK_VAR] = track;
-            ram[0x10F6F8] = track;
-            ram[0x10F6F7] = mode;
+            if (!track)
+                return 1;
 
-            // The track number is held the way it is written down, two
-            // decimal digits to a byte, not as a plain count.
+            // The track is held the way it is written down, two decimal
+            // digits to a byte, not as a plain count.
             uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
 
-            const CdromToc::Entry* entry = neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
-            if (entry && (entry->trackType == CdromToc::TrackType::Silence
-                          || entry->trackType == CdromToc::TrackType::AudioPCM
-                          || entry->trackType == CdromToc::TrackType::AudioFlac
-                          || entry->trackType == CdromToc::TrackType::AudioOgg
-                          || entry->trackType == CdromToc::TrackType::AudioWav
-                          || entry->trackType == CdromToc::TrackType::AudioMp3))
+            const CdromToc::Entry* entry =
+                neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
+
+            if (entry && (entry->trackType != CdromToc::TrackType::Mode1_2048)
+                      && (entry->trackType != CdromToc::TrackType::Mode1_2352))
             {
                 neocd->cdrom.seek(entry->startSector);
                 neocd->cdrom.play();
