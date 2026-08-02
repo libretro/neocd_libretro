@@ -130,7 +130,7 @@ void HleBios::buildRom(uint8_t* rom)
     for (uint32_t i = 0; i < 5; ++i)
         entryPoint(rom, TRAP_BASE + i * 6, OP_RTE);
 
-    entryPoint(rom, CD_SET_MODE, OP_RTS);
+    entryPoint(rom, CD_PLAY_TRACK, OP_RTS);
     entryPoint(rom, CD_QUIET_1, OP_RTS);
     entryPoint(rom, CD_UPLOAD, OP_RTS);
     entryPoint(rom, CD_STREAM_START, OP_RTS);
@@ -183,8 +183,17 @@ static inline uint32_t leWord(const uint8_t* p)
          | (static_cast<uint32_t>(p[3]) << 24);
 }
 
-bool HleBios::findFile(const std::string& name, uint32_t& lba, uint32_t& size)
+bool HleBios::findFile(const std::string& wanted, uint32_t& lba, uint32_t& size)
 {
+    // A name on the disc carries a version after a semicolon, and what a
+    // game asks for may carry one too - IPL.TXT tends not to, a game's
+    // own list often does. Neither is part of the name, so both sides
+    // lose it before they are compared.
+    std::string name = wanted;
+    size_t version = name.find(';');
+    if (version != std::string::npos)
+        name = name.substr(0, version);
+
     // The root directory size comes straight from the volume descriptor,
     // which a malicious or corrupt disc controls. Reject an absurd value
     // before it becomes a huge allocation, and round the buffer up to a
@@ -715,11 +724,47 @@ int HleBios::trap(uint32_t pc)
         neocd->updateInterrupts();
         return 1;
 
-    case CD_SET_MODE:
-        // Watching a real BIOS: the high byte of D0 is stored here and
-        // nothing else changes.
-        neocd->memory.ram[CD_MODE_VAR] =
-            static_cast<uint8_t>((m68k_get_reg(nullptr, M68K_REG_D0) >> 8) & 0xFF);
+    case CD_PLAY_TRACK:
+        // The music. A game names a track in the low byte of D0 and says
+        // what to do with it in the high byte, and a BIOS puts the drive
+        // on that track and starts it. Without this a game runs in
+        // silence, which is what it did.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            uint32_t d0 = m68k_get_reg(nullptr, M68K_REG_D0);
+            uint8_t mode = static_cast<uint8_t>((d0 >> 8) & 0xFF);
+            uint8_t track = static_cast<uint8_t>(d0 & 0xFF);
+
+            ram[CD_MODE_VAR] = mode;
+
+            // Bit 1 of the mode means stop; anything else is a track to
+            // put on.
+            if (mode & 0x02)
+            {
+                neocd->cdrom.stop();
+                return 1;
+            }
+
+            ram[CD_TRACK_VAR] = track;
+            ram[0x10F6F8] = track;
+            ram[0x10F6F7] = mode;
+
+            // The track number is held the way it is written down, two
+            // decimal digits to a byte, not as a plain count.
+            uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
+
+            const CdromToc::Entry* entry = neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
+            if (entry && (entry->trackType == CdromToc::TrackType::Silence
+                          || entry->trackType == CdromToc::TrackType::AudioPCM
+                          || entry->trackType == CdromToc::TrackType::AudioFlac
+                          || entry->trackType == CdromToc::TrackType::AudioOgg
+                          || entry->trackType == CdromToc::TrackType::AudioWav
+                          || entry->trackType == CdromToc::TrackType::AudioMp3))
+            {
+                neocd->cdrom.seek(entry->startSector);
+                neocd->cdrom.play();
+            }
+        }
         return 1;
 
     case CD_QUIET_1:

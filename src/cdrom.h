@@ -74,6 +74,15 @@ public:
      * @brief Get a pointer to the TocEntry of the current track
      */
     const CdromToc::Entry* currentTrack() const;
+
+    /**
+     * @brief The disc's table of contents
+     */
+    const CdromToc& toc() const
+    {
+        return m_toc;
+    }
+
     
     /**
      * @brief Get the TrackIndex of the current track

@@ -98,8 +98,11 @@ public:
     // A CD BIOS routine, characterised by watching a real BIOS run it:
     // called with a mode in D0, it stores the high byte of D0 in a
     // variable and returns. Only observed with D0 = 0x0200.
-    static constexpr uint32_t CD_SET_MODE    = 0xC0056A;
+    // Plays a CD track. The track is the low byte of D0 and what to do
+    // with it the high byte; bit 1 of that means stop rather than play.
+    static constexpr uint32_t CD_PLAY_TRACK  = 0xC0056A;
     static constexpr uint32_t CD_MODE_VAR    = 0x10F6F6;
+    static constexpr uint32_t CD_TRACK_VAR   = 0x10F64B;
 
     // Watched under a real BIOS and seen to change nothing a game can
     // observe: called with a mode in D0, returns, leaves BIOS RAM
