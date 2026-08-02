@@ -1164,26 +1164,33 @@ int HleBios::trap(uint32_t pc)
         return 1;
 
     case FRAME_UPDATE:
-        // Watched under a real BIOS: the frame counter moves on, the
-        // pads' repeat timers wind down, and two flags are cleared.
-        {
-            uint8_t* ram = neocd->memory.ram;
-            ++ram[0x10F749];
-            for (uint32_t t : { BIOS_P1TIMER, BIOS_P2TIMER, BIOS_P1TIMER2, BIOS_P2TIMER2 })
-                if (ram[t])
-                    --ram[t];
-            ram[0x10F680] = 0x00;
-            ram[0x10F6C3] = 0x00;
-        }
+        // Nothing to do on a console. The routine looks at the country
+        // first, then at the arcade flag, and returns when that is clear
+        // - everything past it is the coin and credit handling an arcade
+        // board needs. What used to be here, a frame counter and the
+        // pads' repeat timers winding down, was assembled from watching
+        // bytes move in a real BIOS run and attributed to this routine
+        // because it happened to be running.
         return 1;
 
     case CARD_ERROR:
-        // Left alone deliberately. Watched under one game it leaves a
-        // pointer and a flag behind and answers 0xFFFF, and doing that
-        // for every game turned out to send another one somewhere it
-        // never goes on hardware - it drew nothing at all afterwards.
-        // Whatever this routine really decides, it is not the same
-        // answer every time it is asked.
+        // Asks what went wrong with the card. A BIOS saves the stack
+        // pointer it would unwind to, copies the card status somewhere a
+        // game can read it back, and then decides: a status below 0x81,
+        // or 0x86 and above, is nothing it handles, so it returns. There
+        // is no card here and the status says so, which lands in the
+        // first of those, so it returns.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            uint32_t sp = m68k_get_reg(nullptr, M68K_REG_SP);
+
+            ram[0x10F3F6] = static_cast<uint8_t>(sp >> 24);
+            ram[0x10F3F7] = static_cast<uint8_t>(sp >> 16);
+            ram[0x10F3F8] = static_cast<uint8_t>(sp >> 8);
+            ram[0x10F3F9] = static_cast<uint8_t>(sp);
+
+            ram[0x10FDC7] = ram[0x10FDC6];
+        }
         return 1;
 
     case CARD:
