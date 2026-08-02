@@ -1090,10 +1090,36 @@ int HleBios::trap(uint32_t pc)
         // game actually calls: Metal Slug 2 comes through here once a
         // frame and reaches SYSTEM_INT1 nineteen times in three thousand
         // frames.
-        if (m_startLatch && (m_userRequest == 2) && !m_userDelay)
+        // Starting a game is a BIOS's job, but not on request alone: it
+        // weighs four things first and this weighed none of them, so a
+        // game was started the instant a button moved and put into its
+        // in-game state before it was ready. King of Fighters '99 was
+        // reaching its start entry twenty-eight times sooner than a real
+        // BIOS takes it there, going in-game and sitting on its logo.
+        //
+        //   0x10F67A  must be zero, or something else is going on
+        //   0x10FDAF  must not be, or no game has been entered yet
+        //   0x10F6D9  must not be, or the machine is not ready
+        //   the level 2 vector, if a transfer holds it, not now
+        //
+        // Start is not the low bits of what changed either. A BIOS walks
+        // the byte two bits at a time and keeps every other one - start
+        // for each of four players, with select in between - so taking
+        // the bottom two made player one's select a start of its own.
         {
-            uint8_t* ram = neocd->memory.ram;
-            ram[BIOS_PLAYER_MOD] = static_cast<uint8_t>(m_startLatch & 0x03);
+        uint8_t* ram = neocd->memory.ram;
+        uint8_t starts = 0;
+        for (uint32_t bit = 0; bit < 4; ++bit)
+            if (m_startLatch & (1u << (bit * 2)))
+                starts |= static_cast<uint8_t>(1u << bit);
+
+        if (starts
+            && !ram[0x10F67A] && !ram[0x10F67B]
+            && ram[BIOS_USER_MODE] && ram[0x10F6D9]
+            && (m68k_read_memory_32(0x00000068) != 0x00C0A518)
+            && (m_userRequest == 2) && !m_userDelay)
+        {
+            ram[BIOS_PLAYER_MOD] = starts;
             m_startLatch = 0;
 
             // Called, not jumped to: what it returns to is the
@@ -1102,6 +1128,7 @@ int HleBios::trap(uint32_t pc)
             m68k_write_memory_32(sp, SYSTEM_IO + 2);
             m68k_set_reg(M68K_REG_SP, sp);
             m68k_set_reg(M68K_REG_PC, PLAYER_START);
+        }
         }
         return 1;
 
