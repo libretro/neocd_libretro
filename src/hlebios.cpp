@@ -724,10 +724,28 @@ int HleBios::trap(uint32_t pc)
         // answer every time it is asked.
         return 1;
 
+    case CARD:
+        // The memory card. A BIOS checks two bits of the status port for
+        // one and, finding none, says so in 0x10FDC6 and returns -
+        // everything past that point is card commands. There is no card
+        // here, so this takes the same early exit rather than pretend to
+        // one. It leaves the two things the routine sets before it
+        // looks: a marker, and the stack pointer it would unwind to.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            uint32_t sp = m68k_get_reg(nullptr, M68K_REG_SP);
+            ram[0x10F3F4] = 0xFF;
+            ram[0x10F3F6] = static_cast<uint8_t>(sp >> 24);
+            ram[0x10F3F7] = static_cast<uint8_t>(sp >> 16);
+            ram[0x10F3F8] = static_cast<uint8_t>(sp >> 8);
+            ram[0x10F3F9] = static_cast<uint8_t>(sp);
+            ram[0x10FDC6] = 0x80;
+        }
+        return 1;
+
     case CREDIT_DOWN:
     case READ_CALENDAR:
     case SETUP_CALENDAR:
-    case CARD:
     case HOW_TO_PLAY:
     case CHECKSUM:
         // Reached but not implemented. Say so once per address so a
