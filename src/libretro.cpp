@@ -4,6 +4,7 @@
 
 #include "libretro_backupram.h"
 #include "libretro_bios.h"
+#include "hlebios.h"
 #include "libretro_common.h"
 #include "libretro_input.h"
 #include "libretro_log.h"
@@ -133,7 +134,16 @@ bool retro_unserialize(const void *data, size_t size)
     DataPacker state(const_cast<char*>(reinterpret_cast<const char*>(data)), size, size);
 
     if (neocd->restoreState(state))
+    {
+        // The disc's track times describe what is in the drive, not
+        // where the machine has got to, and a state restores the memory
+        // they live in. A state saved before they were written down
+        // would otherwise put the empty table back.
+        if (neocd->usingHleBios)
+            HleBios::buildTrackTable();
+
         return true;
+    }
 
     Libretro::Bios::load();
     neocd->initialize();

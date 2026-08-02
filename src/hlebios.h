@@ -182,6 +182,10 @@ public:
     static constexpr uint32_t PLAYER_START    = 0x000128;
     static constexpr uint32_t BIOS_PLAYER_MOD = 0x10FDB4;
 
+public:
+    /// Writes the disc track times where a BIOS keeps them.
+    static void buildTrackTable();
+
 protected:
     struct IplEntry
     {
@@ -205,7 +209,6 @@ protected:
     static void initBiosRam();
 
     /// Writes the disc's track start times where a BIOS keeps them.
-    static void buildTrackTable();
     static void callUser(uint8_t request);
     static void pollInput();
 
