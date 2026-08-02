@@ -1,6 +1,8 @@
 #include "3rdparty/musashi/m68k.h"
 #include "hlebios.h"
+#include <cstdlib>
 #include "libretro_common.h"
+#include "libretro_log.h"
 #include "m68kintf.h"
 #include "neogeocd.h"
 
@@ -30,6 +32,9 @@ extern "C"
 
     void m68k_write_memory_8(uint32_t address, uint32_t data)
     {
+        if (getenv("W8F") && address == 0x10FD8F)
+        { static uint32_t n=0; if (n++<6) Libretro::Log::message(RETRO_LOG_INFO,
+            "10FD8F = %02X from %06X\n", data & 0xFF, m68k_get_reg(NULL, M68K_REG_PPC)); }
         const Memory::Region* region = neocd->memory.regionLookupTable[address / Memory::MEMORY_GRANULARITY];
 
         if (!region)

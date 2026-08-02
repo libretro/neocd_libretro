@@ -633,9 +633,37 @@ void HleBios::initBiosRam()
     // running, so these are the BIOS's own and are set here.
     ram[0x10F781] = 0x01;
     ram[0x10F785] = 0x49;
-    ram[0x10FD88] = 0x03;
-    ram[0x10FD8D] = 0x01;
-    ram[0x10FD91] = 0x02;
+
+    // The settings block a BIOS sets up. Which of these are its own was
+    // settled by reading them under two different games: the ones below
+    // hold the same value whichever game is running, and the ones beside
+    // them - 0x10FD88, 0x10FD8A, 0x10FD8B, 0x10FD8D, 0x10FD8F, 0x10FD91 -
+    // do not, so those belong to the game and are left alone. Seeding
+    // them from one game's run, which is what this used to do, sent
+    // another game down a path it never takes.
+    ram[0x10FD81] = 0x02;
+
+    // The settings a game ships for the country it is running in. A
+    // BIOS picks a pointer out of the game's own header, four bytes per
+    // country, steps sixteen bytes into what it points at and copies a
+    // block from there: six bytes as they stand, then ten more with each
+    // one shifted down a nibble.
+    //
+    // These were being seeded with values watched in one running game,
+    // which is how another game came to read three where it should read
+    // zero and take a branch it never takes on hardware. They belong to
+    // the game and this is where a BIOS gets them.
+    {
+        uint32_t table = 0x000116 + (ram[BIOS_COUNTRY] * 4);
+        uint32_t source = m68k_read_memory_32(table) + 0x10;
+
+        for (uint32_t k = 0; k < 6; ++k)
+            ram[0x10FD84 + k] = static_cast<uint8_t>(m68k_read_memory_8(source + k));
+
+        for (uint32_t k = 0; k < 10; ++k)
+            ram[0x10FD8A + k] =
+                static_cast<uint8_t>(m68k_read_memory_8(source + 6 + k) >> 4);
+    }
 
     // What is deliberately not set is anything a game writes for
     // itself. 0x10FDC6 is the example that cost a while: watched
