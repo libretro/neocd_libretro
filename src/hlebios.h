@@ -111,7 +111,10 @@ public:
     // Starts CD streaming: sets its flags, zeroes two counters and
     // takes over the level 2 vector. Only the flags and counters are
     // reproduced - what it goes on to stream is not.
+    // Two ways in to the same streaming routine, differing only in a
+    // flag a BIOS sets on the way past.
     static constexpr uint32_t CD_STREAM_START = 0xC00552;
+    static constexpr uint32_t CD_STREAM_ALT   = 0xC00564;
 
     static constexpr uint32_t CD_UPLOAD      = 0xC004C2;
 
@@ -189,6 +192,11 @@ protected:
     static bool readFile(uint32_t lba, uint32_t size, std::vector<uint8_t>& out);
     static bool parseIpl(const std::vector<uint8_t>& text, std::vector<IplEntry>& entries);
     static bool loadIplEntry(const IplEntry& entry);
+
+    /// Loads the files a game asks for through the streaming call. The
+    /// list is at the given address: for each file a name, then a bank
+    /// byte, then a destination offset on the next even boundary.
+    static void streamFiles(uint32_t listAddress);
 
     static void initBiosRam();
     static void callUser(uint8_t request);

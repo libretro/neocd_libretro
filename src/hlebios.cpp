@@ -134,6 +134,7 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_QUIET_1, OP_RTS);
     entryPoint(rom, CD_UPLOAD, OP_RTS);
     entryPoint(rom, CD_STREAM_START, OP_RTS);
+    entryPoint(rom, CD_STREAM_ALT, OP_RTS);
     entryPoint(rom, CD_WAIT, OP_RTS);
     entryPoint(rom, CD_QUIET_2, OP_RTS);
     entryPoint(rom, FRAME_UPDATE, OP_RTS);
@@ -400,6 +401,55 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
         entry.name.c_str(), data.size(), ext.c_str(), offset);
 
     return true;
+}
+
+void HleBios::streamFiles(uint32_t listAddress)
+{
+    // What a game asks for when it moves from one screen to the next:
+    // the tiles and sprites the next screen needs. A BIOS reads the list,
+    // works out which of them are not already resident and fetches those
+    // off the disc. Nothing here does the working out - everything asked
+    // for is loaded - but the effect a game is after is the same.
+    //
+    // The list is a run of entries, each a name and where to put it:
+    //
+    //   "OBJ_04.SPR" 00 | bank | (even) destination
+    //
+    // which is the same name, bank and offset that IPL.TXT gives, so the
+    // same loader handles both.
+    uint32_t a = listAddress;
+
+    for (uint32_t guard = 0; guard < 64; ++guard)
+    {
+        if (!m68k_read_memory_8(a))
+            break;
+
+        IplEntry entry;
+        entry.name.clear();
+
+        for (uint32_t i = 0; i < 32; ++i)
+        {
+            uint8_t c = static_cast<uint8_t>(m68k_read_memory_8(a++));
+            if (!c)
+                break;
+            // Names are held uppercase on the disc; a game may not be.
+            if ((c >= 'a') && (c <= 'z'))
+                c = static_cast<uint8_t>(c - 0x20);
+            entry.name.push_back(static_cast<char>(c));
+        }
+
+        entry.bank = static_cast<uint32_t>(m68k_read_memory_8(a++));
+
+        // The destination sits on the next even address.
+        a = (a + 1) & ~static_cast<uint32_t>(1);
+        entry.offset = m68k_read_memory_32(a);
+        a += 4;
+
+        if (entry.name.empty())
+            break;
+
+        loadIplEntry(entry);
+    }
 }
 
 bool HleBios::loadDisc()
@@ -690,6 +740,9 @@ int HleBios::trap(uint32_t pc)
         return 1;
 
     case CD_STREAM_START:
+    case CD_STREAM_ALT:
+        streamFiles(m68k_get_reg(nullptr, M68K_REG_A0));
+
         // The state a BIOS establishes here, without the streaming it
         // goes on to do. A game that reaches this and gets no answer
         // stops; one that gets the flags carries on, though whatever it
