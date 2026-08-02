@@ -404,6 +404,16 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
         return true;
     }
 
+    // A bank can name more banks than the area has, and the hardware
+    // answers that by ignoring the bits it has no room for rather than
+    // by refusing - the sprite bank select is two bits wide whatever a
+    // game writes to it. So an address past the end wraps to the front,
+    // as it would on the machine. King of Fighters '99 asks for sprite
+    // data at 0x540000 in a four megabyte area and expects bank five to
+    // mean bank one.
+    if ((capacity & (capacity - 1)) == 0)
+        offset &= static_cast<uint32_t>(capacity - 1);
+
     if ((offset >= capacity) || ((offset + data.size()) > capacity))
     {
         Libretro::Log::message(RETRO_LOG_ERROR,
