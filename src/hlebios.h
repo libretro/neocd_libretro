@@ -235,6 +235,9 @@ protected:
     static void callUser(uint8_t request);
     static void pollInput();
 
+    /// Stops the drive when the track it was asked for runs out.
+    static void stopAtTrackEnd();
+
     /// Keeps one pad's held-and-repeating byte and the counter behind it.
     static void repeatPad(uint32_t base, uint8_t current);
 
@@ -248,6 +251,10 @@ protected:
     /// Frames a real drive would still be busy for, after a load that
     /// happened here in no time at all.
     static uint32_t m_busyFrames;
+
+    /// The sector the track being played runs out at, so it can be
+    /// stopped there rather than running on into the next one.
+    static uint32_t m_playUntil;
     static uint8_t m_lastP1;
     static uint8_t m_lastP2;
     static uint8_t m_lastStatus;

@@ -17,6 +17,7 @@ uint8_t HleBios::m_userRequest = 0;
 uint32_t HleBios::m_userDelay = 0;
 uint8_t HleBios::m_startLatch = 0;
 uint32_t HleBios::m_busyFrames = 0;
+uint32_t HleBios::m_playUntil = 0;
 uint8_t HleBios::m_lastP1 = 0;
 uint8_t HleBios::m_lastP2 = 0;
 uint8_t HleBios::m_lastStatus = 0;
@@ -792,6 +793,18 @@ void HleBios::repeatPad(uint32_t base, uint8_t current)
     }
 }
 
+void HleBios::stopAtTrackEnd()
+{
+    if (!m_playUntil || !neocd->cdrom.isPlaying())
+        return;
+
+    if (neocd->cdrom.position() < m_playUntil)
+        return;
+
+    neocd->cdrom.stop();
+    m_playUntil = 0;
+}
+
 void HleBios::pollInput()
 {
     // Where a real BIOS leaves the pads, established by holding one
@@ -1024,8 +1037,25 @@ int HleBios::trap(uint32_t pc)
             if (entry && (entry->trackType != CdromToc::TrackType::Mode1_2048)
                       && (entry->trackType != CdromToc::TrackType::Mode1_2352))
             {
-                neocd->cdrom.seek(entry->startSector);
-                neocd->cdrom.play();
+                // Where this track runs out: the next one's start, or the
+                // end of the disc for the last. A drive stops there. This
+                // did not, so it ran on through everything after it -
+                // Idol Mahjong played from its first tune to the end of
+                // the disc where a real BIOS goes quiet after twenty
+                // seconds.
+                const CdromToc::Entry* next =
+                    neocd->cdrom.toc().findTocEntry(TrackIndex(number + 1, 1));
+
+                m_playUntil = next ? next->startSector : neocd->cdrom.leadout();
+
+                // Asking again for the track already playing leaves it
+                // alone rather than starting it over.
+                if (!neocd->cdrom.isPlaying()
+                    || (neocd->cdrom.currentTrackIndex().track() != number))
+                {
+                    neocd->cdrom.seek(entry->startSector);
+                    neocd->cdrom.play();
+                }
             }
         }
         return 1;
@@ -1191,6 +1221,7 @@ int HleBios::trap(uint32_t pc)
 
     case SYSTEM_IO:
         pollInput();
+        stopAtTrackEnd();
 
         // Wound down here as well as in the frame interrupt: a game
         // calls one or the other once a frame, and which one differs
@@ -1257,6 +1288,8 @@ int HleBios::trap(uint32_t pc)
         // once its handler has been round once.
         // The frame flag a BIOS spins on is cleared here.
         neocd->memory.ram[0x10F6D8] = 0x00;
+
+        stopAtTrackEnd();
 
         if (m_busyFrames)
             --m_busyFrames;
