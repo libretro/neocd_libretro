@@ -135,6 +135,7 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_UPLOAD, OP_RTS);
     entryPoint(rom, CD_STREAM_START, OP_RTS);
     entryPoint(rom, CD_STREAM_ALT, OP_RTS);
+    entryPoint(rom, SOUND_COMMAND, OP_RTS);
     entryPoint(rom, CD_WAIT, OP_RTS);
     entryPoint(rom, CD_QUIET_2, OP_RTS);
     entryPoint(rom, FRAME_UPDATE, OP_RTS);
@@ -201,6 +202,14 @@ bool HleBios::findFile(const std::string& wanted, uint32_t& lba, uint32_t& size)
     // so a size that is not sector-aligned would overflow the vector on
     // the final sector.
     static const uint32_t MAX_ROOT_DIR_SIZE = 1u << 20;
+
+    // Where the directory lives is worked out when the disc is read and
+    // kept here, which is not somewhere a savestate reaches. Load a state
+    // into a session that has not booted this disc and it would be zero,
+    // and every file a game asked for from then on would be reported
+    // missing. Read it again rather than fail.
+    if (!m_rootSize && !readVolumeDescriptor())
+        return false;
 
     if ((!m_rootSize) || (m_rootSize > MAX_ROOT_DIR_SIZE))
         return false;
@@ -497,6 +506,21 @@ void HleBios::streamFiles(uint32_t listAddress)
 
         loadIplEntry(entry);
     }
+}
+
+bool HleBios::readVolumeDescriptor()
+{
+    uint8_t sector[2048];
+
+    if (!readSector(16, sector))
+        return false;
+
+    if (std::memcmp(&sector[1], "CD001", 5) != 0)
+        return false;
+
+    m_rootLba = leWord(&sector[156 + 2]);
+    m_rootSize = leWord(&sector[156 + 10]);
+    return true;
 }
 
 bool HleBios::loadDisc()
@@ -880,6 +904,16 @@ int HleBios::trap(uint32_t pc)
 
     case CD_WAIT:
         m68k_set_reg(M68K_REG_D0, 0x0000B000);
+        return 1;
+
+    case SOUND_COMMAND:
+        // A game asking for a sound. A BIOS puts the byte in a queue and
+        // sends it on as it works through the frame; nothing here needs
+        // the queue, so it goes straight to the sound CPU. Without this
+        // a game that asks for its music this way is answered with
+        // nothing at all.
+        m68k_write_memory_8(0x00320000,
+            static_cast<uint8_t>(m68k_get_reg(nullptr, M68K_REG_D0) & 0xFF));
         return 1;
 
     case CD_STREAM_START:

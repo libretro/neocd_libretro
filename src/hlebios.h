@@ -95,6 +95,11 @@ public:
     static constexpr uint32_t HOW_TO_PLAY    = 0xC00474;
     static constexpr uint32_t CHECKSUM       = 0xC0047A;
 
+    // Sends a byte to the sound CPU. A BIOS queues it and drains the
+    // queue as it goes; there is nothing here that needs the queue, so
+    // the byte goes straight out.
+    static constexpr uint32_t SOUND_COMMAND  = 0xC00576;
+
     // A CD BIOS routine, characterised by watching a real BIOS run it:
     // called with a mode in D0, it stores the high byte of D0 in a
     // variable and returns. Only observed with D0 = 0x0200.
@@ -185,6 +190,7 @@ public:
 public:
     /// Writes the disc track times where a BIOS keeps them.
     static void buildTrackTable();
+    static void debugForceLoad(const char* name, uint32_t bank, uint32_t offset);
 
 protected:
     struct IplEntry
@@ -196,6 +202,9 @@ protected:
 
     static bool loadDisc();
     static bool readSector(uint32_t lba, uint8_t* out);
+    /// Reads where the disc's directory lives.
+    static bool readVolumeDescriptor();
+
     static bool findFile(const std::string& name, uint32_t& lba, uint32_t& size);
     static bool readFile(uint32_t lba, uint32_t size, std::vector<uint8_t>& out);
     static bool parseIpl(const std::vector<uint8_t>& text, std::vector<IplEntry>& entries);
