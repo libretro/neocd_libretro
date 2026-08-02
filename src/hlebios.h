@@ -233,6 +233,10 @@ protected:
     static uint8_t m_userRequest;
     static uint32_t m_userDelay;
     static uint8_t m_startLatch;
+
+    /// Frames a real drive would still be busy for, after a load that
+    /// happened here in no time at all.
+    static uint32_t m_busyFrames;
     static uint8_t m_lastP1;
     static uint8_t m_lastP2;
     static uint8_t m_lastStatus;

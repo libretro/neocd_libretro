@@ -16,6 +16,7 @@ uint32_t HleBios::m_rootSize = 0;
 uint8_t HleBios::m_userRequest = 0;
 uint32_t HleBios::m_userDelay = 0;
 uint8_t HleBios::m_startLatch = 0;
+uint32_t HleBios::m_busyFrames = 0;
 uint8_t HleBios::m_lastP1 = 0;
 uint8_t HleBios::m_lastP2 = 0;
 uint8_t HleBios::m_lastStatus = 0;
@@ -452,6 +453,15 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     std::memcpy(destination + offset, data.data(), first);
     if (first < data.size())
         std::memcpy(destination, data.data() + first, data.size() - first);
+
+    // The data is here at once, which is worth keeping - nobody wants a
+    // loading screen back. What is not free is the time a drive would
+    // have spent getting it: at 75 sectors a second, this file would
+    // still have been arriving for a while yet. A game that watches the
+    // drive rather than the data needs that time to pass, so it is
+    // counted here and let run down a frame at a time, without holding
+    // the data up.
+    m_busyFrames += static_cast<uint32_t>(((data.size() + 2047) / 2048) * 60 / 75) + 1;
 
     Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> %s+0x%X\n",
         entry.name.c_str(), data.size(), ext.c_str(), offset);
@@ -1080,6 +1090,13 @@ int HleBios::trap(uint32_t pc)
     case SYSTEM_IO:
         pollInput();
 
+        // Wound down here as well as in the frame interrupt: a game
+        // calls one or the other once a frame, and which one differs
+        // between games.
+        if (m_busyFrames)
+            --m_busyFrames;
+
+
         // Starting a game is a BIOS's job, not something a game does off
         // the pad for itself. On a console there is no credit to weigh
         // up: start goes down, a BIOS says how many are playing and
@@ -1114,6 +1131,7 @@ int HleBios::trap(uint32_t pc)
                 starts |= static_cast<uint8_t>(1u << bit);
 
         if (starts
+            && !m_busyFrames
             && !ram[0x10F67A] && !ram[0x10F67B]
             && ram[BIOS_USER_MODE] && ram[0x10F6D9]
             && (m68k_read_memory_32(0x00000068) != 0x00C0A518)
@@ -1137,6 +1155,9 @@ int HleBios::trap(uint32_t pc)
         // once its handler has been round once.
         // The frame flag a BIOS spins on is cleared here.
         neocd->memory.ram[0x10F6D8] = 0x00;
+
+        if (m_busyFrames)
+            --m_busyFrames;
 
         if (m_userDelay && !--m_userDelay)
         {
