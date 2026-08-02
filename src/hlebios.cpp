@@ -14,6 +14,7 @@ bool HleBios::m_booted = false;
 uint32_t HleBios::m_rootLba = 0;
 uint32_t HleBios::m_rootSize = 0;
 uint8_t HleBios::m_userRequest = 0;
+uint32_t HleBios::m_userDelay = 0;
 uint8_t HleBios::m_lastP1 = 0;
 uint8_t HleBios::m_lastP2 = 0;
 uint8_t HleBios::m_lastStatus = 0;
@@ -86,6 +87,12 @@ void HleBios::buildRom(uint8_t* rom)
     // instruction that faulted, which would fault again forever and
     // walk the stack out of memory.
     poke16(rom, HALT, 0x60FE);   // BRA.S to itself
+
+    // Where a BIOS waits between a game handing the machine back and
+    // being given it again. Interrupts are open here, so the game's own
+    // handler still runs - and finds the top bit of the mode byte
+    // clear, which is its cue to do nothing but end the interrupt.
+    poke16(rom, IDLE, 0x60FE);   // BRA.S to itself
 
     static const uint32_t calls[] = {
         SYSTEM_RETURN, SYSTEM_IO, FRAME_UPDATE, CREDIT_DOWN,
@@ -614,7 +621,21 @@ int HleBios::trap(uint32_t pc)
         if (m_userRequest == 0)
             m_userRequest = 2;   // startup done, run the game
 
-        callUser(m_userRequest);
+        // Do not go straight back in. A BIOS clears the top bit of the
+        // mode byte and carries on in its own loop with interrupts
+        // open; the game's handler sees that bit clear and ends the
+        // interrupt without doing its frame's work. Only then does the
+        // BIOS enter the game again, setting the bit as it goes.
+        neocd->memory.ram[BIOS_SYSTEM_MODE] &= 0x7F;
+
+        // A BIOS waits four frames here, not none. It has a routine
+        // that sets a flag and spins until the frame interrupt clears
+        // it, and the path between a hand-back and the next entry calls
+        // that routine four times.
+        m_userDelay = 5;
+        m68k_set_reg(M68K_REG_SP, 0x0010F300);
+        m68k_set_reg(M68K_REG_SR, 0x2000);
+        m68k_set_reg(M68K_REG_PC, IDLE);
         return 1;
 
     case VBLANK:
@@ -701,6 +722,20 @@ int HleBios::trap(uint32_t pc)
         return 1;
 
     case SYSTEM_INT1:
+        // A game that handed the machine back is given it again here,
+        // once its handler has been round once.
+        // The frame flag a BIOS spins on is cleared here.
+        neocd->memory.ram[0x10F6D8] = 0x00;
+
+        if (m_userDelay && !--m_userDelay)
+        {
+            pollInput();
+            neocd->clearInterrupt(NeoGeoCD::VerticalBlank);
+            neocd->updateInterrupts();
+            callUser(m_userRequest);
+            return 1;
+        }
+
         // The real BIOS keeps a counter here, stepped once a frame.
         // Games seed their random numbers from it, and one that never
         // moves leaves them spinning in a loop waiting for a different

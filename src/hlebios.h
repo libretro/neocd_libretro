@@ -45,6 +45,7 @@ public:
     static constexpr uint32_t IGNORE_IRQ     = 0xC00140;  // everything else
     static constexpr uint32_t USER_RETURN    = 0xC00160;  // a USER call came back
     static constexpr uint32_t HALT           = 0xC00180;  // stopped after a fault
+    static constexpr uint32_t IDLE           = 0xC001A0;  // between a hand-back and the next entry
 
     // A table of 256 bytes games index to get a random number. It is
     // data, not code: the BIOS carries it and games reach straight into
@@ -192,6 +193,7 @@ protected:
     static uint32_t m_rootLba;
     static uint32_t m_rootSize;
     static uint8_t m_userRequest;
+    static uint32_t m_userDelay;
     static uint8_t m_lastP1;
     static uint8_t m_lastP2;
     static uint8_t m_lastStatus;
