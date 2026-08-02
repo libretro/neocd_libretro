@@ -684,5 +684,17 @@ DataPacker& operator>>(DataPacker& in, Video& video)
     in >> video.sprite_zoomY;
     in >> video.sprite_clipping;
 
+    // These come back as raw words from the state and are then used as
+    // array indices before the hardware would next constrain them. During
+    // normal operation activePaletteBank is only ever 0 or 1, videoramOffset
+    // is kept to 16 bits by the auto-increment mask, and sprite_zoomY is a
+    // byte from the sprite attributes. A corrupt state could set any of them
+    // out of range, which would index paletteRam/paletteRamPc, videoRam and
+    // yZoomRom out of bounds (and make (zoomY + 1) << 1 wrap to a zero
+    // modulus). Fold them back into their hardware ranges here.
+    video.activePaletteBank &= 1;
+    video.videoramOffset    &= 0xFFFF;
+    video.sprite_zoomY      &= 0xFF;
+
     return in;
 }

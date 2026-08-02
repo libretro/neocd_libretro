@@ -454,5 +454,13 @@ DataPacker& operator>>(DataPacker& in, LC8951& lc8951)
     in >> lc8951.STAT3;
     in >> lc8951.buffer;
 
+    // The packet pointers index the 5-byte command/response packets as
+    // packet[pointer >> 1]. The hardware keeps them in 0..9 (they only ever
+    // advance modulo 10); a corrupt state could set them anywhere, indexing
+    // those arrays out of bounds on the next packet access. Fold them back
+    // into range. registerPointer is already masked to 0xF at every use.
+    lc8951.commandPointer  %= 10;
+    lc8951.responsePointer %= 10;
+
     return in;
 }
