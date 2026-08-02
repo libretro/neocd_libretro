@@ -130,7 +130,9 @@ public:
     // Spends thousands of instructions and changes nothing any game can
     // see, which is what waiting for hardware looks like. Nothing here
     // is ever outstanding, so there is nothing to wait for.
-    static constexpr uint32_t CD_WAIT        = 0xC004C8;
+    // Parks every sprite off the screen by filling the three control
+    // blocks. Not a CD routine at all, whatever it was called here.
+    static constexpr uint32_t CLEAR_SPRITES  = 0xC004C8;
 
     // Thirteen instructions, no memory touched, D0 unchanged: a poke at
     // hardware and nothing a game can otherwise observe.

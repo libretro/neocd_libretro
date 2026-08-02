@@ -136,7 +136,7 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_STREAM_START, OP_RTS);
     entryPoint(rom, CD_STREAM_ALT, OP_RTS);
     entryPoint(rom, SOUND_COMMAND, OP_RTS);
-    entryPoint(rom, CD_WAIT, OP_RTS);
+    entryPoint(rom, CLEAR_SPRITES, OP_RTS);
     entryPoint(rom, CD_QUIET_2, OP_RTS);
     entryPoint(rom, FRAME_UPDATE, OP_RTS);
     entryPoint(rom, CD_STATE_SET, OP_RTS);
@@ -931,8 +931,31 @@ int HleBios::trap(uint32_t pc)
         neocd->memory.ram[0x10FEF7] = 0x80;
         return 1;
 
-    case CD_WAIT:
-        m68k_set_reg(M68K_REG_D0, 0x0000B000);
+    case CLEAR_SPRITES:
+        // Read out of a BIOS rather than guessed at. It sets the video
+        // write step to one and fills the three sprite control blocks,
+        // 512 entries each: no shrink, no vertical size, and an X that
+        // puts every sprite off the right of the screen. A game calls it
+        // to clear what is on screen before drawing something else.
+        //
+        // This used to answer with a register value watched once and
+        // nothing else, so the sprites a game expected to be swept away
+        // stayed where they were.
+        {
+            uint16_t* vram = neocd->memory.videoRam;
+
+            for (uint32_t i = 0; i < 0x200; ++i)
+            {
+                vram[0x8000 + i] = 0x0FFF;
+                vram[0x8200 + i] = 0x0000;
+                vram[0x8400 + i] = 0xB000;
+            }
+
+            // Left as the routine leaves them: the step it set, and the
+            // address just past the last block it wrote.
+            neocd->video.videoramModulo = 1;
+            neocd->video.videoramOffset = 0x8600;
+        }
         return 1;
 
     case SOUND_COMMAND:
