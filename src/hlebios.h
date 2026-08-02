@@ -125,7 +125,9 @@ public:
     static constexpr uint32_t CD_STREAM_START = 0xC00552;
     static constexpr uint32_t CD_STREAM_ALT   = 0xC00564;
 
-    static constexpr uint32_t CD_UPLOAD      = 0xC004C2;
+    // Blanks the text layer. Nothing to do with the CD, whatever it was
+    // called here.
+    static constexpr uint32_t CLEAR_TEXT     = 0xC004C2;
 
     // Spends thousands of instructions and changes nothing any game can
     // see, which is what waiting for hardware looks like. Nothing here

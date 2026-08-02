@@ -132,7 +132,7 @@ void HleBios::buildRom(uint8_t* rom)
 
     entryPoint(rom, CD_PLAY_TRACK, OP_RTS);
     entryPoint(rom, CD_QUIET_1, OP_RTS);
-    entryPoint(rom, CD_UPLOAD, OP_RTS);
+    entryPoint(rom, CLEAR_TEXT, OP_RTS);
     entryPoint(rom, CD_STREAM_START, OP_RTS);
     entryPoint(rom, CD_STREAM_ALT, OP_RTS);
     entryPoint(rom, SOUND_COMMAND, OP_RTS);
@@ -1049,14 +1049,32 @@ int HleBios::trap(uint32_t pc)
         }
         return 1;
 
-    case CD_UPLOAD:
-        // Watched under a real BIOS: it works through the CD interface
-        // registers and leaves these two set, returning 0x20. What it
-        // moves is not reproduced here, so this is a placeholder that
-        // lets a game past the call rather than an implementation.
-        neocd->memory.ram[0x10FDB0] = 0x01;
-        neocd->memory.ram[0x10FDB1] = 0x01;
-        m68k_set_reg(M68K_REG_D0, 0x00000020);
+    case CLEAR_TEXT:
+        // Blanks the text layer, read out of a BIOS. Write step of one,
+        // then from 0x701E: 1216 entries of 0x00FF, 32 more of 0x0020,
+        // and another 32 of 0x0020 back at 0x6FFE. A game calls it to
+        // wipe what is written across the screen.
+        //
+        // This used to work through the CD interface registers, which is
+        // not what the routine does, and left the text where it was.
+        {
+            uint16_t* vram = neocd->memory.videoRam;
+            uint32_t at = 0x701E;
+
+            for (uint32_t i = 0; i < 0x4C0; ++i)
+                vram[(at + i) & 0xFFFF] = 0x00FF;
+
+            at += 0x4C0;
+
+            for (uint32_t i = 0; i < 0x20; ++i)
+                vram[(at + i) & 0xFFFF] = 0x0020;
+
+            for (uint32_t i = 0; i < 0x20; ++i)
+                vram[(0x6FFE + i) & 0xFFFF] = 0x0020;
+
+            neocd->video.videoramModulo = 1;
+            neocd->video.videoramOffset = (0x6FFE + 0x20) & 0xFFFF;
+        }
         return 1;
 
     case SYSTEM_IO:
