@@ -674,7 +674,8 @@ void HleBios::initBiosRam()
     ram[BIOS_MVS_FLAG]  = 0x00;   // a home console, not an arcade board
     ram[BIOS_COUNTRY]   = 0x00;   // Japan
     ram[BIOS_SYSTEM_MODE] = 0x00;   /* a game says what mode it is in; set per request in callUser */
-    ram[BIOS_GAME_DIP]  = 0x00;
+    // Not zeroed here: 0x10FD84 is the first byte of the block a game
+    // supplies above, and clearing it threw that byte away again.
 
     // The sound CPU stays in reset here. A BIOS holds it down while it
     // loads and lets it go on its way into the game, which is where
