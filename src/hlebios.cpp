@@ -635,12 +635,39 @@ void HleBios::buildTrackTable()
 
         if (track > highest)
             highest = track;
+
+
     }
 
     // The slot after the last track holds where the disc runs out, which
     // is what a length is worked out against.
     if (highest && (highest < 99))
         write(static_cast<uint8_t>(highest + 1), neocd->cdrom.leadout());
+
+    // And two things a BIOS learns while reading a disc: the last track
+    // on it and the time it runs out at. It picks those up working
+    // through the table of contents, which does not happen here - the
+    // contents are simply known - so they were left at zero, and a game
+    // asking about the disc was told it has no tracks and ends at
+    // nothing.
+    //
+    // The byte beside them, 0x10F649, is left alone. It reads 01 on two
+    // discs here and 00 on a third, steadily, so whatever it holds it is
+    // not simply the first track number, and a guess at it would be
+    // wrong on that third disc.
+    if (highest)
+    {
+        uint8_t* ram = neocd->memory.ram;
+        uint32_t frames = neocd->cdrom.leadout() + 150;
+        uint32_t seconds = frames / 75;
+        uint32_t minutes = seconds / 60;
+
+        seconds %= 60;
+
+        ram[0x10F642] = static_cast<uint8_t>(((minutes / 10) << 4) | (minutes % 10));
+        ram[0x10F643] = static_cast<uint8_t>(((seconds / 10) << 4) | (seconds % 10));
+        ram[0x10F64A] = static_cast<uint8_t>(((highest / 10) << 4) | (highest % 10));
+    }
 }
 
 void HleBios::initBiosRam()
