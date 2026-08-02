@@ -110,6 +110,12 @@ public:
     static constexpr uint32_t CD_TRACK_VAR   = 0x10F64B;
     static constexpr uint32_t BIOS_TRACK_TABLE = 0x10F570;
 
+    // Where a BIOS keeps the block it hands the CD controller when a
+    // game asks for a track, and the address it uses when a game does
+    // not name one of its own.
+    static constexpr uint32_t BIOS_CD_COMMAND  = 0x10F6EA;
+    static constexpr uint32_t CD_COMMAND_BLOCK = 0x00E1FDF0;
+
     // Watched under a real BIOS and seen to change nothing a game can
     // observe: called with a mode in D0, returns, leaves BIOS RAM
     // alone. Stubbed on that basis rather than on a guess.

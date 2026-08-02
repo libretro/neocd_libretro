@@ -670,6 +670,26 @@ void HleBios::initBiosRam()
     // another game down a path it never takes.
     ram[0x10FD81] = 0x02;
 
+    // A BIOS works out where the block it hands the CD controller lives
+    // and writes the address here. A game can name its own in its header
+    // - a word at 0x13A, doubled and taken from the upload window - and
+    // one that does not gets the address a BIOS falls back on.
+    //
+    // Nothing wrote this, so it read as zero, and the routine that
+    // answers a game asking for a track checks it before doing anything:
+    // no block, no command, no music.
+    {
+        uint32_t header = m68k_read_memory_16(0x0000013A);
+        uint32_t block = ((header == 0) || (header == 0xFFFF))
+                       ? CD_COMMAND_BLOCK
+                       : (0x00E00000 + (header * 2));
+
+        ram[BIOS_CD_COMMAND]     = static_cast<uint8_t>(block >> 24);
+        ram[BIOS_CD_COMMAND + 1] = static_cast<uint8_t>(block >> 16);
+        ram[BIOS_CD_COMMAND + 2] = static_cast<uint8_t>(block >> 8);
+        ram[BIOS_CD_COMMAND + 3] = static_cast<uint8_t>(block);
+    }
+
     // The settings a game ships for the country it is running in. A
     // BIOS picks a pointer out of the game's own header, four bytes per
     // country, steps sixteen bytes into what it points at and copies a
