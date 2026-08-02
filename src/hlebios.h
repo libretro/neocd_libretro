@@ -173,6 +173,8 @@ public:
     // pressed. Which is which was settled by dumping the moment a
     // button goes down and again while it is held - the edge byte is
     // the one that reads back to zero.
+    static constexpr uint32_t BIOS_P1BASE     = 0x10FD94;
+    static constexpr uint32_t BIOS_P2BASE     = 0x10FD9A;
     static constexpr uint32_t BIOS_P1PREVIOUS = 0x10FD95;
     static constexpr uint32_t BIOS_P1CURRENT  = 0x10FD96;
     static constexpr uint32_t BIOS_P1CHANGE   = 0x10FD97;
@@ -226,6 +228,9 @@ protected:
     /// Writes the disc's track start times where a BIOS keeps them.
     static void callUser(uint8_t request);
     static void pollInput();
+
+    /// Keeps one pad's held-and-repeating byte and the counter behind it.
+    static void repeatPad(uint32_t base, uint8_t current);
 
     static bool m_booted;
     static uint32_t m_rootLba;

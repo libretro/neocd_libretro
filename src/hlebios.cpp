@@ -708,6 +708,26 @@ void HleBios::initBiosRam()
     neocd->irqMask2 = 0x30;
 }
 
+void HleBios::repeatPad(uint32_t base, uint8_t current)
+{
+    uint8_t* ram = neocd->memory.ram;
+
+    if (ram[base + 2] != current)
+    {
+        ram[base + 5] = 0x10;
+        ram[base + 4] = current;
+    }
+    else if (ram[base + 5]--)
+    {
+        ram[base + 4] = 0x00;
+    }
+    else
+    {
+        ram[base + 5] = 0x08;
+        ram[base + 4] = current;
+    }
+}
+
 void HleBios::pollInput()
 {
     // Where a real BIOS leaves the pads, established by holding one
@@ -737,6 +757,16 @@ void HleBios::pollInput()
     ram[BIOS_P2PREVIOUS] = m_lastP2;
     ram[BIOS_P2CURRENT]  = p2;
     ram[BIOS_P2CHANGE]   = p2Change;
+
+    // What a game reads to walk a menu is not the edge, it is the byte a
+    // BIOS keeps beside it: the buttons held, emitted when they change
+    // and then again on a beat while they stay down. Sixteen frames
+    // before the first repeat, eight between the rest, and nothing at
+    // all in between. Neither that byte nor the counter behind it was
+    // written here, so a held direction moved a cursor once and never
+    // again - and games that only read that byte saw nothing at all.
+    repeatPad(BIOS_P1BASE, p1);
+    repeatPad(BIOS_P2BASE, p2);
 
     // Start and select, both players: bit 0 and 1 are player one's
     // start and select, bits 2 and 3 player two's.
