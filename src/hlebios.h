@@ -170,6 +170,11 @@ public:
     // The game's own entry points, in its header.
     static constexpr uint32_t USER_VECTOR     = 0x000122;
 
+    // A game's other header entry. A BIOS calls this when start goes
+    // down, having said how many are playing at 0x10FDB4.
+    static constexpr uint32_t PLAYER_START    = 0x000128;
+    static constexpr uint32_t BIOS_PLAYER_MOD = 0x10FDB4;
+
 protected:
     struct IplEntry
     {
@@ -194,6 +199,7 @@ protected:
     static uint32_t m_rootSize;
     static uint8_t m_userRequest;
     static uint32_t m_userDelay;
+    static uint8_t m_startLatch;
     static uint8_t m_lastP1;
     static uint8_t m_lastP2;
     static uint8_t m_lastStatus;

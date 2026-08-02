@@ -15,6 +15,7 @@ uint32_t HleBios::m_rootLba = 0;
 uint32_t HleBios::m_rootSize = 0;
 uint8_t HleBios::m_userRequest = 0;
 uint32_t HleBios::m_userDelay = 0;
+uint8_t HleBios::m_startLatch = 0;
 uint8_t HleBios::m_lastP1 = 0;
 uint8_t HleBios::m_lastP2 = 0;
 uint8_t HleBios::m_lastStatus = 0;
@@ -525,6 +526,7 @@ void HleBios::pollInput()
     uint8_t p1Change = static_cast<uint8_t>(p1 & ~m_lastP1);
     uint8_t p2Change = static_cast<uint8_t>(p2 & ~m_lastP2);
     uint8_t stChange = static_cast<uint8_t>(st & ~m_lastStatus);
+    m_startLatch |= stChange;
 
     ram[BIOS_P1PREVIOUS] = m_lastP1;
     ram[BIOS_P1CURRENT]  = p1;
@@ -719,6 +721,30 @@ int HleBios::trap(uint32_t pc)
 
     case SYSTEM_IO:
         pollInput();
+
+        // Starting a game is a BIOS's job, not something a game does off
+        // the pad for itself. On a console there is no credit to weigh
+        // up: start goes down, a BIOS says how many are playing and
+        // calls the game's own start entry. Without that a game sits at
+        // its title however long the button is held.
+        //
+        // Here rather than in the frame interrupt because this is what a
+        // game actually calls: Metal Slug 2 comes through here once a
+        // frame and reaches SYSTEM_INT1 nineteen times in three thousand
+        // frames.
+        if (m_startLatch && (m_userRequest == 2) && !m_userDelay)
+        {
+            uint8_t* ram = neocd->memory.ram;
+            ram[BIOS_PLAYER_MOD] = static_cast<uint8_t>(m_startLatch & 0x03);
+            m_startLatch = 0;
+
+            // Called, not jumped to: what it returns to is the
+            // instruction that returns from this call.
+            uint32_t sp = m68k_get_reg(nullptr, M68K_REG_SP) - 4;
+            m68k_write_memory_32(sp, SYSTEM_IO + 2);
+            m68k_set_reg(M68K_REG_SP, sp);
+            m68k_set_reg(M68K_REG_PC, PLAYER_START);
+        }
         return 1;
 
     case SYSTEM_INT1:
