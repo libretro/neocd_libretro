@@ -76,7 +76,7 @@ public:
     inline void appendSample(const Sample& sample)
     {
         // TODO: Remove this
-        if (writePointer > YM_BUFFER_SIZE)
+        if (writePointer >= YM_BUFFER_SIZE)
             std::abort();
 
         ymSamples[writePointer] = sample;
@@ -106,6 +106,13 @@ public:
 
     int32_t masterCyclesThisFrameToSampleClamped(int32_t cycles) const
     {
+        // With no samples this frame there is no valid index to return, and
+        // sampleCount - 1 would wrap to a huge value (then to -1 as int32),
+        // giving std::clamp a hi < lo and the caller cdSamples[-1]. Clamp to
+        // the first sample instead.
+        if (!sampleCount)
+            return 0;
+
         return std::clamp(masterCyclesThisFrameToSample(cycles), int32_t(0), static_cast<int32_t>(sampleCount - 1));
     }
 
