@@ -366,12 +366,21 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     }
     else if (ext == "PCM")
     {
-        // The bank is not an address here. Boot lists pair a bank of 1
-        // with offsets that already run the length of the area - SND_00
-        // at 0 and SND_0C at 0x80000, both bank 1 - so the offset alone
-        // addresses the megabyte and adding the bank would run past it.
+        // Sample memory is addressed through a window that counts two
+        // bytes of address to one of data, and the bank picks which half
+        // megabyte the window sits over - the same arithmetic the mapped
+        // path does when a game reaches this memory itself. So the offset
+        // asked for is halved and the bank adds half a megabyte:
+        //
+        //   JOCHU.PCM   bank 0  offset 0        -> 0x00000
+        //   SND_00.PCM  bank 1  offset 0        -> 0x80000
+        //   SND_0C.PCM  bank 1  offset 0x80000  -> 0xC0000
+        //
+        // which is where a real BIOS puts them. Taking the offset at
+        // face value put samples over the top of each other, quietly.
         destination = neocd->memory.pcmRam;
         capacity = Memory::PCMRAM_SIZE;
+        offset = (offset >> 1) + ((entry.bank & 1) * 0x80000);
     }
     else if (ext == "PAT")
     {
