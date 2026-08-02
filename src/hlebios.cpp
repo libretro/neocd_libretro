@@ -125,6 +125,7 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_SET_MODE, OP_RTS);
     entryPoint(rom, CD_QUIET_1, OP_RTS);
     entryPoint(rom, CD_UPLOAD, OP_RTS);
+    entryPoint(rom, CD_STREAM_START, OP_RTS);
     entryPoint(rom, CD_WAIT, OP_RTS);
     entryPoint(rom, CD_QUIET_2, OP_RTS);
     entryPoint(rom, FRAME_UPDATE, OP_RTS);
@@ -643,6 +644,26 @@ int HleBios::trap(uint32_t pc)
         m68k_set_reg(M68K_REG_D0, 0x0000B000);
         return 1;
 
+    case CD_STREAM_START:
+        // The state a BIOS establishes here, without the streaming it
+        // goes on to do. A game that reaches this and gets no answer
+        // stops; one that gets the flags carries on, though whatever it
+        // expected to be streamed will not arrive.
+        {
+            uint8_t* ram = neocd->memory.ram;
+            ram[0x10FDDC] = 0x01;
+            ram[0x10FDDD] = 0x00;
+            ram[0x10FE88] = 0x00;
+            ram[0x10F6DB] = 0x01;
+            ram[0x10FEC4] = 0x01;
+            for (uint32_t i = 0; i < 4; ++i)
+            {
+                ram[0x10F742 + i] = 0x00;
+                ram[0x10F746 + i] = 0x00;
+            }
+        }
+        return 1;
+
     case CD_UPLOAD:
         // Watched under a real BIOS: it works through the CD interface
         // registers and leaves these two set, returning 0x20. What it
@@ -743,25 +764,18 @@ int HleBios::trap(uint32_t pc)
         }
         return 1;
 
-    case CREDIT_DOWN:
     case READ_CALENDAR:
     case SETUP_CALENDAR:
     case HOW_TO_PLAY:
     case CHECKSUM:
-        // Reached but not implemented. Say so once per address so a
-        // missing routine is visible rather than silent.
-        {
-            static uint32_t reported[32] = { 0 };
-            static size_t reportedCount = 0;
-            bool seen = false;
-            for (size_t i = 0; i < reportedCount; ++i)
-                if (reported[i] == pc) { seen = true; break; }
-            if (!seen && (reportedCount < 32))
-            {
-                reported[reportedCount++] = pc;
-                Libretro::Log::message(RETRO_LOG_WARN, "HLE BIOS: unimplemented call at 0x%06X\n", pc);
-            }
-        }
+        // Nothing to implement: in a BIOS these slots reach a bare rts.
+        // Answering them with a return is not a stand-in for the real
+        // routine, it is the real routine.
+        return 1;
+
+    case CREDIT_DOWN:
+        // Reaches a routine that looks at the arcade flag first and
+        // returns when it is clear, which it is on a console.
         return 1;
 
     default:

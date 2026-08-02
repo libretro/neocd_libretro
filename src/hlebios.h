@@ -107,6 +107,11 @@ public:
 
     // Works through the CD interface registers; only its effect on BIOS
     // RAM and its return value are reproduced, not what it transfers.
+    // Starts CD streaming: sets its flags, zeroes two counters and
+    // takes over the level 2 vector. Only the flags and counters are
+    // reproduced - what it goes on to stream is not.
+    static constexpr uint32_t CD_STREAM_START = 0xC00552;
+
     static constexpr uint32_t CD_UPLOAD      = 0xC004C2;
 
     // Spends thousands of instructions and changes nothing any game can
