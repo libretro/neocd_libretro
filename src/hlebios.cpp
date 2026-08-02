@@ -461,7 +461,24 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     // drive rather than the data needs that time to pass, so it is
     // counted here and let run down a frame at a time, without holding
     // the data up.
-    m_busyFrames += static_cast<uint32_t>(((data.size() + 2047) / 2048) * 60 / 75) + 1;
+    // The data is here at once either way. What can be counted is the
+    // time a drive would have spent fetching it - some games watch the
+    // drive rather than the data, and want to see it busy for a moment
+    // afterwards. Skip CD Loading turns that off, which is how this
+    // behaved before there was a count at all.
+    //
+    // Capped either way, and the cap is the point: a drive really would
+    // take half a minute over a boot load, but on hardware a game is not
+    // running while that happens. Here it is, and already showing its
+    // title, so counting the whole of it meant Metal Slug 2 ignoring
+    // start for twenty-five seconds after it had finished loading.
+    if (!globals.skipCDLoading)
+    {
+        m_busyFrames += static_cast<uint32_t>(((data.size() + 2047) / 2048) * 60 / 75) + 1;
+
+        if (m_busyFrames > 90)
+            m_busyFrames = 90;
+    }
 
     Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> %s+0x%X\n",
         entry.name.c_str(), data.size(), ext.c_str(), offset);
