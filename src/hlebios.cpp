@@ -414,7 +414,7 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     if ((capacity & (capacity - 1)) == 0)
         offset &= static_cast<uint32_t>(capacity - 1);
 
-    if ((offset >= capacity) || ((offset + data.size()) > capacity))
+    if (data.size() > capacity)
     {
         Libretro::Log::message(RETRO_LOG_ERROR,
             "HLE BIOS: %s does not fit at 0x%X (%zu bytes into %zu).\n",
@@ -422,7 +422,18 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
         return false;
     }
 
-    std::memcpy(destination + offset, data.data(), data.size());
+    // Data that runs off the end comes round to the front, for the same
+    // reason a bank past the end does: the address is masked on every
+    // access, so an area behaves as a ring rather than as something with
+    // an end to fall off. King of Fighters '99 puts 320K of samples at
+    // 0xC0000 in a megabyte and expects the tail at the bottom.
+    size_t first = capacity - offset;
+    if (first > data.size())
+        first = data.size();
+
+    std::memcpy(destination + offset, data.data(), first);
+    if (first < data.size())
+        std::memcpy(destination, data.data() + first, data.size() - first);
 
     Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> %s+0x%X\n",
         entry.name.c_str(), data.size(), ext.c_str(), offset);
