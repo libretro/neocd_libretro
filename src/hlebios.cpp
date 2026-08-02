@@ -570,13 +570,11 @@ void HleBios::initBiosRam()
     ram[BIOS_SYSTEM_MODE] = 0x00;   /* a game says what mode it is in; set per request in callUser */
     ram[BIOS_GAME_DIP]  = 0x00;
 
-    // The sound CPU is held in reset while a real BIOS loads and is
-    // started before the game runs. A game with a Z80 program on the
-    // disc expects it to be answering by then.
-    neocd->z80Disable = false;
+    // The sound CPU stays in reset here. A BIOS holds it down while it
+    // loads and lets it go on its way into the game, which is where
+    // this lets it go too.
+    neocd->z80Disable = true;
     neocd->z80NMIDisable = false;
-    z80_reset();
-    YM2610Reset();
 
     // The display is off while a real BIOS is loading and it turns it
     // back on before handing over. A game does not do that for itself,
@@ -641,6 +639,16 @@ void HleBios::callUser(uint8_t request)
     // the game proper also means saying so in the mode byte and clearing
     // the two longs beside it, which is state a game reads back and was
     // being left at zero here.
+    // Let the sound CPU go. A BIOS does this on its way in, after the
+    // program a game loaded is in place - starting it earlier leaves it
+    // running whatever was in that memory before.
+    if (request == 2)
+    {
+        neocd->z80Disable = false;
+        z80_reset();
+        YM2610Reset();
+    }
+
     // The mode byte carries the request with the top bit set.
     ram[BIOS_SYSTEM_MODE] = static_cast<uint8_t>(request | 0x80);
 
