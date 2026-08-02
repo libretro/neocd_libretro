@@ -538,7 +538,25 @@ void HleBios::pollInput()
 
 void HleBios::callUser(uint8_t request)
 {
-    neocd->memory.ram[BIOS_USER_REQUEST] = request;
+    uint8_t* ram = neocd->memory.ram;
+
+    // A BIOS sets more than the request before it hands over. Asking for
+    // the game proper also means saying so in the mode byte and clearing
+    // the two longs beside it, which is state a game reads back and was
+    // being left at zero here.
+    if (request == 2)
+    {
+        ram[BIOS_USER_MODE] = 0x01;
+        ram[0x10FEE1] = 0x0A;
+        ram[0x10F675] = 0x01;
+        for (uint32_t i = 0; i < 4; ++i)
+        {
+            ram[0x10FDB6 + i] = 0x00;
+            ram[0x10FDBA + i] = 0x00;
+        }
+    }
+
+    ram[BIOS_USER_REQUEST] = request;
 
     // Entered with the stack exactly where a real BIOS leaves it. That
     // matters: a game gives control back by jumping to SYSTEM_RETURN
