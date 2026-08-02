@@ -471,7 +471,7 @@ void HleBios::initBiosRam()
 
     ram[BIOS_MVS_FLAG]  = 0x00;   // a home console, not an arcade board
     ram[BIOS_COUNTRY]   = 0x00;   // Japan
-    ram[BIOS_SYSTEM_MODE] = 0x82;
+    ram[BIOS_SYSTEM_MODE] = 0x00;   /* a game says what mode it is in; set per request in callUser */
     ram[BIOS_GAME_DIP]  = 0x00;
 
     // The sound CPU is held in reset while a real BIOS loads and is
@@ -544,6 +544,9 @@ void HleBios::callUser(uint8_t request)
     // the game proper also means saying so in the mode byte and clearing
     // the two longs beside it, which is state a game reads back and was
     // being left at zero here.
+    // The mode byte carries the request with the top bit set.
+    ram[BIOS_SYSTEM_MODE] = static_cast<uint8_t>(request | 0x80);
+
     if (request == 2)
     {
         ram[BIOS_USER_MODE] = 0x01;
@@ -571,9 +574,10 @@ void HleBios::callUser(uint8_t request)
     m68k_write_memory_32(0x0010F300, USER_RETURN);
     m68k_set_reg(M68K_REG_SP, 0x0010F300);
 
-    // Supervisor, interrupts allowed: the vertical blank is what drives
-    // a game once it is running.
-    m68k_set_reg(M68K_REG_SR, 0x2000);
+    // Entered with interrupts masked. A game opens them itself once it
+    // has its handlers in place; letting a vertical blank in before
+    // that means running its handler before it is ready for one.
+    m68k_set_reg(M68K_REG_SR, 0x2700);
 
     m68k_set_reg(M68K_REG_PC, USER_VECTOR);
 }
