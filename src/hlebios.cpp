@@ -813,6 +813,14 @@ void HleBios::callUser(uint8_t request)
         YM2610Reset();
     }
 
+    // Anything pressed before now was pressed while a real machine would
+    // still have been reading the disc, with no game running to see it.
+    // Here the disc is read in no time, so those presses would otherwise
+    // arrive the instant the game starts and start it again - which is
+    // what King of Fighters '99 was doing to itself, going in-game
+    // before its intro and sitting there.
+    m_startLatch = 0;
+
     // The mode byte carries the request with the top bit set.
     ram[BIOS_SYSTEM_MODE] = static_cast<uint8_t>(request | 0x80);
 
