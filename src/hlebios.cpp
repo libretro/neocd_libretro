@@ -330,10 +330,18 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
 
     // Which memory a file goes to is decided by its extension; the real
     // BIOS picks the upload target the same way.
+    // The version a disc puts after a semicolon is not part of the name,
+    // and it is not part of the extension either - leaving it on turns
+    // FIX into FIX;1 and the file goes nowhere.
+    std::string bare = entry.name;
+    size_t version = bare.find(';');
+    if (version != std::string::npos)
+        bare = bare.substr(0, version);
+
     std::string ext;
-    size_t dot = entry.name.rfind('.');
+    size_t dot = bare.rfind('.');
     if (dot != std::string::npos)
-        ext = entry.name.substr(dot + 1);
+        ext = bare.substr(dot + 1);
     std::transform(ext.begin(), ext.end(), ext.begin(), ::toupper);
 
     uint8_t* destination = nullptr;
