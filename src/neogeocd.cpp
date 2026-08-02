@@ -307,9 +307,19 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     // M68K
     in >> m68ki_cpu;
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
+    // The whole core struct is restored from the state, including its host
+    // callback pointers. m68k_set_cpu_type above already restores the two
+    // cycle-table pointers; clear every callback so a stale or hostile state
+    // can never leave one pointing at an address of its choosing. The four
+    // in the middle are unused in this build's config, but are cleared too
+    // so enabling one later cannot turn a restore into an arbitrary call.
     m68ki_cpu.int_ack_callback = nullptr;
     m68ki_cpu.bkpt_ack_callback = nullptr;
     m68ki_cpu.reset_instr_callback = nullptr;
+    m68ki_cpu.cmpild_instr_callback = nullptr;
+    m68ki_cpu.rte_instr_callback = nullptr;
+    m68ki_cpu.tas_instr_callback = nullptr;
+    m68ki_cpu.illg_instr_callback = nullptr;
     m68ki_cpu.pc_changed_callback = nullptr;
     m68ki_cpu.set_fc_callback = nullptr;
     m68ki_cpu.instr_hook_callback = nullptr;
