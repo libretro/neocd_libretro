@@ -38,7 +38,6 @@ extern "C" {
 
 int neocd_get_vector(int level);
 int neocd_illegal_handler(int instruction);
-void neocd_instr_hook(unsigned int pc);
 
 #ifdef __cplusplus
 }
@@ -172,8 +171,8 @@ void neocd_instr_hook(unsigned int pc);
 /* If ON, CPU will call the instruction hook callback before every
  * instruction.
  */
-#define M68K_INSTRUCTION_HOOK       OPT_SPECIFY_HANDLER
-#define M68K_INSTRUCTION_CALLBACK(pc) neocd_instr_hook(pc)
+#define M68K_INSTRUCTION_HOOK       OPT_OFF
+#define M68K_INSTRUCTION_CALLBACK(pc) your_instruction_hook_function(pc)
 
 
 /* If ON, the CPU will emulate the 4-byte prefetch queue of a real 68000 */

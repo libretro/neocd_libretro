@@ -1,5 +1,3 @@
-#include <cstdlib>
-#include <cstdio>
 /***************************************************************************
 
   ym2610.c
@@ -3032,30 +3030,6 @@ void YM2610Reset(void)
 /* v = value   */
 int YM2610Write(int a, UINT8 v)
 {
-    {
-        static unsigned counts[4][256];
-        static int reg[4] = { 0, 0, 0, 0 };
-        static bool armed = false;
-        if (!armed && getenv("YMLOG"))
-        {
-            armed = true;
-            static unsigned (*c)[256] = counts;
-            atexit([](){ fprintf(stderr, "ym: adpcmA_keyon=%u\n", c[3][0x00]); });
-        }
-        if (armed)
-        {
-            extern uint32_t g_ymFrame;
-            int port2 = a & 3;
-            static int r2[4] = {0,0,0,0};
-            if (!(port2 & 1)) r2[port2] = v;
-            else if (port2 == 3 && (r2[3] & 0xFF) == 0x00 && !(v & 0x80))
-                fprintf(stderr, "keyon at frame %u\n", g_ymFrame);
-        }
-        int port = a & 3;
-        if (!(port & 1)) reg[port] = v;
-        else counts[port][reg[port] & 0xFF]++;
-    }
-
 	FM_OPN *OPN = &YM2610.OPN;
 	int addr;
 	int ch;

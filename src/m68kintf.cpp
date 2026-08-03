@@ -1,8 +1,6 @@
 #include "3rdparty/musashi/m68k.h"
 #include "hlebios.h"
 #include <cstdlib>
-#include <cstdlib>
-#include <cstdio>
 #include "libretro_common.h"
 #include "libretro_log.h"
 #include "m68kintf.h"
@@ -142,22 +140,6 @@ extern "C"
         }
 
         return vector;
-    }
-
-    static uint32_t g_tr[8000000]; static uint32_t g_trN = 0; static int g_on = 0;
-    static void g_trDump(void)
-    { const char* o = getenv("TRACE"); if (!o) return;
-      FILE* f = fopen(o, "wb"); if (f) { fwrite(g_tr, 4, g_trN, f); fclose(f); } }
-    void neocd_instr_hook(unsigned int pc)
-    {
-        if (!getenv("TRACE")) return;
-        if (!g_on) { if (pc != 0x00000122) return; g_on = 1;
-            static bool o=false; if(!o){o=true; atexit(g_trDump);} }
-        if (g_trN < 8000000)
-        {
-            uint32_t sr = m68k_get_reg(nullptr, M68K_REG_SR);
-            g_tr[g_trN++] = (pc & 0x00FFFFFF) | (((sr >> 8) & 7) << 28);
-        }
     }
 
     int neocd_illegal_handler(int instruction)

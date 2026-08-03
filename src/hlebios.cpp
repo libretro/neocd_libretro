@@ -150,22 +150,6 @@ void HleBios::buildRom(uint8_t* rom)
     // rather than reproduced: a game indexes the table with a counter
     // and wants a different answer each time it looks.
     {
-        {
-            const char* probe = getenv("REALRAND");
-            if (probe)
-            {
-                FILE* f = fopen(probe, "rb");
-                if (f)
-                {
-                    fseek(f, 0x4200, SEEK_SET);
-                    if (fread(rom + (RANDOM_TABLE - ROM_BASE), 1, RANDOM_TABLE_SIZE, f)
-                        == RANDOM_TABLE_SIZE)
-                    { fclose(f); return; }
-                    fclose(f);
-                }
-            }
-        }
-
         // What sits at 0xC04200 in a BIOS is not a stream of random
         // bytes: it is the values 0 to 255 each appearing exactly once,
         // dealt out in a scrambled order. Games read it directly - one

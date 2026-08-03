@@ -246,11 +246,8 @@ void retro_reset(void)
     neocd->reset();
 }
 
-uint32_t g_ymFrame = 0;
-
 void retro_run(void)
 {
-    ++g_ymFrame;
     // Update variables
     bool updated = false;
     if (libretro.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
