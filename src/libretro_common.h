@@ -56,6 +56,9 @@ struct Globals
     // Should we patch the BIOS to lower CPU usage during loading
     bool cdSpeedHack{ false };
 
+    // Pixels of horizontal overscan hidden on each side of the picture
+    uint32_t overscanH{ 8 };
+
     bool perContentSaves{ false };
 };
 

@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <vector>
 
 #include "libretro_bios.h"
@@ -5,6 +6,7 @@
 #include "libretro_variables.h"
 #include "libretro.h"
 #include "neogeocd.h"
+#include "video.h"
 
 // Variable names for the settings
 static const char* const REGION_VARIABLE = "neocd_region";
@@ -12,6 +14,7 @@ static const char* const BIOS_VARIABLE = "neocd_bios";
 static const char* const SPEEDHACK_VARIABLE = "neocd_cdspeedhack";
 static const char* const LOADSKIP_VARIABLE = "neocd_loadskip";
 static const char* const PER_CONTENT_SAVES_VARIABLE = "neocd_per_content_saves";
+static const char* const OVERSCAN_H_VARIABLE = "neocd_overscan_h";
 
 static const char* const CATEGORY_SYSTEM = "system";
 static const char* const CATEGORY_VIDEO = "video";
@@ -25,7 +28,7 @@ static std::vector<retro_core_option_v2_definition> coreOptionDefinitions;
 
 static retro_core_option_v2_category coreOptionCategories[] = {
     { CATEGORY_SYSTEM, "System", nullptr },
-    //{ CATEGORY_VIDEO, "Video", nullptr },
+    { CATEGORY_VIDEO, "Video", nullptr },
     //{ CATEGORY_AUDIO, "Audio", nullptr },
     //{ CATEGORY_INPUT, "Input", nullptr },
     { CATEGORY_ADVANCED, "Advanced", nullptr },
@@ -115,6 +118,7 @@ static void buildLegacyVariables()
     if (globals.biosList.size())
         variables.emplace_back(retro_variable{ BIOS_VARIABLE, globals.biosChoices.c_str() });
 
+    variables.emplace_back(retro_variable{ OVERSCAN_H_VARIABLE, "Horizontal Overscan Mask; 8|4|0|12|16" });
     variables.emplace_back(retro_variable{ SPEEDHACK_VARIABLE, "CD Speed Hack; On|Off" });
     variables.emplace_back(retro_variable{ LOADSKIP_VARIABLE, "Skip CD Loading; On|Off" });
     variables.emplace_back(retro_variable{ PER_CONTENT_SAVES_VARIABLE, "Per-Game Saves (Restart); Off|On" });
@@ -138,6 +142,10 @@ static void buildCoreOptionsV2()
         fillBiosOption(option);
         coreOptionDefinitions.emplace_back(option);
     }
+
+    const char* const overscanValues[] = { "8", "4", "0", "12", "16" };
+    fillBasicOption(option, OVERSCAN_H_VARIABLE, "Horizontal Overscan Mask", CATEGORY_VIDEO, "8", overscanValues, 5);
+    coreOptionDefinitions.emplace_back(option);
 
     const char* const onOffValues[] = { "On", "Off" };
     fillBasicOption(option, SPEEDHACK_VARIABLE, "CD Speed Hack", CATEGORY_ADVANCED, "On", onOffValues, 2);
@@ -207,6 +215,31 @@ void Libretro::Variables::update(bool needReset)
             globals.biosIndex = index;
             Libretro::Bios::load();
             needReset = true;
+        }
+    }
+
+    var.value = NULL;
+    var.key = OVERSCAN_H_VARIABLE;
+
+    if (libretro.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        uint32_t newValue = static_cast<uint32_t>(atoi(var.value));
+
+        if (newValue > 16)
+            newValue = 16;
+
+        if (globals.overscanH != newValue)
+        {
+            globals.overscanH = newValue;
+
+            struct retro_game_geometry geometry;
+            geometry.base_width = Video::FRAMEBUFFER_WIDTH - (globals.overscanH * 2);
+            geometry.base_height = Video::FRAMEBUFFER_HEIGHT;
+            geometry.max_width = Video::FRAMEBUFFER_WIDTH;
+            geometry.max_height = Video::FRAMEBUFFER_HEIGHT;
+            geometry.aspect_ratio = Video::ASPECT_RATIO;
+
+            libretro.environment(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
         }
     }
 

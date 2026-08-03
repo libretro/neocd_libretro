@@ -96,7 +96,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
     info->timing.fps = Timer::FRAME_RATE;
     info->timing.sample_rate = static_cast<double>(Audio::SAMPLE_RATE);
-    info->geometry.base_width = Video::FRAMEBUFFER_WIDTH;
+    info->geometry.base_width = Video::FRAMEBUFFER_WIDTH - (globals.overscanH * 2);
     info->geometry.base_height = Video::FRAMEBUFFER_HEIGHT;
     info->geometry.max_width = Video::FRAMEBUFFER_WIDTH;
     info->geometry.max_height = Video::FRAMEBUFFER_HEIGHT;
@@ -276,7 +276,10 @@ void retro_run(void)
 
     // Send audio and video to the frontend
     libretro.audioBatch(reinterpret_cast<const int16_t*>(&neocd->audio.buffer.ymSamples[0]), neocd->audio.buffer.sampleCount);
-    libretro.video(neocd->video.frameBuffer, Video::FRAMEBUFFER_WIDTH, Video::FRAMEBUFFER_HEIGHT, Video::FRAMEBUFFER_WIDTH * sizeof(uint16_t));
+    libretro.video(neocd->video.frameBuffer + globals.overscanH,
+                   Video::FRAMEBUFFER_WIDTH - (globals.overscanH * 2),
+                   Video::FRAMEBUFFER_HEIGHT,
+                   Video::FRAMEBUFFER_WIDTH * sizeof(uint16_t));
 }
 
 void retro_init(void)
