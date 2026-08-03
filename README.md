@@ -22,7 +22,7 @@ NeoCD would not have been possible without the following people generously shari
 * Juergen Buchmueller - Z80 Emulation Core
 * Jarek Burczynski & Tatsuyuki Satoh - YM2610 Emulation Core
 * [The MAME Development Team](http://www.mamedev.org/) - MAME, an invaluable source of knowledge about arcade machines.
-* Romain Tisserand - libchdr (https://github.com/rtissera/libchdr)
+* [The libretro Team](https://github.com/libretro/libretro-common) - libretro-common, which provides the CHD, FLAC, Ogg Vorbis, WAV, MP3 and archive readers
 
 ## Installation
 
@@ -34,9 +34,9 @@ Copy the `libneocd_libretro` library to `RetroArch/cores`.
 
 Copy `neocd_libretro.info` to folder `RetroArch/info`
 
-### Required BIOS Files
+### BIOS Files
 
-To function NeoCD need a BIOS from a Front Loading, Top Loading or CDZ machine. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder. NeoCD will look for any .bin or .rom file in the `neocd` folder and any folder under it. It will also look into .zip archives. BIOS files are identified by contents so the name of the files don't matter. File hashes do not matter either.
+NeoCD runs best with a BIOS from a Front Loading, Top Loading or CDZ machine. If no BIOS file is found, the core falls back to a built-in high level BIOS: games boot instantly and many run well, but it is a work in progress and an original BIOS remains the most compatible choice. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder. NeoCD will look for any .bin or .rom file in the `neocd` folder and any folder under it. It will also look into .zip archives. BIOS files are identified by contents so the name of the files don't matter. File hashes do not matter either.
 
 #### BIOS
 
@@ -62,9 +62,9 @@ The files will be automatically byte swapped if needed.
 
 In the era of modern computers and portable devices, CD-ROMs are no longer convenient. Additionally I believe it is not possible to read the TOC of protected games without special drivers. As a result, NeoCD now exclusively run using CD-ROM images.
 
-NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can be either of "single file" type (CUE, BIN) or "multiple files" type (CUE,ISO,[WAV/FLAC/OGG]).
+NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can be either of "single file" type (CUE, BIN) or "multiple files" type (CUE,ISO,[WAV/FLAC/OGG/MP3]).
 
-> **&#127926; Supported audio formats are:** Wave (.wav), FLAC (.flac) or Ogg Vorbis (.ogg)
+> **&#127926; Supported audio formats are:** Wave (.wav), FLAC (.flac), Ogg Vorbis (.ogg) or MP3 (.mp3)
 
 ### The Core Options Menu
 
@@ -78,15 +78,12 @@ NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can
 ### Project Dependencies
 
 * A C++11 compiler
-* libFLAC
-* libogg
-* libvorbis
-* zlib
 * MSYS2 (Windows)
+
+Everything else the core needs, including the CHD and audio format readers, is vendored in `deps/libretro-common`.
 
 ### Compiling
 
-* Make sure the development packages for libFLAC, libogg and libvorbis are installed.
 * Eventually, edit the CFLAGS in `Makefile` to suit your platform (Raspberry Pi...)
 * Build: `make -j 4`
 * Copy the resulting library in `RetroArch/cores`
