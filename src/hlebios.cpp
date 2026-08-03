@@ -419,21 +419,71 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     }
     else if (ext == "PAT")
     {
-        // Palette data. It is kept as native words rather than the
-        // stream's big-endian, and the video keeps a converted copy of
-        // every colour, so this cannot be a plain copy like the rest.
-        size_t colours = data.size() / 2;
-        if (colours > (Memory::PALETTERAM_SIZE / 2))
-            colours = Memory::PALETTERAM_SIZE / 2;
+        // Not palette data, which is what this loader used to make of
+        // the extension. A .PAT file rides alongside a .PCM file and
+        // patches the sound driver: the driver's sample tables were
+        // written for the cartridge's sample ROM, and every sample now
+        // sits wherever the CD version's files were loaded instead. Each
+        // ten byte record names a spot in the driver and the sample's
+        // place within the sibling file:
+        //
+        //   [where in the driver][start][end][second start][second end]
+        //
+        // all big-endian, offsets in file bytes - two of which make one
+        // sample byte, the same halving the PCM load does. What lands in
+        // the driver is little-endian, in 256 byte units, with the
+        // sibling's load address added on and the end made inclusive.
+        // The first pair goes at the named address; the second, when it
+        // is not zeroes, five bytes further on - the driver keeps a byte
+        // of its own between them. Read out of a real run rather than
+        // guessed: JOCHU.PAT says put 0090..011C at 4D0C twice over, and
+        // a real BIOS leaves 0048 008D at both 4D0C and 4D11.
+        //
+        // With these skipped, a driver asked for a song looked up its
+        // notes at cartridge addresses and found nothing to play: the
+        // same command that keys sixty-five notes under a real BIOS
+        // keyed none here.
+        uint32_t base = (((entry.bank & 1) * 0x80000) + (entry.offset >> 1)) >> 8;
 
-        for (size_t i = 0; i < colours; ++i)
+        for (size_t at = 0; at + 10 <= data.size(); at += 10)
         {
-            uint16_t colour = static_cast<uint16_t>((data[i * 2] << 8) | data[i * 2 + 1]);
-            neocd->memory.paletteRam[i] = colour;
-            neocd->video.convertColor(static_cast<uint32_t>(i));
+            uint32_t where = (static_cast<uint32_t>(data[at]) << 8) | data[at + 1];
+
+            // A record of zeroes separates sections and pads the file
+            // out; it is not the end of the list. The first attempt here
+            // treated it as data and wrote over the driver's entry
+            // point; the second treated it as the end and dropped every
+            // record after the first section. It is neither: skip it.
+            if ((where == 0x0000) || (where == 0xFFFF))
+                continue;
+
+            for (int half = 0; half < 2; ++half)
+            {
+                size_t f = at + 2 + (half * 4);
+                uint32_t start = (static_cast<uint32_t>(data[f]) << 8) | data[f + 1];
+                uint32_t end   = (static_cast<uint32_t>(data[f + 2]) << 8) | data[f + 3];
+                uint32_t spot = where + (half * 5);
+
+                if (half && !start && !end)
+                    break;
+
+                uint32_t startValue = base + (start >> 1);
+                uint32_t endValue = base + (end >> 1);
+
+                if (endValue)
+                    endValue--;
+
+                if ((spot + 3) < Memory::Z80RAM_SIZE)
+                {
+                    neocd->memory.z80Ram[spot]     = static_cast<uint8_t>(startValue);
+                    neocd->memory.z80Ram[spot + 1] = static_cast<uint8_t>(startValue >> 8);
+                    neocd->memory.z80Ram[spot + 2] = static_cast<uint8_t>(endValue);
+                    neocd->memory.z80Ram[spot + 3] = static_cast<uint8_t>(endValue >> 8);
+                }
+            }
         }
 
-        Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> PAL\n",
+        Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: applied %-15s %7zu bytes -> Z80 driver\n",
             entry.name.c_str(), data.size());
         return true;
     }
