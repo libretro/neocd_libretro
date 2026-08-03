@@ -1346,35 +1346,53 @@ int HleBios::trap(uint32_t pc)
 
             if (type == 5)
             {
+                // The records are the .PAT format to the byte: ten each,
+                // a spot in the driver, a start and an end, then a
+                // second pair that goes five bytes past the first when
+                // it is not zeroes. A six byte reading of them took each
+                // record's empty second pair for the end of the list,
+                // so of a character's whole map one record in each
+                // upload landed - which is why a battle had exactly one
+                // effect, the landing thud, and nothing else.
                 uint32_t base = ((static_cast<uint32_t>(ram[0x10FEDB] & 1) << 20)
                               | (destination & 0xFFFFF)) >> 8;
 
-                for (uint32_t at = 0; (at + 6) <= length; at += 6)
+                for (uint32_t at = 0; (at + 10) <= length; at += 10)
                 {
                     uint32_t where = m68k_read_memory_16(source + at);
 
-                    if (!where)
-                        break;
+                    if ((where == 0x0000) || (where == 0xFFFF))
+                        continue;
 
-                    uint32_t startValue = (m68k_read_memory_16(source + at + 2) + base) >> 1;
-                    uint32_t endValue = (m68k_read_memory_16(source + at + 4) + base) >> 1;
-
-                    if (endValue)
-                        endValue--;
-
-                    if ((where + 3) < Memory::Z80RAM_SIZE)
+                    for (int half = 0; half < 2; ++half)
                     {
-                        neocd->memory.z80Ram[where]     = static_cast<uint8_t>(startValue);
-                        neocd->memory.z80Ram[where + 1] = static_cast<uint8_t>(startValue >> 8);
-                        neocd->memory.z80Ram[where + 2] = static_cast<uint8_t>(endValue);
-                        neocd->memory.z80Ram[where + 3] = static_cast<uint8_t>(endValue >> 8);
+                        uint32_t f = at + 2 + (half * 4);
+                        uint32_t start = m68k_read_memory_16(source + f);
+                        uint32_t end   = m68k_read_memory_16(source + f + 2);
+                        uint32_t spot = where + (half * 5);
+
+                        if (half && !start && !end)
+                            break;
+
+                        uint32_t startValue = (start + base) >> 1;
+                        uint32_t endValue = (end + base) >> 1;
+
+                        if (endValue)
+                            endValue--;
+
+                        if ((spot + 3) < Memory::Z80RAM_SIZE)
+                        {
+                            neocd->memory.z80Ram[spot]     = static_cast<uint8_t>(startValue);
+                            neocd->memory.z80Ram[spot + 1] = static_cast<uint8_t>(startValue >> 8);
+                            neocd->memory.z80Ram[spot + 2] = static_cast<uint8_t>(endValue);
+                            neocd->memory.z80Ram[spot + 3] = static_cast<uint8_t>(endValue >> 8);
+                        }
                     }
                 }
 
                 m68k_write_memory_32(0x0010FEFC, 0);
                 return 1;
             }
-
             // How the copy goes depends on the area, read out of the two
             // transfer programs a real BIOS hands its DMA engine. The
             // byte areas - fix, sound program, samples - take one source
