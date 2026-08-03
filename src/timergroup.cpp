@@ -89,26 +89,53 @@ void drawlineTimerCallback(Timer* timer, uint32_t userData)
 
     const uint32_t scanline = neocd->getScreenY();
 
-    // Video content is generated between scanlines 16 and 240, see timer.h
-    if ((scanline >= Timer::ACTIVE_AREA_TOP) && (scanline < Timer::ACTIVE_AREA_BOTTOM))
+    if (!neocd->fastForward)
     {
-        if (!neocd->fastForward)
+        /* The video chip builds a line's sprites two lines before it
+           shows them, into one of a pair of line buffers, and what a
+           game writes to its sprites mid-frame lands on screen with
+           that delay. Sprites are drawn here when the chip would draw
+           them; the fix layer and the backdrop belong to the displayed
+           line. A flag per buffer remembers whether the line ahead was
+           built at all - video switched on within those two lines
+           shows the backdrop, as the chip's empty buffer would.
+        */
+        static bool builtAhead[2] = { false, false };
+
+        // What the displayed line shows.
+        if ((scanline >= Timer::ACTIVE_AREA_TOP) && (scanline < Timer::ACTIVE_AREA_BOTTOM))
         {
             if (neocd->video.videoEnable)
             {
-                neocd->video.drawEmptyLine(scanline);
-
-                if (!neocd->video.sprDisable)
-                {
-                    const size_t address = (scanline & 1) ? 0x8680 : 0x8600;
-                    neocd->video.renderScanlineSprites(scanline, &neocd->memory.videoRam[address]);
-                }
+                if (!builtAhead[scanline & 1])
+                    neocd->video.drawEmptyLine(scanline);
 
                 if (!neocd->video.fixDisable)
                     neocd->video.drawFix(scanline);
             }
             else
                 neocd->video.drawBlackLine(scanline);
+        }
+
+        // What the chip builds ahead.
+        const uint32_t renderLine = scanline + 2;
+
+        if ((renderLine >= Timer::ACTIVE_AREA_TOP) && (renderLine < Timer::ACTIVE_AREA_BOTTOM))
+        {
+            if (neocd->video.videoEnable)
+            {
+                neocd->video.drawEmptyLine(renderLine);
+
+                if (!neocd->video.sprDisable)
+                {
+                    const size_t address = (renderLine & 1) ? 0x8680 : 0x8600;
+                    neocd->video.renderScanlineSprites(renderLine, &neocd->memory.videoRam[address]);
+                }
+
+                builtAhead[renderLine & 1] = true;
+            }
+            else
+                builtAhead[renderLine & 1] = false;
         }
     }
 
