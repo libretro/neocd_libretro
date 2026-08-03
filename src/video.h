@@ -45,8 +45,7 @@ public:
 
     void drawFix(uint32_t scanline);
 
-    uint16_t createSpriteList(uint32_t scanline, uint16_t *spriteList) const;
-    void drawSprites(uint32_t scanline, uint16_t *spriteList, uint16_t spritesToDraw);
+    uint16_t renderScanlineSprites(uint32_t scanline, uint16_t *spriteList);
     void drawSprite(uint32_t spriteNumber,
                     uint32_t x,
                     uint32_t y,

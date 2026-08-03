@@ -101,8 +101,7 @@ void drawlineTimerCallback(Timer* timer, uint32_t userData)
                 if (!neocd->video.sprDisable)
                 {
                     const size_t address = (scanline & 1) ? 0x8680 : 0x8600;
-                    uint16_t activeSprites = neocd->video.createSpriteList(scanline, &neocd->memory.videoRam[address]);
-                    neocd->video.drawSprites(scanline, &neocd->memory.videoRam[address], activeSprites);
+                    neocd->video.renderScanlineSprites(scanline, &neocd->memory.videoRam[address]);
                 }
 
                 if (!neocd->video.fixDisable)

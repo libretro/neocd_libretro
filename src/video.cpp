@@ -251,23 +251,51 @@ static inline bool isSpriteOnScanline(uint32_t scanline, uint32_t y, uint32_t cl
     return (clipping == 0) || (clipping >= 0x20) || ((scanline - y) & 0x1ff) < (clipping * 0x10);
 }
 
-uint16_t Video::createSpriteList(uint32_t scanline, uint16_t *spriteList) const
+uint16_t Video::renderScanlineSprites(uint32_t scanline, uint16_t *spriteList)
 {
-    uint16_t* attributesPtr = &neocd->memory.videoRam[0x8200];
+    /* One walk over the sprite bank, the way the video chip makes its
+       own: chain position accumulates for every sprite in order,
+       whether or not the sprite touches this line, because a chained
+       sprite's place on screen is the sum of everything before it in
+       the chain - pruning the walk to the visible ones let a chain
+       whose head sat off this line put its members in the wrong place.
+       Sprite zero is scanned into the list but never drawn; the chip
+       does not display it, which is also why the empty tail of the
+       list - zeroes - never put a stray copy of sprite zero on top of
+       everything, as drawing the tail used to. The walk covers sprites
+       one to three hundred eighty one and stops for good when the line
+       has its ninety six, list and chain state both, as the chip does.
+    */
     uint16_t activeCount = 0;
-    uint16_t attributes;
-    uint32_t y = sprite_y;
-    uint32_t clipping = sprite_clipping;
     bool spriteIsOnScanline = false;
 
-    for (uint16_t spriteNumber = 0; spriteNumber < MAX_SPRITES_PER_SCREEN; ++spriteNumber)
-    {
-        attributes = *attributesPtr++;
+    const uint16_t* scb3 = &neocd->memory.videoRam[0x8000];
+    const uint16_t* scb2 = &neocd->memory.videoRam[0x8200];
+    const uint16_t* scb4 = &neocd->memory.videoRam[0x8400];
 
-        if (!(attributes & 0x40))
+    uint32_t x = sprite_x;
+    uint32_t y = sprite_y;
+    uint32_t zoomX = sprite_zoomX;
+    uint32_t zoomY = sprite_zoomY;
+    uint32_t clipping = sprite_clipping;
+
+    for (uint16_t spriteNumber = 1; spriteNumber <= MAX_SPRITES_PER_SCREEN; ++spriteNumber)
+    {
+        uint32_t attributes1 = scb3[spriteNumber];
+        uint32_t attributes2 = scb2[spriteNumber];
+
+        if (attributes2 & 0x40)
         {
-            y = 0x200 - (attributes >> 7);
-            clipping = attributes & 0x3F;
+            x = (x + zoomX + 1) & 0x1FF;
+            zoomX = (attributes1 >> 8) & 0xF;
+        }
+        else
+        {
+            zoomY = attributes1 & 0xFF;
+            zoomX = (attributes1 >> 8) & 0xF;
+            clipping = attributes2 & 0x3F;
+            y = 0x200 - (attributes2 >> 7);
+            x = scb4[spriteNumber] >> 7;
             spriteIsOnScanline = isSpriteOnScanline(scanline, y, clipping);
         }
 
@@ -280,45 +308,22 @@ uint16_t Video::createSpriteList(uint32_t scanline, uint16_t *spriteList) const
         *spriteList++ = spriteNumber;
         activeCount++;
 
+        drawSprite(spriteNumber, x, y, zoomX, zoomY, scanline, clipping);
+
         if (activeCount >= MAX_SPRITES_PER_LINE)
             break;
     }
+
+    sprite_x = x;
+    sprite_y = y;
+    sprite_zoomX = zoomX;
+    sprite_zoomY = zoomY;
+    sprite_clipping = clipping;
 
     // Fill the rest of the sprite list with 0, including one extra entry
     std::memset(spriteList, 0, sizeof(uint16_t) * (MAX_SPRITES_PER_LINE - activeCount + 1));
 
     return activeCount;
-}
-
-void Video::drawSprites(uint32_t scanline, uint16_t *spriteList, uint16_t spritesToDraw)
-{
-    for (uint16_t currentSprite = 0; currentSprite <= spritesToDraw; currentSprite++)
-    {
-        uint16_t spriteNumber = *spriteList++;
-        // Optimization: No need to draw sprite zero now if we're going to draw it again in the end
-        if ((!spriteNumber) && (currentSprite < spritesToDraw))
-            continue;
-
-        uint16_t spriteAttributes1 = neocd->memory.videoRam[0x8000 + spriteNumber];
-        uint16_t spriteAttributes2 = neocd->memory.videoRam[0x8200 + spriteNumber];
-        uint16_t spriteAttributes3 = neocd->memory.videoRam[0x8400 + spriteNumber];
-
-        if (spriteAttributes2 & 0x40)
-        {
-            sprite_x = (sprite_x + sprite_zoomX + 1) & 0x1FF;
-            sprite_zoomX = (spriteAttributes1 >> 8) & 0xF;
-        }
-        else
-        {
-            sprite_zoomY = spriteAttributes1 & 0xFF;
-            sprite_zoomX = (spriteAttributes1 >> 8) & 0xF;
-            sprite_clipping = spriteAttributes2 & 0x3F;
-            sprite_y = 0x200 - (spriteAttributes2 >> 7);
-            sprite_x = spriteAttributes3 >> 7;
-        }
-
-        drawSprite(spriteNumber, sprite_x, sprite_y, sprite_zoomX, sprite_zoomY, scanline, sprite_clipping);
-    }
 }
 
 inline void drawSpriteLine(
@@ -539,7 +544,7 @@ void Video::drawSprite(uint32_t spriteNumber, uint32_t x, uint32_t y, uint32_t z
     if (invert)
         zoomLine ^= 0xFF;
 
-    if (clipping > 0x20)
+    if (clipping == 0x21)
     {
         zoomLine = zoomLine % ((zoomY + 1) << 1);
 
