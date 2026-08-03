@@ -1,4 +1,6 @@
 #include <cstring>
+#include <cstdio>
+#include <cstdlib>
 #include <algorithm>
 
 #include "3rdparty/musashi/m68k.h"
@@ -148,13 +150,35 @@ void HleBios::buildRom(uint8_t* rom)
     // rather than reproduced: a game indexes the table with a counter
     // and wants a different answer each time it looks.
     {
+        // What sits at 0xC04200 in a BIOS is not a stream of random
+        // bytes: it is the values 0 to 255 each appearing exactly once,
+        // dealt out in a scrambled order. Games read it directly - one
+        // takes its attract decisions from (table[i] & 7) - and that
+        // works because a shuffled deck lands every three bit value
+        // exactly thirty-two times. The stream this used to generate had
+        // only 160 distinct values and a lopsided spread, so decisions
+        // that should come up evenly came up rarely or never: with it,
+        // Samurai Shodown 2 triggered 206 sounds over a mashing run
+        // where a real table gives 543 and a real BIOS 991.
+        //
+        // So: the identity table, shuffled. The order is this
+        // implementation's own; the property games rely on holds.
         uint32_t state = 0x2545F491;
+
         for (uint32_t i = 0; i < RANDOM_TABLE_SIZE; ++i)
+            rom[(RANDOM_TABLE - ROM_BASE) + i] = static_cast<uint8_t>(i);
+
+        for (uint32_t i = RANDOM_TABLE_SIZE - 1; i > 0; --i)
         {
             state ^= state << 13;
             state ^= state >> 17;
             state ^= state << 5;
-            rom[(RANDOM_TABLE - ROM_BASE) + i] = static_cast<uint8_t>(state >> 24);
+
+            uint32_t j = state % (i + 1);
+            uint8_t* t = rom + (RANDOM_TABLE - ROM_BASE);
+            uint8_t tmp = t[i];
+            t[i] = t[j];
+            t[j] = tmp;
         }
     }
 }
@@ -395,21 +419,71 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     }
     else if (ext == "PAT")
     {
-        // Palette data. It is kept as native words rather than the
-        // stream's big-endian, and the video keeps a converted copy of
-        // every colour, so this cannot be a plain copy like the rest.
-        size_t colours = data.size() / 2;
-        if (colours > (Memory::PALETTERAM_SIZE / 2))
-            colours = Memory::PALETTERAM_SIZE / 2;
+        // Not palette data, which is what this loader used to make of
+        // the extension. A .PAT file rides alongside a .PCM file and
+        // patches the sound driver: the driver's sample tables were
+        // written for the cartridge's sample ROM, and every sample now
+        // sits wherever the CD version's files were loaded instead. Each
+        // ten byte record names a spot in the driver and the sample's
+        // place within the sibling file:
+        //
+        //   [where in the driver][start][end][second start][second end]
+        //
+        // all big-endian, offsets in file bytes - two of which make one
+        // sample byte, the same halving the PCM load does. What lands in
+        // the driver is little-endian, in 256 byte units, with the
+        // sibling's load address added on and the end made inclusive.
+        // The first pair goes at the named address; the second, when it
+        // is not zeroes, five bytes further on - the driver keeps a byte
+        // of its own between them. Read out of a real run rather than
+        // guessed: JOCHU.PAT says put 0090..011C at 4D0C twice over, and
+        // a real BIOS leaves 0048 008D at both 4D0C and 4D11.
+        //
+        // With these skipped, a driver asked for a song looked up its
+        // notes at cartridge addresses and found nothing to play: the
+        // same command that keys sixty-five notes under a real BIOS
+        // keyed none here.
+        uint32_t base = (((entry.bank & 1) * 0x80000) + (entry.offset >> 1)) >> 8;
 
-        for (size_t i = 0; i < colours; ++i)
+        for (size_t at = 0; at + 10 <= data.size(); at += 10)
         {
-            uint16_t colour = static_cast<uint16_t>((data[i * 2] << 8) | data[i * 2 + 1]);
-            neocd->memory.paletteRam[i] = colour;
-            neocd->video.convertColor(static_cast<uint32_t>(i));
+            uint32_t where = (static_cast<uint32_t>(data[at]) << 8) | data[at + 1];
+
+            // A record of zeroes separates sections and pads the file
+            // out; it is not the end of the list. The first attempt here
+            // treated it as data and wrote over the driver's entry
+            // point; the second treated it as the end and dropped every
+            // record after the first section. It is neither: skip it.
+            if ((where == 0x0000) || (where == 0xFFFF))
+                continue;
+
+            for (int half = 0; half < 2; ++half)
+            {
+                size_t f = at + 2 + (half * 4);
+                uint32_t start = (static_cast<uint32_t>(data[f]) << 8) | data[f + 1];
+                uint32_t end   = (static_cast<uint32_t>(data[f + 2]) << 8) | data[f + 3];
+                uint32_t spot = where + (half * 5);
+
+                if (half && !start && !end)
+                    break;
+
+                uint32_t startValue = base + (start >> 1);
+                uint32_t endValue = base + (end >> 1);
+
+                if (endValue)
+                    endValue--;
+
+                if ((spot + 3) < Memory::Z80RAM_SIZE)
+                {
+                    neocd->memory.z80Ram[spot]     = static_cast<uint8_t>(startValue);
+                    neocd->memory.z80Ram[spot + 1] = static_cast<uint8_t>(startValue >> 8);
+                    neocd->memory.z80Ram[spot + 2] = static_cast<uint8_t>(endValue);
+                    neocd->memory.z80Ram[spot + 3] = static_cast<uint8_t>(endValue >> 8);
+                }
+            }
         }
 
-        Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> PAL\n",
+        Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: applied %-15s %7zu bytes -> Z80 driver\n",
             entry.name.c_str(), data.size());
         return true;
     }
@@ -489,6 +563,20 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
 
 void HleBios::streamFiles(uint32_t listAddress)
 {
+    {
+        // A BIOS parks the game's frame vector here while it streams and
+        // its CD machinery treats the slot being filled as the sign that
+        // a game is up and streaming. Games check the same things a BIOS
+        // checks, so the slot is filled the same way.
+        uint32_t vec = m68k_read_memory_32(0x68);
+        uint8_t* ram = neocd->memory.ram;
+
+        ram[0x10F6EE] = static_cast<uint8_t>(vec >> 24);
+        ram[0x10F6EF] = static_cast<uint8_t>(vec >> 16);
+        ram[0x10F6F0] = static_cast<uint8_t>(vec >> 8);
+        ram[0x10F6F1] = static_cast<uint8_t>(vec);
+    }
+
     // What a game asks for when it moves from one screen to the next:
     // the tiles and sprites the next screen needs. A BIOS reads the list,
     // works out which of them are not already resident and fetches those
@@ -707,15 +795,24 @@ void HleBios::initBiosRam()
     // answers a game asking for a track checks it before doing anything:
     // no block, no command, no music.
     {
-        uint32_t header = m68k_read_memory_16(0x0000013A);
-        uint32_t block = ((header == 0) || (header == 0xFFFF))
-                       ? CD_COMMAND_BLOCK
-                       : (0x00E00000 + (header * 2));
+        // The word at 0x13A can name a game's own block, but a BIOS only
+        // honours it for one mode of a call this does not model - left
+        // alone, every game measured gets the default. Samurai Shodown 2
+        // carries 0x8643 there and a real BIOS still uses the default;
+        // taking the header at face value pointed this at a stretch of
+        // the sound driver's own code, and the requests the driver was
+        // posting at the real block went unread.
+        uint32_t block = CD_COMMAND_BLOCK;
 
         ram[BIOS_CD_COMMAND]     = static_cast<uint8_t>(block >> 24);
         ram[BIOS_CD_COMMAND + 1] = static_cast<uint8_t>(block >> 16);
         ram[BIOS_CD_COMMAND + 2] = static_cast<uint8_t>(block >> 8);
         ram[BIOS_CD_COMMAND + 3] = static_cast<uint8_t>(block);
+
+        // And the byte beside it says the CD side is idle and listening.
+        // A real BIOS parks FF here between requests; a game that reads
+        // it before asking sees zero from this and never asks.
+        ram[CD_MODE_VAR] = 0xFF;
     }
 
     // The settings a game ships for the country it is running in. A
@@ -793,6 +890,116 @@ void HleBios::repeatPad(uint32_t base, uint8_t current)
     }
 }
 
+void HleBios::cdRequest(uint8_t mode, uint8_t track)
+{
+    uint8_t* ram = neocd->memory.ram;
+
+    ram[CD_MODE_VAR] = mode;
+
+    if (!(mode & 0x02))
+    {
+        ram[CD_TRACK_VAR] = track;
+        ram[0x10F6F8] = track;
+        ram[0x10F6F7] = mode;
+    }
+    else
+    {
+        // Keep the track already asked for.
+        track = ram[CD_TRACK_VAR];
+
+        // Of the modes that name no track, the lower pair stop the
+        // drive and the upper pair leave it be - which is what lets a
+        // resume find the track still stored.
+        if (!(mode & 0x04))
+        {
+            neocd->cdrom.stop();
+            m_playUntil = 0;
+            return;
+        }
+    }
+
+    if (!track)
+        return;
+
+    // The track is held the way it is written down, two decimal
+    // digits to a byte, not as a plain count.
+    uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
+
+    const CdromToc::Entry* entry =
+        neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
+
+    if (entry && (entry->trackType != CdromToc::TrackType::Mode1_2048)
+              && (entry->trackType != CdromToc::TrackType::Mode1_2352))
+    {
+        // Where this track runs out: the next one's start, or the
+        // end of the disc for the last. A drive stops there.
+        const CdromToc::Entry* next =
+            neocd->cdrom.toc().findTocEntry(TrackIndex(number + 1, 1));
+
+        m_playUntil = next ? next->startSector : neocd->cdrom.leadout();
+
+        // Asking again for the track already playing leaves it
+        // alone rather than starting it over.
+        if (!neocd->cdrom.isPlaying()
+            || (neocd->cdrom.currentTrackIndex().track() != number))
+        {
+            neocd->cdrom.seek(entry->startSector);
+            neocd->cdrom.play();
+        }
+    }
+}
+
+void HleBios::consumeCdBlock()
+{
+    // A game does not always ask for music itself. Samurai Shodown 2
+    // never does: its 68000 sends song numbers to the sound driver like
+    // any other sound, and it is the driver, on the Z80, that knows
+    // which of them are disc tracks. The driver posts those on in its
+    // own memory, and the block address a BIOS keeps at 0x10F6EA names
+    // that spot as the 68000 sees it - through the window whose odd
+    // bytes are the Z80's memory at half the offset. 0xE1FDF0 is Z80
+    // 0xFEF8: the command, with the track beside it.
+    //
+    // The system call a game makes every frame reads the pair, acts and
+    // clears it. Nothing here did, so the driver's requests sat there
+    // unread - the pair of bytes an earlier investigation found holding
+    // 02 02 against a real run's 00 00 and took for debris was the
+    // request itself, a stop the driver posts when it resets, waiting
+    // forever to be taken.
+    uint8_t* ram = neocd->memory.ram;
+
+    uint32_t p = (static_cast<uint32_t>(ram[0x10F6EA]) << 24)
+               | (static_cast<uint32_t>(ram[0x10F6EB]) << 16)
+               | (static_cast<uint32_t>(ram[0x10F6EC]) << 8)
+               | ram[0x10F6ED];
+
+    if ((p < 0x00E00000) || (p > 0x00EFFFFF))
+        return;
+
+    uint32_t at = (p >> 1) & 0xFFFF;
+    uint8_t command = neocd->memory.z80Ram[at];
+    uint8_t track = neocd->memory.z80Ram[at + 1];
+
+    // Nothing waiting. A command of zero is a real request when a track
+    // rides with it - the driver's own table pairs plenty of tracks
+    // with mode zero - so idle is only the two together.
+    if ((command == 0xFF) || (!command && !track))
+        return;
+
+    if (!(command & 0x02) && !track)
+        return;
+
+    neocd->memory.z80Ram[at] = 0x00;
+    neocd->memory.z80Ram[at + 1] = 0x00;
+
+    // The top bit only marks the request as fresh; the mode is the rest,
+    // and a real BIOS ignores anything past seven.
+    command &= 0x7F;
+
+    if (command <= 0x07)
+        cdRequest(command, track);
+}
+
 void HleBios::stopAtTrackEnd()
 {
     if (!m_playUntil || !neocd->cdrom.isPlaying())
@@ -800,6 +1007,30 @@ void HleBios::stopAtTrackEnd()
 
     if (neocd->cdrom.position() < m_playUntil)
         return;
+
+    // What happens when the track runs out depends on how it was asked
+    // for, and which modes mean what was measured rather than guessed:
+    // over a long run on a real BIOS, every track that started again at
+    // its end without the sound driver asking had been requested with
+    // the low mode bit clear, and no track requested with it set ever
+    // did. Clear means loop; set means once.
+    uint8_t* ram = neocd->memory.ram;
+
+    if (!(ram[0x10F6F7] & 0x01))
+    {
+        uint8_t track = ram[CD_TRACK_VAR];
+        uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
+
+        const CdromToc::Entry* entry =
+            neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
+
+        if (entry)
+        {
+            neocd->cdrom.seek(entry->startSector);
+            neocd->cdrom.play();
+            return;
+        }
+    }
 
     neocd->cdrom.stop();
     m_playUntil = 0;
@@ -921,6 +1152,18 @@ void HleBios::callUser(uint8_t request)
 
 int HleBios::trap(uint32_t pc)
 {
+    if (getenv("ENTLOG"))
+    {
+        static unsigned seen[64]; static unsigned nseen = 0;
+        bool has = false;
+        for (unsigned q = 0; q < nseen; ++q) if (seen[q] == pc) { has = true; break; }
+        if (!has && nseen < 64)
+        {
+            seen[nseen++] = pc;
+            fprintf(stderr, "entry %06X\n", pc);
+        }
+    }
+
     switch (pc)
     {
     case BOOT:
@@ -1005,58 +1248,10 @@ int HleBios::trap(uint32_t pc)
         // already asked for stands and only the mode is new. Reading it
         // as stop turned every one of those into silence.
         {
-            uint8_t* ram = neocd->memory.ram;
             uint32_t d0 = m68k_get_reg(nullptr, M68K_REG_D0);
-            uint8_t mode = static_cast<uint8_t>((d0 >> 8) & 0xFF);
-            uint8_t track = static_cast<uint8_t>(d0 & 0xFF);
 
-            ram[CD_MODE_VAR] = mode;
-
-            if (!(mode & 0x02))
-            {
-                ram[CD_TRACK_VAR] = track;
-                ram[0x10F6F8] = track;
-                ram[0x10F6F7] = mode;
-            }
-            else
-            {
-                // Keep the track already asked for.
-                track = ram[CD_TRACK_VAR];
-            }
-
-            if (!track)
-                return 1;
-
-            // The track is held the way it is written down, two decimal
-            // digits to a byte, not as a plain count.
-            uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
-
-            const CdromToc::Entry* entry =
-                neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
-
-            if (entry && (entry->trackType != CdromToc::TrackType::Mode1_2048)
-                      && (entry->trackType != CdromToc::TrackType::Mode1_2352))
-            {
-                // Where this track runs out: the next one's start, or the
-                // end of the disc for the last. A drive stops there. This
-                // did not, so it ran on through everything after it -
-                // Idol Mahjong played from its first tune to the end of
-                // the disc where a real BIOS goes quiet after twenty
-                // seconds.
-                const CdromToc::Entry* next =
-                    neocd->cdrom.toc().findTocEntry(TrackIndex(number + 1, 1));
-
-                m_playUntil = next ? next->startSector : neocd->cdrom.leadout();
-
-                // Asking again for the track already playing leaves it
-                // alone rather than starting it over.
-                if (!neocd->cdrom.isPlaying()
-                    || (neocd->cdrom.currentTrackIndex().track() != number))
-                {
-                    neocd->cdrom.seek(entry->startSector);
-                    neocd->cdrom.play();
-                }
-            }
+            cdRequest(static_cast<uint8_t>((d0 >> 8) & 0xFF),
+                      static_cast<uint8_t>(d0 & 0xFF));
         }
         return 1;
 
@@ -1091,43 +1286,188 @@ int HleBios::trap(uint32_t pc)
             uint32_t destination = m68k_read_memory_32(0x0010FEF4);
             uint32_t length = m68k_read_memory_32(0x0010FEFC);
 
-            // Which area, and the bank register that goes with it.
+            // Which area, the bank register that goes with it - and the
+            // bus. The window only takes writes for an area whose bus
+            // has been asked for, which is what the request registers
+            // are for; a real BIOS asks before copying and releases
+            // after. Without asking, every byte of a game's upload fell
+            // into the gate and vanished - King of Fighters '99 uploads
+            // its characters' sample maps to the sound driver this way,
+            // and the driver keyed a silent placeholder for every hit
+            // because the map never arrived.
+            uint32_t request = 0;
+            uint32_t release = 0;
+
             switch (type)
             {
-            case 1:  m68k_write_memory_8(0x00FF0105, 5); break;
+            case 1:  m68k_write_memory_8(0x00FF0105, 5);
+                     request = 0x00FF0129; release = 0x00FF0149; break;
             case 2:  m68k_write_memory_8(0x00FF0105, 0);
-                     m68k_write_memory_8(0x00FF01A1, ram[0x10FEDB]); break;
-            case 3:  m68k_write_memory_8(0x00FF0105, 4); break;
+                     m68k_write_memory_8(0x00FF01A1, ram[0x10FEDB]);
+                     request = 0x00FF0121; release = 0x00FF0141; break;
+            case 3:  m68k_write_memory_8(0x00FF0105, 4);
+                     request = 0x00FF0127; release = 0x00FF0147; break;
             case 4:  m68k_write_memory_8(0x00FF0105, 1);
-                     m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]); break;
+                     m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]);
+                     request = 0x00FF0123; release = 0x00FF0143; break;
             default: break;
             }
 
-            // Word at a time through the window, stepping the bank when
-            // the destination runs past the end of one, which is what a
-            // BIOS does rather than letting it wrap.
-            uint8_t bank = ram[0x10FEDB];
+            if (request)
+                m68k_write_memory_8(request, 1);
 
-            for (uint32_t done = 0; (done + 1) < length; done += 2)
+            // Type five is not a copy at all: it is the sample map for
+            // the sound driver, read out of a real BIOS. The source
+            // holds six byte records - a spot in the driver, a start
+            // and an end - and the destination names where in sample
+            // memory the sounds were put, bank and all. What lands in
+            // the driver is the same arithmetic the .PAT files use:
+            // add the base, halve, and make the end inclusive. King of
+            // Fighters '99 sends its characters' maps this way after
+            // every load; treated as a plain copy they scribbled over
+            // whatever area was last selected, the driver's tables
+            // kept their authored placeholder, and every hit in a
+            // battle played the same silent tick.
+            // Type zero is program memory: the transfer hardware copies
+            // it straight from one place in the 68000's memory to
+            // another, no window involved. Left to the window loop it
+            // went through whatever area was last selected instead.
+            if (type == 0)
             {
-                if (destination >= 0x100000)
-                {
-                    destination -= 0x100000;
-                    ++bank;
-                    ram[0x10FEDB] = bank;
-                    if (type == 2) m68k_write_memory_8(0x00FF01A1, bank);
-                    if (type == 4) m68k_write_memory_8(0x00FF01A3, bank);
-                }
+                for (uint32_t done = 0; (done + 1) < length; done += 2)
+                    m68k_write_memory_16(destination + done,
+                                         m68k_read_memory_16(source + done));
 
-                m68k_write_memory_16(0x00E00000 + destination,
-                                     m68k_read_memory_16(source));
-                source += 2;
-                destination += 2;
+                m68k_write_memory_32(0x0010FEF8, source + length);
+                m68k_write_memory_32(0x0010FEF4, destination + length);
+                m68k_write_memory_32(0x0010FEFC, 0);
+                return 1;
             }
 
-            m68k_write_memory_32(0x0010FEF8, source);
-            m68k_write_memory_32(0x0010FEF4, destination);
-            m68k_write_memory_32(0x0010FEFC, 0);
+            if (type == 5)
+            {
+                // The records are the .PAT format to the byte: ten each,
+                // a spot in the driver, a start and an end, then a
+                // second pair that goes five bytes past the first when
+                // it is not zeroes. A six byte reading of them took each
+                // record's empty second pair for the end of the list,
+                // so of a character's whole map one record in each
+                // upload landed - which is why a battle had exactly one
+                // effect, the landing thud, and nothing else.
+                uint32_t base = ((static_cast<uint32_t>(ram[0x10FEDB] & 1) << 20)
+                              | (destination & 0xFFFFF)) >> 8;
+
+                for (uint32_t at = 0; (at + 10) <= length; at += 10)
+                {
+                    uint32_t where = m68k_read_memory_16(source + at);
+
+                    if ((where == 0x0000) || (where == 0xFFFF))
+                        continue;
+
+                    for (int half = 0; half < 2; ++half)
+                    {
+                        uint32_t f = at + 2 + (half * 4);
+                        uint32_t start = m68k_read_memory_16(source + f);
+                        uint32_t end   = m68k_read_memory_16(source + f + 2);
+                        uint32_t spot = where + (half * 5);
+
+                        if (half && !start && !end)
+                            break;
+
+                        uint32_t startValue = (start + base) >> 1;
+                        uint32_t endValue = (end + base) >> 1;
+
+                        if (endValue)
+                            endValue--;
+
+                        if ((spot + 3) < Memory::Z80RAM_SIZE)
+                        {
+                            neocd->memory.z80Ram[spot]     = static_cast<uint8_t>(startValue);
+                            neocd->memory.z80Ram[spot + 1] = static_cast<uint8_t>(startValue >> 8);
+                            neocd->memory.z80Ram[spot + 2] = static_cast<uint8_t>(endValue);
+                            neocd->memory.z80Ram[spot + 3] = static_cast<uint8_t>(endValue >> 8);
+                        }
+                    }
+                }
+
+                m68k_write_memory_32(0x0010FEFC, 0);
+                return 1;
+            }
+            // How the copy goes depends on the area, read out of the two
+            // transfer programs a real BIOS hands its DMA engine. The
+            // byte areas - fix, sound program, samples - take one source
+            // byte per slot, packed, in source order, and the window
+            // position moves two for every byte; a word loop through the
+            // window dropped every other byte here, which is why the
+            // title text this BIOS finally showed came out as rubble.
+            // Sprites and program move as words.
+            if ((type == 1) || (type == 3) || (type == 4))
+            {
+                uint32_t bank = ram[0x10FEDB];
+
+                for (uint32_t done = 0; done < length; ++done)
+                {
+                    uint32_t at = (destination >> 1) + done;
+                    uint8_t value = static_cast<uint8_t>(m68k_read_memory_8(source + done));
+
+                    switch (type)
+                    {
+                    case 1:
+                        neocd->memory.fixRam[at & 0x1FFFF] = value;
+                        break;
+                    case 3:
+                        if (at < Memory::Z80RAM_SIZE)
+                            neocd->memory.z80Ram[at] = value;
+                        break;
+                    case 4:
+                        neocd->memory.pcmRam[(at + ((bank & 1) * 0x80000)) & 0xFFFFF] = value;
+                        break;
+                    }
+                }
+
+                uint32_t linear = ((bank & 1) * 0x100000) + destination + (length * 2);
+
+                if (type == 4)
+                {
+                    ram[0x10FEDB] = static_cast<uint8_t>(linear >> 20);
+                    m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]);
+                }
+
+                m68k_write_memory_32(0x0010FEF8, source + length);
+                m68k_write_memory_32(0x0010FEF4, (type == 4) ? (linear & 0xFFFFF)
+                                                             : (destination + (length * 2)));
+                m68k_write_memory_32(0x0010FEFC, 0);
+            }
+            else
+            {
+                // Sprite and anything unnamed: a word at a time through
+                // the window, stepping the bank when the destination
+                // runs past the end of one.
+                uint8_t bank = ram[0x10FEDB];
+
+                for (uint32_t done = 0; (done + 1) < length; done += 2)
+                {
+                    if (destination >= 0x100000)
+                    {
+                        destination -= 0x100000;
+                        ++bank;
+                        ram[0x10FEDB] = bank;
+                        if (type == 2) m68k_write_memory_8(0x00FF01A1, bank);
+                    }
+
+                    m68k_write_memory_16(0x00E00000 + destination,
+                                         m68k_read_memory_16(source));
+                    source += 2;
+                    destination += 2;
+                }
+
+                m68k_write_memory_32(0x0010FEF8, source);
+                m68k_write_memory_32(0x0010FEF4, destination);
+                m68k_write_memory_32(0x0010FEFC, 0);
+            }
+
+            if (release)
+                m68k_write_memory_8(release, 1);
         }
         return 1;
 
@@ -1222,6 +1562,7 @@ int HleBios::trap(uint32_t pc)
     case SYSTEM_IO:
         pollInput();
         stopAtTrackEnd();
+        consumeCdBlock();
 
         // Wound down here as well as in the frame interrupt: a game
         // calls one or the other once a frame, and which one differs
@@ -1290,6 +1631,7 @@ int HleBios::trap(uint32_t pc)
         neocd->memory.ram[0x10F6D8] = 0x00;
 
         stopAtTrackEnd();
+        consumeCdBlock();
 
         if (m_busyFrames)
             --m_busyFrames;
