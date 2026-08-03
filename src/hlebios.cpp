@@ -1008,6 +1008,30 @@ void HleBios::stopAtTrackEnd()
     if (neocd->cdrom.position() < m_playUntil)
         return;
 
+    // What happens when the track runs out depends on how it was asked
+    // for, and which modes mean what was measured rather than guessed:
+    // over a long run on a real BIOS, every track that started again at
+    // its end without the sound driver asking had been requested with
+    // the low mode bit clear, and no track requested with it set ever
+    // did. Clear means loop; set means once.
+    uint8_t* ram = neocd->memory.ram;
+
+    if (!(ram[0x10F6F7] & 0x01))
+    {
+        uint8_t track = ram[CD_TRACK_VAR];
+        uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
+
+        const CdromToc::Entry* entry =
+            neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
+
+        if (entry)
+        {
+            neocd->cdrom.seek(entry->startSector);
+            neocd->cdrom.play();
+            return;
+        }
+    }
+
     neocd->cdrom.stop();
     m_playUntil = 0;
 }
@@ -1128,6 +1152,18 @@ void HleBios::callUser(uint8_t request)
 
 int HleBios::trap(uint32_t pc)
 {
+    if (getenv("ENTLOG"))
+    {
+        static unsigned seen[64]; static unsigned nseen = 0;
+        bool has = false;
+        for (unsigned q = 0; q < nseen; ++q) if (seen[q] == pc) { has = true; break; }
+        if (!has && nseen < 64)
+        {
+            seen[nseen++] = pc;
+            fprintf(stderr, "entry %06X\n", pc);
+        }
+    }
+
     switch (pc)
     {
     case BOOT:
@@ -1250,16 +1286,93 @@ int HleBios::trap(uint32_t pc)
             uint32_t destination = m68k_read_memory_32(0x0010FEF4);
             uint32_t length = m68k_read_memory_32(0x0010FEFC);
 
-            // Which area, and the bank register that goes with it.
+            // Which area, the bank register that goes with it - and the
+            // bus. The window only takes writes for an area whose bus
+            // has been asked for, which is what the request registers
+            // are for; a real BIOS asks before copying and releases
+            // after. Without asking, every byte of a game's upload fell
+            // into the gate and vanished - King of Fighters '99 uploads
+            // its characters' sample maps to the sound driver this way,
+            // and the driver keyed a silent placeholder for every hit
+            // because the map never arrived.
+            uint32_t request = 0;
+            uint32_t release = 0;
+
             switch (type)
             {
-            case 1:  m68k_write_memory_8(0x00FF0105, 5); break;
+            case 1:  m68k_write_memory_8(0x00FF0105, 5);
+                     request = 0x00FF0129; release = 0x00FF0149; break;
             case 2:  m68k_write_memory_8(0x00FF0105, 0);
-                     m68k_write_memory_8(0x00FF01A1, ram[0x10FEDB]); break;
-            case 3:  m68k_write_memory_8(0x00FF0105, 4); break;
+                     m68k_write_memory_8(0x00FF01A1, ram[0x10FEDB]);
+                     request = 0x00FF0121; release = 0x00FF0141; break;
+            case 3:  m68k_write_memory_8(0x00FF0105, 4);
+                     request = 0x00FF0127; release = 0x00FF0147; break;
             case 4:  m68k_write_memory_8(0x00FF0105, 1);
-                     m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]); break;
+                     m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]);
+                     request = 0x00FF0123; release = 0x00FF0143; break;
             default: break;
+            }
+
+            if (request)
+                m68k_write_memory_8(request, 1);
+
+            // Type five is not a copy at all: it is the sample map for
+            // the sound driver, read out of a real BIOS. The source
+            // holds six byte records - a spot in the driver, a start
+            // and an end - and the destination names where in sample
+            // memory the sounds were put, bank and all. What lands in
+            // the driver is the same arithmetic the .PAT files use:
+            // add the base, halve, and make the end inclusive. King of
+            // Fighters '99 sends its characters' maps this way after
+            // every load; treated as a plain copy they scribbled over
+            // whatever area was last selected, the driver's tables
+            // kept their authored placeholder, and every hit in a
+            // battle played the same silent tick.
+            // Type zero is program memory: the transfer hardware copies
+            // it straight from one place in the 68000's memory to
+            // another, no window involved. Left to the window loop it
+            // went through whatever area was last selected instead.
+            if (type == 0)
+            {
+                for (uint32_t done = 0; (done + 1) < length; done += 2)
+                    m68k_write_memory_16(destination + done,
+                                         m68k_read_memory_16(source + done));
+
+                m68k_write_memory_32(0x0010FEF8, source + length);
+                m68k_write_memory_32(0x0010FEF4, destination + length);
+                m68k_write_memory_32(0x0010FEFC, 0);
+                return 1;
+            }
+
+            if (type == 5)
+            {
+                uint32_t base = ((static_cast<uint32_t>(ram[0x10FEDB] & 1) << 20)
+                              | (destination & 0xFFFFF)) >> 8;
+
+                for (uint32_t at = 0; (at + 6) <= length; at += 6)
+                {
+                    uint32_t where = m68k_read_memory_16(source + at);
+
+                    if (!where)
+                        break;
+
+                    uint32_t startValue = (m68k_read_memory_16(source + at + 2) + base) >> 1;
+                    uint32_t endValue = (m68k_read_memory_16(source + at + 4) + base) >> 1;
+
+                    if (endValue)
+                        endValue--;
+
+                    if ((where + 3) < Memory::Z80RAM_SIZE)
+                    {
+                        neocd->memory.z80Ram[where]     = static_cast<uint8_t>(startValue);
+                        neocd->memory.z80Ram[where + 1] = static_cast<uint8_t>(startValue >> 8);
+                        neocd->memory.z80Ram[where + 2] = static_cast<uint8_t>(endValue);
+                        neocd->memory.z80Ram[where + 3] = static_cast<uint8_t>(endValue >> 8);
+                    }
+                }
+
+                m68k_write_memory_32(0x0010FEFC, 0);
+                return 1;
             }
 
             // Word at a time through the window, stepping the bank when
@@ -1287,6 +1400,9 @@ int HleBios::trap(uint32_t pc)
             m68k_write_memory_32(0x0010FEF8, source);
             m68k_write_memory_32(0x0010FEF4, destination);
             m68k_write_memory_32(0x0010FEFC, 0);
+
+            if (release)
+                m68k_write_memory_8(release, 1);
         }
         return 1;
 
