@@ -288,7 +288,7 @@ void Cdrom::readAudioDirect(char* buffer, size_t size)
         done = static_cast<size_t>(m_wavFile.read(buffer, static_cast<int64_t>(size)));
     }
 
-#ifdef BIG_ENDIAN_MACHINE
+#ifdef MSB_FIRST
     if ((m_currentTrack->trackType == CdromToc::TrackType::AudioPCM ||
 	m_currentTrack->trackType == CdromToc::TrackType::AudioWav)  && (!m_file->isChd())) {
         int i;

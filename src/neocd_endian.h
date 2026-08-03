@@ -9,12 +9,8 @@
 
 #if defined(__ppc__) || defined(__POWERPC__) || defined(_M_PPC) || defined (__BYTE_ORDER__) && defined (__ORDER_BIG_ENDIAN__) &&  __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 
-    #ifndef BIG_ENDIAN_MACHINE
-        #define BIG_ENDIAN_MACHINE
-    #endif
-#else
-    #ifndef LITTLE_ENDIAN_MACHINE
-        #define LITTLE_ENDIAN_MACHINE
+    #ifndef MSB_FIRST
+        #define MSB_FIRST
     #endif
 #endif
 
@@ -46,16 +42,16 @@
     }
 #endif
 
-#ifdef BIG_ENDIAN_MACHINE
+#ifdef MSB_FIRST
     #define BIG_ENDIAN_WORD(x) (x)
     #define BIG_ENDIAN_DWORD(x) (x)
     #define LITTLE_ENDIAN_WORD(x) BYTE_SWAP_16(x)
     #define LITTLE_ENDIAN_DWORD(x) BYTE_SWAP_32(x)
-#else // Little endian machine
+#else /* Little endian machine */
     #define BIG_ENDIAN_WORD(x) BYTE_SWAP_16(x)
     #define BIG_ENDIAN_DWORD(x) BYTE_SWAP_32(x)
     #define LITTLE_ENDIAN_WORD(x) (x)
     #define LITTLE_ENDIAN_DWORD(x) (x)
-#endif // LITTLE_ENDIAN_MACHINE
+#endif /* LSB_FIRST */
 
 #endif // ENDIAN_H

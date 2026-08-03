@@ -27,12 +27,12 @@ enum
 
 typedef union
 {
-#ifdef LITTLE_ENDIAN_MACHINE
-	struct { Uint8	l, h, h2, h3; } b;
-	struct { Uint16	l, h; } w;
-#else
+#ifdef MSB_FIRST
 	struct { Uint8 h3, h2, h, l; } b;
 	struct { Uint16 h, l; } w;
+#else
+	struct { Uint8	l, h, h2, h3; } b;
+	struct { Uint16	l, h; } w;
 #endif
 	Uint32 d;
 } PAIR;
