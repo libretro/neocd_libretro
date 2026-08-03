@@ -42,7 +42,6 @@ SOURCES_CXX :=\
 	$(CORE_DIR)/src/neogeocd.cpp \
 	$(CORE_DIR)/src/oggfile.cpp \
 	$(CORE_DIR)/src/path.cpp \
-	$(CORE_DIR)/src/timeprofiler.cpp \
 	$(CORE_DIR)/src/timer.cpp \
 	$(CORE_DIR)/src/timergroup.cpp \
 	$(CORE_DIR)/src/video.cpp \

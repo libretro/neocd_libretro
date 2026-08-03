@@ -3,7 +3,6 @@
 #include "libretro_input.h"
 #include "libretro.h"
 #include "neogeocd.h"
-#include "timeprofiler.h"
 
 // Definition of the Neo Geo arcade stick
 static const struct retro_input_descriptor neogeoCDPadDescriptors[] = {
@@ -102,9 +101,7 @@ void Libretro::Input::update()
     uint8_t input2 = 0xFF;
     uint8_t input3 = 0x0F;
 
-    PROFILE(p_polling, ProfilingCategory::InputPolling);
     libretro.inputPoll();
-    PROFILE_END(p_polling);
 
     for (size_t i = 0; i < sizeof(padMap); i += 2)
     {

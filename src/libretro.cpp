@@ -321,32 +321,4 @@ void retro_deinit(void)
         delete neocd;
         neocd = nullptr;
     }
-
-#ifdef PROFILE_ENABLED
-    Libretro::Log::message(RETRO_LOG_DEBUG, "Total frame time: %f ms\n", g_profilingAccumulators[ProfilingCategory::Total]);
-    Libretro::Log::message(RETRO_LOG_DEBUG, " CD audio decoding: %f ms\n", g_profilingAccumulators[ProfilingCategory::AudioCD]);
-    Libretro::Log::message(RETRO_LOG_DEBUG, " YM2610 generation and sound mixing: %f ms\n", g_profilingAccumulators[ProfilingCategory::AudioYM2610]);
-    Libretro::Log::message(RETRO_LOG_DEBUG, " M68K emulation: %f ms\n", g_profilingAccumulators[ProfilingCategory::CpuM68K]);
-    Libretro::Log::message(RETRO_LOG_DEBUG, " Z80 emulation: %f ms\n", g_profilingAccumulators[ProfilingCategory::CpuZ80]);
-    Libretro::Log::message(RETRO_LOG_DEBUG, " Drawing video and handling IRQ: %f ms\n", g_profilingAccumulators[ProfilingCategory::VideoAndIRQ]);
-    Libretro::Log::message(RETRO_LOG_DEBUG, "Time spent polling inputs: %f ms\n", g_profilingAccumulators[ProfilingCategory::InputPolling]);
-
-    g_profilingAccumulatorsInitialized = false;
-#endif
 }
-
-// stdlibc++ on VITA references usleep but it's not available.
-// This is a workaround
-#ifdef VITA
-extern "C" int usleep(useconds_t usec)
-{
-   sceKernelDelayThread(usec);
-   return 0;
-}
-
-extern "C" unsigned int sleep(unsigned int seconds)
-{
-   sceKernelDelayThread(seconds * 1000000LL);
-   return 0;
-}
-#endif

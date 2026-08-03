@@ -6,7 +6,6 @@
 #include "libretro_common.h"
 #include "m68kintf.h"
 #include "neogeocd.h"
-#include "timeprofiler.h"
 #include "timer.h"
 #include "z80intf.h"
 #include "libretro_log.h"
@@ -106,21 +105,14 @@ void NeoGeoCD::reset()
 
 void NeoGeoCD::runOneFrame()
 {
-    PROFILE(p_total, ProfilingCategory::Total);
-
     remainingCyclesThisFrame += Timer::CYCLES_PER_FRAME;
 
-    PROFILE(p_audioCD, ProfilingCategory::AudioCD);
     audio.initFrame();
-    PROFILE_END(p_audioCD);
 
     while (remainingCyclesThisFrame > 0)
     {
         uint32_t timeSlice = std::min(timers.timeSlice(), remainingCyclesThisFrame);
-
-        PROFILE(p_m68k, ProfilingCategory::CpuM68K);
-        uint32_t elapsed = Timer::m68kToMaster(m68k_execute(Timer::masterToM68k(timeSlice)));
-        PROFILE_END(p_m68k);
+        uint32_t elapsed   = Timer::m68kToMaster(m68k_execute(Timer::masterToM68k(timeSlice)));
 
         z80TimeSlice += elapsed;
         if (z80TimeSlice > 0)
@@ -130,11 +122,7 @@ void NeoGeoCD::runOneFrame()
             if (z80Disable)
                 z80Elapsed = z80TimeSlice;
             else
-            {
-                PROFILE(p_z80, ProfilingCategory::CpuZ80);
                 z80Elapsed = Timer::z80ToMaster(z80_execute(Timer::masterToZ80(z80TimeSlice)));
-                PROFILE_END(p_z80);
-            }
 
             z80TimeSlice -= z80Elapsed;
         }
@@ -142,14 +130,10 @@ void NeoGeoCD::runOneFrame()
         remainingCyclesThisFrame -= elapsed;
         currentTimeSeconds += Timer::masterToSeconds(elapsed);
 
-        PROFILE(p_videoIRQ, ProfilingCategory::VideoAndIRQ);
         timers.advanceTime(elapsed);
-        PROFILE_END(p_videoIRQ);
     }
 
-    PROFILE(p_audioYM2610, ProfilingCategory::AudioYM2610);
     audio.finalize();
-    PROFILE_END(p_audioYM2610);
 }
 
 void NeoGeoCD::setInterrupt(NeoGeoCD::Interrupt interrupt)
