@@ -44,6 +44,9 @@ static void videoRamWriteWord(uint32_t address, uint32_t data)
         break;
     case    0x2:    // $3C0002: Videoram Data
         neocd->memory.videoRam[neocd->video.videoramOffset] = data;
+        if ((neocd->video.videoramOffset & 0xFE00) >= 0x8000
+            && (neocd->video.videoramOffset & 0xFE00) < 0x8600)
+            neocd->video.spriteIndexDirty = true;
         neocd->video.videoramOffset = (neocd->video.videoramOffset & 0x8000) | ((neocd->video.videoramOffset + neocd->video.videoramModulo) & 0x7FFF);
         neocd->video.videoramData = neocd->memory.videoRam[neocd->video.videoramOffset];
         break;

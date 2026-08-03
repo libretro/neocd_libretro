@@ -6,6 +6,7 @@
 #include "libretro_common.h"
 #include "neocd_endian.h"
 #include "neogeocd.h"
+#include "timer.h"
 #include "video.h"
 
 static const std::array<uint32_t, 256> SPR_DECODE_TABLE {
@@ -144,6 +145,8 @@ Video::~Video()
 
 void Video::reset()
 {
+    spriteIndexDirty = true;
+
     std::memset(paletteRamPc, 0, Memory::PALETTERAM_SIZE);
     std::memset(fixUsageMap, 0, Memory::FIXRAM_SIZE / 32);
     activePaletteBank = 0;
@@ -275,34 +278,20 @@ static inline bool isSpriteOnScanline(uint32_t scanline, uint32_t y, uint32_t cl
     return (clipping == 0) || (clipping >= 0x20) || ((scanline - y) & 0x1ff) < (clipping * 0x10);
 }
 
-uint16_t Video::renderScanlineSprites(uint32_t scanline, uint16_t *spriteList)
+void Video::rebuildSpriteIndex()
 {
-    /* One walk over the sprite bank, the way the video chip makes its
-       own: chain position accumulates for every sprite in order,
-       whether or not the sprite touches this line, because a chained
-       sprite's place on screen is the sum of everything before it in
-       the chain - pruning the walk to the visible ones let a chain
-       whose head sat off this line put its members in the wrong place.
-       Sprite zero is scanned into the list but never drawn; the chip
-       does not display it, which is also why the empty tail of the
-       list - zeroes - never put a stray copy of sprite zero on top of
-       everything, as drawing the tail used to. The walk covers sprites
-       one to three hundred eighty one and stops for good when the line
-       has its ninety six, list and chain state both, as the chip does.
+    /* One walk over the sprite bank in hardware order resolves every
+       sprite's place: chain position accumulates for each in turn, a
+       chained sprite taking its x from the sum of everything before
+       it. None of it depends on the line, so the walk happens once,
+       and each visible line collects the sprites whose height covers
+       it, in bank order, stopping at the chip's ninety six as the
+       chip's own scan stops.
     */
-    uint16_t activeCount = 0;
-    bool spriteIsOnScanline = false;
-
     const uint16_t* scb3 = &neocd->memory.videoRam[0x8000];
     const uint16_t* scb2 = &neocd->memory.videoRam[0x8200];
     const uint16_t* scb4 = &neocd->memory.videoRam[0x8400];
 
-    /* The chip starts each line's scan from nothing: position zero,
-       full size shrink values, no height - read out of Geolith. A
-       sprite bank that begins with a chained sprite chains it to that,
-       not to whatever the previous line's scan ended on, which is what
-       carrying the walk state across lines chained it to before.
-    */
     uint32_t x = 0;
     uint32_t y = 0;
     uint32_t zoomX = 0xF;
@@ -326,29 +315,86 @@ uint16_t Video::renderScanlineSprites(uint32_t scanline, uint16_t *spriteList)
             clipping = attributes2 & 0x3F;
             y = 0x200 - (attributes2 >> 7);
             x = scb4[spriteNumber] >> 7;
-            spriteIsOnScanline = isSpriteOnScanline(scanline, y, clipping);
         }
 
-        if (!spriteIsOnScanline)
-            continue;
-
-        if (!clipping)
-            continue;
-
-        *spriteList++ = spriteNumber;
-        activeCount++;
-
-        drawSprite(spriteNumber, x, y, zoomX, zoomY, scanline, clipping);
-
-        if (activeCount >= MAX_SPRITES_PER_LINE)
-            break;
+        resolvedX[spriteNumber] = static_cast<uint16_t>(x);
+        resolvedY[spriteNumber] = static_cast<uint16_t>(y);
+        resolvedZoomX[spriteNumber] = static_cast<uint8_t>(zoomX);
+        resolvedZoomY[spriteNumber] = static_cast<uint8_t>(zoomY);
+        resolvedClipping[spriteNumber] = static_cast<uint8_t>(clipping);
     }
 
-    sprite_x = x;
-    sprite_y = y;
-    sprite_zoomX = zoomX;
-    sprite_zoomY = zoomY;
-    sprite_clipping = clipping;
+    std::memset(lineSpriteCount, 0, sizeof(lineSpriteCount));
+
+    for (uint16_t spriteNumber = 1; spriteNumber <= MAX_SPRITES_PER_SCREEN; ++spriteNumber)
+    {
+        uint32_t c = resolvedClipping[spriteNumber];
+
+        if (!c)
+            continue;
+
+        auto take = [&](uint32_t from, uint32_t to) {
+            for (uint32_t line = from; line < to; ++line)
+            {
+                uint8_t& count = lineSpriteCount[line - Timer::ACTIVE_AREA_TOP];
+                if (count < MAX_SPRITES_PER_LINE)
+                    lineSprites[line - Timer::ACTIVE_AREA_TOP][count++] = spriteNumber;
+            }
+        };
+
+        if (c >= 0x20)
+        {
+            take(Timer::ACTIVE_AREA_TOP, Timer::ACTIVE_AREA_BOTTOM);
+            continue;
+        }
+
+        // The covered lines: y to y + height, wrapped in the chip's
+        // nine bit space, clipped to the visible area.
+        uint32_t sy = resolvedY[spriteNumber];
+        uint32_t height = c * 0x10;
+        uint32_t end = (sy + height) & 0x1FF;
+
+        auto clamp = [&](uint32_t from, uint32_t to) {
+            from = std::max<uint32_t>(from, Timer::ACTIVE_AREA_TOP);
+            to = std::min<uint32_t>(to, Timer::ACTIVE_AREA_BOTTOM);
+            if (from < to)
+                take(from, to);
+        };
+
+        if (sy < end)
+            clamp(sy, end);
+        else
+        {
+            clamp(sy, 0x200);
+            clamp(0, end);
+        }
+    }
+
+    spriteIndexDirty = false;
+}
+
+uint16_t Video::renderScanlineSprites(uint32_t scanline, uint16_t *spriteList)
+{
+    if (spriteIndexDirty)
+        rebuildSpriteIndex();
+
+    const uint32_t row = scanline - Timer::ACTIVE_AREA_TOP;
+    const uint16_t activeCount = lineSpriteCount[row];
+
+    for (uint16_t at = 0; at < activeCount; ++at)
+    {
+        uint16_t spriteNumber = lineSprites[row][at];
+
+        *spriteList++ = spriteNumber;
+
+        drawSprite(spriteNumber,
+                   resolvedX[spriteNumber],
+                   resolvedY[spriteNumber],
+                   resolvedZoomX[spriteNumber],
+                   resolvedZoomY[spriteNumber],
+                   scanline,
+                   resolvedClipping[spriteNumber]);
+    }
 
     // Fill the rest of the sprite list with 0, including one extra entry
     std::memset(spriteList, 0, sizeof(uint16_t) * (MAX_SPRITES_PER_LINE - activeCount + 1));
@@ -770,6 +816,8 @@ DataPacker& operator>>(DataPacker& in, Video& video)
     video.activePaletteBank &= 1;
     video.videoramOffset    &= 0xFFFF;
     video.sprite_zoomY      &= 0xFF;
+
+    video.spriteIndexDirty = true;
 
     return in;
 }

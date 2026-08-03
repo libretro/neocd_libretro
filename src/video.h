@@ -46,6 +46,24 @@ public:
     void drawFix(uint32_t scanline);
 
     uint16_t renderScanlineSprites(uint32_t scanline, uint16_t *spriteList);
+    void rebuildSpriteIndex();
+
+    /* Which sprites can touch which line, worked out once and reused
+       until the sprite attributes change. Everything in the resolved
+       arrays is line-invariant - the walk over the bank computes the
+       same positions and sizes for every line - so it is done once and
+       each line takes its own list, in bank order, capped at the
+       chip's per line limit. Derived from video RAM, rebuilt on load,
+       never saved.
+    */
+    bool     spriteIndexDirty = true;
+    uint16_t resolvedX[MAX_SPRITES_PER_SCREEN + 1];
+    uint16_t resolvedY[MAX_SPRITES_PER_SCREEN + 1];
+    uint8_t  resolvedZoomX[MAX_SPRITES_PER_SCREEN + 1];
+    uint8_t  resolvedZoomY[MAX_SPRITES_PER_SCREEN + 1];
+    uint8_t  resolvedClipping[MAX_SPRITES_PER_SCREEN + 1];
+    uint16_t lineSprites[224][MAX_SPRITES_PER_LINE];
+    uint8_t  lineSpriteCount[224];
     void drawSprite(uint32_t spriteNumber,
                     uint32_t x,
                     uint32_t y,
