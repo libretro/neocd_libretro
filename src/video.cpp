@@ -297,11 +297,17 @@ uint16_t Video::renderScanlineSprites(uint32_t scanline, uint16_t *spriteList)
     const uint16_t* scb2 = &neocd->memory.videoRam[0x8200];
     const uint16_t* scb4 = &neocd->memory.videoRam[0x8400];
 
-    uint32_t x = sprite_x;
-    uint32_t y = sprite_y;
-    uint32_t zoomX = sprite_zoomX;
-    uint32_t zoomY = sprite_zoomY;
-    uint32_t clipping = sprite_clipping;
+    /* The chip starts each line's scan from nothing: position zero,
+       full size shrink values, no height - read out of Geolith. A
+       sprite bank that begins with a chained sprite chains it to that,
+       not to whatever the previous line's scan ended on, which is what
+       carrying the walk state across lines chained it to before.
+    */
+    uint32_t x = 0;
+    uint32_t y = 0;
+    uint32_t zoomX = 0xF;
+    uint32_t zoomY = 0xFF;
+    uint32_t clipping = 0;
 
     for (uint16_t spriteNumber = 1; spriteNumber <= MAX_SPRITES_PER_SCREEN; ++spriteNumber)
     {
