@@ -72,6 +72,14 @@ public:
     bool     sprDisable;
     bool     fixDisable;
     bool     videoEnable;
+
+    /* The whole screen darkening latch behind REG_SHADOW. Deliberately
+       not part of the saved state: adding it would change the state
+       size and turn away every state saved before it existed, for one
+       bit a game sets again the next time it wants the screen dark.
+       A state loaded mid shadow shows full brightness until then.
+    */
+    bool     shadow = false;
     uint32_t hirqControl;
     uint32_t hirqRegister;
     uint32_t videoramOffset;

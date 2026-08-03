@@ -26,8 +26,20 @@ static void switchWriteWord(uint32_t address, uint32_t data)
 {
     switch (address)
     {
-    case 0x00:  // Darken colors, ignored for now
-    case 0x10:
+    case 0x00:  // REG_NOSHADOW: normal brightness
+        if (neocd->video.shadow)
+        {
+            neocd->video.shadow = false;
+            neocd->video.convertPalette();
+        }
+        break;
+
+    case 0x10:  // REG_SHADOW: darken the whole screen
+        if (!neocd->video.shadow)
+        {
+            neocd->video.shadow = true;
+            neocd->video.convertPalette();
+        }
         break;
 
     case 0x02:  // Set ROM vectors

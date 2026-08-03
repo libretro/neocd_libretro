@@ -171,13 +171,37 @@ void Video::convertColor(uint32_t index)
     uint16_t c = BIG_ENDIAN_WORD(neocd->memory.paletteRam[index]);
 
 #ifdef ABGR1555
-    paletteRamPc[index] = ((c & 0x000F) << 11) | ((c & 0x1000) >> 2) |
+    uint16_t out = ((c & 0x000F) << 11) | ((c & 0x1000) >> 2) |
 	(((c & 0x00F0) << 2) | ((c & 0x2000) >> 8)) |
 	(((c & 0x0F00) >> 7) | ((c & 0x4000) >> 14));
+
+    // Five bit channels have nowhere to put the dark bit's half step.
+    if (shadow)
+        out = (out >> 1) & 0x3DEF;
+
+    paletteRamPc[index] = out;
 #else
-    paletteRamPc[index] = ((c & 0x0F00) << 4) | ((c & 0x4000) >> 3) |
+    /* Each channel is really six bits on the machine: five from the
+       palette word plus the dark bit, inverted, as the low bit shared
+       by all three - read out of Geolith's converter. Green is the one
+       channel with six bits here, so it carries the dark bit exactly;
+       red and blue have nowhere to put a half step and keep their five.
+    */
+    uint16_t out = ((c & 0x0F00) << 4) | ((c & 0x4000) >> 3) |
         ((c & 0x00F0) << 3) | ((c & 0x2000) >> 7) |
         ((c & 0x000F) << 1) | ((c & 0x1000) >> 12);
+
+    if (!(c & 0x8000))
+        out |= 0x0020;
+
+    /* The shadow register hangs a pulldown on every channel and the
+       screen comes out at about half brightness; halving each channel
+       is the same approximation Geolith's plain converter uses.
+    */
+    if (shadow)
+        out = (out >> 1) & 0x7BEF;
+
+    paletteRamPc[index] = out;
 #endif
 }
 
