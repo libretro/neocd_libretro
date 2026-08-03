@@ -336,6 +336,26 @@ inline void drawSpriteLine(
 {
     uint16_t* out = frameBufferPtr;
 
+    // Full width is nearly every sprite on screen; give it a straight
+    // sixteen pixel run with no per-pixel table looks.
+    if (zoomX == 15)
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            if (pixelData & (0xFu << (i * 4)))
+                *out = paletteBase[(pixelData >> (i * 4)) & 0xF];
+            out += increment;
+        }
+        for (int i = 0; i < 8; ++i)
+        {
+            if (pixelDataB & (0xFu << (i * 4)))
+                *out = paletteBase[(pixelDataB >> (i * 4)) & 0xF];
+            out += increment;
+        }
+        frameBufferPtr = out;
+        return;
+    }
+
     auto drawSprLine = [&](int N) {
         for(int i = 0; i < 8; ++i)
         {
@@ -426,6 +446,26 @@ inline void drawSpriteLineClipped(
     const uint16_t* high)
 {
     uint16_t* out = frameBufferPtr;
+
+    // Full width is nearly every sprite on screen; a straight sixteen
+    // pixel run, still held inside the line like the general loop.
+    if (zoomX == 15)
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            if ((pixelData & (0xFu << (i * 4))) && (out >= low) && (out < high))
+                *out = paletteBase[(pixelData >> (i * 4)) & 0xF];
+            out += increment;
+        }
+        for (int i = 0; i < 8; ++i)
+        {
+            if ((pixelDataB & (0xFu << (i * 4))) && (out >= low) && (out < high))
+                *out = paletteBase[(pixelDataB >> (i * 4)) & 0xF];
+            out += increment;
+        }
+        frameBufferPtr = out;
+        return;
+    }
 
     auto drawSprLine = [&](int N) {
         for(int i = 0; i < 8; ++i)
