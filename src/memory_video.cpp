@@ -43,10 +43,17 @@ static void videoRamWriteWord(uint32_t address, uint32_t data)
         neocd->video.videoramData = neocd->memory.videoRam[neocd->video.videoramOffset];
         break;
     case    0x2:    // $3C0002: Videoram Data
-        neocd->memory.videoRam[neocd->video.videoramOffset] = data;
-        if ((neocd->video.videoramOffset & 0xFE00) >= 0x8000
-            && (neocd->video.videoramOffset & 0xFE00) < 0x8600)
-            neocd->video.spriteIndexDirty = true;
+        /* The chip has 0x8800 words of video RAM and drops writes
+           past them - read out of Geolith. They landed in backing
+           store here and read back, which no real machine does.
+        */
+        if (neocd->video.videoramOffset < 0x8800)
+        {
+            neocd->memory.videoRam[neocd->video.videoramOffset] = data;
+            if ((neocd->video.videoramOffset & 0xFE00) >= 0x8000
+                && (neocd->video.videoramOffset & 0xFE00) < 0x8600)
+                neocd->video.spriteIndexDirty = true;
+        }
         neocd->video.videoramOffset = (neocd->video.videoramOffset & 0x8000) | ((neocd->video.videoramOffset + neocd->video.videoramModulo) & 0x7FFF);
         neocd->video.videoramData = neocd->memory.videoRam[neocd->video.videoramOffset];
         break;
