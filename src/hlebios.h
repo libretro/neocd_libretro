@@ -239,7 +239,7 @@ protected:
     static void stopAtTrackEnd();
 
     /// Starts, keeps or leaves a track for the mode a game asked with.
-    static void cdRequest(uint8_t mode, uint8_t track);
+    static void cdRequest(uint8_t mode, uint8_t track, bool fromBlock = false);
 
     /// Picks up a request a game wrote into the CD command block.
     static void consumeCdBlock();
@@ -261,6 +261,7 @@ protected:
     /// The sector the track being played runs out at, so it can be
     /// stopped there rather than running on into the next one.
     static uint32_t m_playUntil;
+    static bool m_loopAtEnd;
     static uint8_t m_lastP1;
     static uint8_t m_lastP2;
     static uint8_t m_lastStatus;

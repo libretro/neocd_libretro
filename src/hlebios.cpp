@@ -20,6 +20,7 @@ uint32_t HleBios::m_userDelay = 0;
 uint8_t HleBios::m_startLatch = 0;
 uint32_t HleBios::m_busyFrames = 0;
 uint32_t HleBios::m_playUntil = 0;
+bool HleBios::m_loopAtEnd = false;
 uint8_t HleBios::m_lastP1 = 0;
 uint8_t HleBios::m_lastP2 = 0;
 uint8_t HleBios::m_lastStatus = 0;
@@ -890,7 +891,7 @@ void HleBios::repeatPad(uint32_t base, uint8_t current)
     }
 }
 
-void HleBios::cdRequest(uint8_t mode, uint8_t track)
+void HleBios::cdRequest(uint8_t mode, uint8_t track, bool fromBlock)
 {
     uint8_t* ram = neocd->memory.ram;
 
@@ -937,6 +938,7 @@ void HleBios::cdRequest(uint8_t mode, uint8_t track)
             neocd->cdrom.toc().findTocEntry(TrackIndex(number + 1, 1));
 
         m_playUntil = next ? next->startSector : neocd->cdrom.leadout();
+        m_loopAtEnd = fromBlock;
 
         // Asking again for the track already playing leaves it
         // alone rather than starting it over.
@@ -997,7 +999,7 @@ void HleBios::consumeCdBlock()
     command &= 0x7F;
 
     if (command <= 0x07)
-        cdRequest(command, track);
+        cdRequest(command, track, true);
 }
 
 void HleBios::stopAtTrackEnd()
@@ -1009,14 +1011,20 @@ void HleBios::stopAtTrackEnd()
         return;
 
     // What happens when the track runs out depends on how it was asked
-    // for, and which modes mean what was measured rather than guessed:
-    // over a long run on a real BIOS, every track that started again at
-    // its end without the sound driver asking had been requested with
-    // the low mode bit clear, and no track requested with it set ever
-    // did. Clear means loop; set means once.
+    // for - not on the mode bits, which a real BIOS's monitor never
+    // consults for this. Requests that come in through the command
+    // block arm the monitor, and the monitor's answer to a track
+    // reaching its boundary is to seek back and play it again, every
+    // time; the earlier reading of the measurements took the drive
+    // slipping into the next track - a race the monitor sometimes
+    // loses - for a mode-dependent choice. Plays asked for through the
+    // direct entry never arm the monitor at all, and the drive simply
+    // runs on into whatever follows, which for the discs that use it
+    // is silence; that is the stop the measurements saw, and it is the
+    // track's doing, not the mode's.
     uint8_t* ram = neocd->memory.ram;
 
-    if (!(ram[0x10F6F7] & 0x01))
+    if (m_loopAtEnd)
     {
         uint8_t track = ram[CD_TRACK_VAR];
         uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
