@@ -1375,31 +1375,78 @@ int HleBios::trap(uint32_t pc)
                 return 1;
             }
 
-            // Word at a time through the window, stepping the bank when
-            // the destination runs past the end of one, which is what a
-            // BIOS does rather than letting it wrap.
-            uint8_t bank = ram[0x10FEDB];
-
-            for (uint32_t done = 0; (done + 1) < length; done += 2)
+            // How the copy goes depends on the area, read out of the two
+            // transfer programs a real BIOS hands its DMA engine. The
+            // byte areas - fix, sound program, samples - take one source
+            // byte per slot, packed, in source order, and the window
+            // position moves two for every byte; a word loop through the
+            // window dropped every other byte here, which is why the
+            // title text this BIOS finally showed came out as rubble.
+            // Sprites and program move as words.
+            if ((type == 1) || (type == 3) || (type == 4))
             {
-                if (destination >= 0x100000)
+                uint32_t bank = ram[0x10FEDB];
+
+                for (uint32_t done = 0; done < length; ++done)
                 {
-                    destination -= 0x100000;
-                    ++bank;
-                    ram[0x10FEDB] = bank;
-                    if (type == 2) m68k_write_memory_8(0x00FF01A1, bank);
-                    if (type == 4) m68k_write_memory_8(0x00FF01A3, bank);
+                    uint32_t at = (destination >> 1) + done;
+                    uint8_t value = static_cast<uint8_t>(m68k_read_memory_8(source + done));
+
+                    switch (type)
+                    {
+                    case 1:
+                        neocd->memory.fixRam[at & 0x1FFFF] = value;
+                        break;
+                    case 3:
+                        if (at < Memory::Z80RAM_SIZE)
+                            neocd->memory.z80Ram[at] = value;
+                        break;
+                    case 4:
+                        neocd->memory.pcmRam[(at + ((bank & 1) * 0x80000)) & 0xFFFFF] = value;
+                        break;
+                    }
                 }
 
-                m68k_write_memory_16(0x00E00000 + destination,
-                                     m68k_read_memory_16(source));
-                source += 2;
-                destination += 2;
-            }
+                uint32_t linear = ((bank & 1) * 0x100000) + destination + (length * 2);
 
-            m68k_write_memory_32(0x0010FEF8, source);
-            m68k_write_memory_32(0x0010FEF4, destination);
-            m68k_write_memory_32(0x0010FEFC, 0);
+                if (type == 4)
+                {
+                    ram[0x10FEDB] = static_cast<uint8_t>(linear >> 20);
+                    m68k_write_memory_8(0x00FF01A3, ram[0x10FEDB]);
+                }
+
+                m68k_write_memory_32(0x0010FEF8, source + length);
+                m68k_write_memory_32(0x0010FEF4, (type == 4) ? (linear & 0xFFFFF)
+                                                             : (destination + (length * 2)));
+                m68k_write_memory_32(0x0010FEFC, 0);
+            }
+            else
+            {
+                // Sprite and anything unnamed: a word at a time through
+                // the window, stepping the bank when the destination
+                // runs past the end of one.
+                uint8_t bank = ram[0x10FEDB];
+
+                for (uint32_t done = 0; (done + 1) < length; done += 2)
+                {
+                    if (destination >= 0x100000)
+                    {
+                        destination -= 0x100000;
+                        ++bank;
+                        ram[0x10FEDB] = bank;
+                        if (type == 2) m68k_write_memory_8(0x00FF01A1, bank);
+                    }
+
+                    m68k_write_memory_16(0x00E00000 + destination,
+                                         m68k_read_memory_16(source));
+                    source += 2;
+                    destination += 2;
+                }
+
+                m68k_write_memory_32(0x0010FEF8, source);
+                m68k_write_memory_32(0x0010FEF4, destination);
+                m68k_write_memory_32(0x0010FEFC, 0);
+            }
 
             if (release)
                 m68k_write_memory_8(release, 1);
