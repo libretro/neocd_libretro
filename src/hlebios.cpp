@@ -563,6 +563,20 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
 
 void HleBios::streamFiles(uint32_t listAddress)
 {
+    {
+        // A BIOS parks the game's frame vector here while it streams and
+        // its CD machinery treats the slot being filled as the sign that
+        // a game is up and streaming. Games check the same things a BIOS
+        // checks, so the slot is filled the same way.
+        uint32_t vec = m68k_read_memory_32(0x68);
+        uint8_t* ram = neocd->memory.ram;
+
+        ram[0x10F6EE] = static_cast<uint8_t>(vec >> 24);
+        ram[0x10F6EF] = static_cast<uint8_t>(vec >> 16);
+        ram[0x10F6F0] = static_cast<uint8_t>(vec >> 8);
+        ram[0x10F6F1] = static_cast<uint8_t>(vec);
+    }
+
     // What a game asks for when it moves from one screen to the next:
     // the tiles and sprites the next screen needs. A BIOS reads the list,
     // works out which of them are not already resident and fetches those
@@ -781,15 +795,24 @@ void HleBios::initBiosRam()
     // answers a game asking for a track checks it before doing anything:
     // no block, no command, no music.
     {
-        uint32_t header = m68k_read_memory_16(0x0000013A);
-        uint32_t block = ((header == 0) || (header == 0xFFFF))
-                       ? CD_COMMAND_BLOCK
-                       : (0x00E00000 + (header * 2));
+        // The word at 0x13A can name a game's own block, but a BIOS only
+        // honours it for one mode of a call this does not model - left
+        // alone, every game measured gets the default. Samurai Shodown 2
+        // carries 0x8643 there and a real BIOS still uses the default;
+        // taking the header at face value pointed this at a stretch of
+        // the sound driver's own code, and the requests the driver was
+        // posting at the real block went unread.
+        uint32_t block = CD_COMMAND_BLOCK;
 
         ram[BIOS_CD_COMMAND]     = static_cast<uint8_t>(block >> 24);
         ram[BIOS_CD_COMMAND + 1] = static_cast<uint8_t>(block >> 16);
         ram[BIOS_CD_COMMAND + 2] = static_cast<uint8_t>(block >> 8);
         ram[BIOS_CD_COMMAND + 3] = static_cast<uint8_t>(block);
+
+        // And the byte beside it says the CD side is idle and listening.
+        // A real BIOS parks FF here between requests; a game that reads
+        // it before asking sees zero from this and never asks.
+        ram[CD_MODE_VAR] = 0xFF;
     }
 
     // The settings a game ships for the country it is running in. A
@@ -865,6 +888,116 @@ void HleBios::repeatPad(uint32_t base, uint8_t current)
         ram[base + 5] = 0x08;
         ram[base + 4] = current;
     }
+}
+
+void HleBios::cdRequest(uint8_t mode, uint8_t track)
+{
+    uint8_t* ram = neocd->memory.ram;
+
+    ram[CD_MODE_VAR] = mode;
+
+    if (!(mode & 0x02))
+    {
+        ram[CD_TRACK_VAR] = track;
+        ram[0x10F6F8] = track;
+        ram[0x10F6F7] = mode;
+    }
+    else
+    {
+        // Keep the track already asked for.
+        track = ram[CD_TRACK_VAR];
+
+        // Of the modes that name no track, the lower pair stop the
+        // drive and the upper pair leave it be - which is what lets a
+        // resume find the track still stored.
+        if (!(mode & 0x04))
+        {
+            neocd->cdrom.stop();
+            m_playUntil = 0;
+            return;
+        }
+    }
+
+    if (!track)
+        return;
+
+    // The track is held the way it is written down, two decimal
+    // digits to a byte, not as a plain count.
+    uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
+
+    const CdromToc::Entry* entry =
+        neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
+
+    if (entry && (entry->trackType != CdromToc::TrackType::Mode1_2048)
+              && (entry->trackType != CdromToc::TrackType::Mode1_2352))
+    {
+        // Where this track runs out: the next one's start, or the
+        // end of the disc for the last. A drive stops there.
+        const CdromToc::Entry* next =
+            neocd->cdrom.toc().findTocEntry(TrackIndex(number + 1, 1));
+
+        m_playUntil = next ? next->startSector : neocd->cdrom.leadout();
+
+        // Asking again for the track already playing leaves it
+        // alone rather than starting it over.
+        if (!neocd->cdrom.isPlaying()
+            || (neocd->cdrom.currentTrackIndex().track() != number))
+        {
+            neocd->cdrom.seek(entry->startSector);
+            neocd->cdrom.play();
+        }
+    }
+}
+
+void HleBios::consumeCdBlock()
+{
+    // A game does not always ask for music itself. Samurai Shodown 2
+    // never does: its 68000 sends song numbers to the sound driver like
+    // any other sound, and it is the driver, on the Z80, that knows
+    // which of them are disc tracks. The driver posts those on in its
+    // own memory, and the block address a BIOS keeps at 0x10F6EA names
+    // that spot as the 68000 sees it - through the window whose odd
+    // bytes are the Z80's memory at half the offset. 0xE1FDF0 is Z80
+    // 0xFEF8: the command, with the track beside it.
+    //
+    // The system call a game makes every frame reads the pair, acts and
+    // clears it. Nothing here did, so the driver's requests sat there
+    // unread - the pair of bytes an earlier investigation found holding
+    // 02 02 against a real run's 00 00 and took for debris was the
+    // request itself, a stop the driver posts when it resets, waiting
+    // forever to be taken.
+    uint8_t* ram = neocd->memory.ram;
+
+    uint32_t p = (static_cast<uint32_t>(ram[0x10F6EA]) << 24)
+               | (static_cast<uint32_t>(ram[0x10F6EB]) << 16)
+               | (static_cast<uint32_t>(ram[0x10F6EC]) << 8)
+               | ram[0x10F6ED];
+
+    if ((p < 0x00E00000) || (p > 0x00EFFFFF))
+        return;
+
+    uint32_t at = (p >> 1) & 0xFFFF;
+    uint8_t command = neocd->memory.z80Ram[at];
+    uint8_t track = neocd->memory.z80Ram[at + 1];
+
+    // Nothing waiting. A command of zero is a real request when a track
+    // rides with it - the driver's own table pairs plenty of tracks
+    // with mode zero - so idle is only the two together.
+    if ((command == 0xFF) || (!command && !track))
+        return;
+
+    if (!(command & 0x02) && !track)
+        return;
+
+    neocd->memory.z80Ram[at] = 0x00;
+    neocd->memory.z80Ram[at + 1] = 0x00;
+
+    // The top bit only marks the request as fresh; the mode is the rest,
+    // and a real BIOS ignores anything past seven.
+    command &= 0x7F;
+
+    if (command <= 0x07)
+        cdRequest(command, track);
 }
 
 void HleBios::stopAtTrackEnd()
@@ -1079,58 +1212,10 @@ int HleBios::trap(uint32_t pc)
         // already asked for stands and only the mode is new. Reading it
         // as stop turned every one of those into silence.
         {
-            uint8_t* ram = neocd->memory.ram;
             uint32_t d0 = m68k_get_reg(nullptr, M68K_REG_D0);
-            uint8_t mode = static_cast<uint8_t>((d0 >> 8) & 0xFF);
-            uint8_t track = static_cast<uint8_t>(d0 & 0xFF);
 
-            ram[CD_MODE_VAR] = mode;
-
-            if (!(mode & 0x02))
-            {
-                ram[CD_TRACK_VAR] = track;
-                ram[0x10F6F8] = track;
-                ram[0x10F6F7] = mode;
-            }
-            else
-            {
-                // Keep the track already asked for.
-                track = ram[CD_TRACK_VAR];
-            }
-
-            if (!track)
-                return 1;
-
-            // The track is held the way it is written down, two decimal
-            // digits to a byte, not as a plain count.
-            uint8_t number = static_cast<uint8_t>(((track >> 4) * 10) + (track & 0x0F));
-
-            const CdromToc::Entry* entry =
-                neocd->cdrom.toc().findTocEntry(TrackIndex(number, 1));
-
-            if (entry && (entry->trackType != CdromToc::TrackType::Mode1_2048)
-                      && (entry->trackType != CdromToc::TrackType::Mode1_2352))
-            {
-                // Where this track runs out: the next one's start, or the
-                // end of the disc for the last. A drive stops there. This
-                // did not, so it ran on through everything after it -
-                // Idol Mahjong played from its first tune to the end of
-                // the disc where a real BIOS goes quiet after twenty
-                // seconds.
-                const CdromToc::Entry* next =
-                    neocd->cdrom.toc().findTocEntry(TrackIndex(number + 1, 1));
-
-                m_playUntil = next ? next->startSector : neocd->cdrom.leadout();
-
-                // Asking again for the track already playing leaves it
-                // alone rather than starting it over.
-                if (!neocd->cdrom.isPlaying()
-                    || (neocd->cdrom.currentTrackIndex().track() != number))
-                {
-                    neocd->cdrom.seek(entry->startSector);
-                    neocd->cdrom.play();
-                }
-            }
+            cdRequest(static_cast<uint8_t>((d0 >> 8) & 0xFF),
+                      static_cast<uint8_t>(d0 & 0xFF));
         }
         return 1;
 
@@ -1296,6 +1381,7 @@ int HleBios::trap(uint32_t pc)
     case SYSTEM_IO:
         pollInput();
         stopAtTrackEnd();
+        consumeCdBlock();
 
         // Wound down here as well as in the frame interrupt: a game
         // calls one or the other once a frame, and which one differs
@@ -1364,6 +1450,7 @@ int HleBios::trap(uint32_t pc)
         neocd->memory.ram[0x10F6D8] = 0x00;
 
         stopAtTrackEnd();
+        consumeCdBlock();
 
         if (m_busyFrames)
             --m_busyFrames;

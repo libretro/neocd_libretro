@@ -238,6 +238,12 @@ protected:
     /// Stops the drive when the track it was asked for runs out.
     static void stopAtTrackEnd();
 
+    /// Starts, keeps or leaves a track for the mode a game asked with.
+    static void cdRequest(uint8_t mode, uint8_t track);
+
+    /// Picks up a request a game wrote into the CD command block.
+    static void consumeCdBlock();
+
     /// Keeps one pad's held-and-repeating byte and the counter behind it.
     static void repeatPad(uint32_t base, uint8_t current);
 
