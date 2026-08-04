@@ -290,6 +290,11 @@ bool NeoGeoCD::saveState(DataPacker& out) const
     out << audioResult;
     out << biosType;
 
+    // The stand-in BIOS's own state machine. Saved whether or not it is
+    // in use, so a state is the same size either way; under a real BIOS
+    // these are the idle values.
+    HleBios::saveState(out);
+
     // M68K
     out << m68ki_cpu;
 
@@ -340,6 +345,8 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     in >> audioCommand;
     in >> audioResult;
     in >> biosType;
+
+    HleBios::restoreState(in);
 
     // M68K
     in >> m68ki_cpu;

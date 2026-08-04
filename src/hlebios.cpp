@@ -6,6 +6,7 @@
 #include "3rdparty/musashi/m68k.h"
 #include "3rdparty/ym/ym2610.h"
 #include "3rdparty/z80/z80.h"
+#include "datapacker.h"
 #include "hlebios.h"
 #include "libretro_common.h"
 #include "libretro_log.h"
@@ -1201,6 +1202,40 @@ void HleBios::pollInput()
     m_lastP1 = p1;
     m_lastP2 = p2;
     m_lastStatus = st;
+}
+
+void HleBios::saveState(DataPacker& out)
+{
+    out << m_booted;
+    out << m_rootLba;
+    out << m_rootSize;
+    out << m_userRequest;
+    out << m_userDelay;
+    out << m_startLatch;
+    out << m_busyFrames;
+    out << m_heartbeatFrames;
+    out << m_playUntil;
+    out << m_loopAtEnd;
+    out << m_lastP1;
+    out << m_lastP2;
+    out << m_lastStatus;
+}
+
+void HleBios::restoreState(DataPacker& in)
+{
+    in >> m_booted;
+    in >> m_rootLba;
+    in >> m_rootSize;
+    in >> m_userRequest;
+    in >> m_userDelay;
+    in >> m_startLatch;
+    in >> m_busyFrames;
+    in >> m_heartbeatFrames;
+    in >> m_playUntil;
+    in >> m_loopAtEnd;
+    in >> m_lastP1;
+    in >> m_lastP2;
+    in >> m_lastStatus;
 }
 
 void HleBios::callUser(uint8_t request)

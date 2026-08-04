@@ -1,10 +1,12 @@
 #ifndef HLEBIOS_H
 #define HLEBIOS_H
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
+
+class DataPacker;
 
 /**
  * A stand-in for the NeoGeo CD BIOS.
@@ -243,6 +245,20 @@ protected:
 
     /// Picks up a request a game wrote into the CD command block.
     static void consumeCdBlock();
+
+public:
+    /// Writes the state machine into a savestate, and reads it back.
+    /// This state drives one-shot actions on the machine - releasing
+    /// the sound CPU, priming the drive-busy counters - and a state
+    /// that rolls the machine back without rolling this back too
+    /// leaves the two sides disagreeing about what has already been
+    /// done. Run-ahead and rewind roll back every frame, and the
+    /// disagreement they produced held the sound CPU in reset for
+    /// the rest of the session.
+    static void saveState(DataPacker& out);
+    static void restoreState(DataPacker& in);
+
+private:
 
     /// Keeps one pad's held-and-repeating byte and the counter behind it.
     static void repeatPad(uint32_t base, uint8_t current);
