@@ -169,14 +169,6 @@ int neocd_illegal_handler(int instruction);
  */
 #define M68K_EMULATE_ADDRESS_ERROR  OPT_ON
 
-
-/* Turn ON to enable logging of illegal instruction calls.
- * M68K_LOG_FILEHANDLE must be #defined to a stdio file stream.
- * Turn on M68K_LOG_1010_1111 to log all 1010 and 1111 calls.
- */
-#define M68K_LOG_1010_1111          OPT_OFF
-#define M68K_LOG_FILEHANDLE         some_file_handle
-
 /* Emulate PMMU : if you enable this, there will be a test to see if the current chip has some enabled pmmu added to every memory access,
  * so enable this only if it's useful */
 #define M68K_EMULATE_PMMU   OPT_OFF
