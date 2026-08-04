@@ -916,6 +916,46 @@ void HleBios::initBiosRam()
     ram[BIOS_MVS_FLAG]  = 0x00;   // a home console, not an arcade board
     ram[BIOS_COUNTRY]   = 0x00;   // Japan
     ram[BIOS_SYSTEM_MODE] = 0x00;   /* a game says what mode it is in; set per request in callUser */
+
+    /* Constants a real BIOS leaves in the work area at 0x10FE00, read
+       out of one running rather than guessed at: the same values stand
+       there early in boot and deep into play, under two different
+       games. Most are small configuration bytes whose meaning has not
+       needed discovering; two are pointers, one to a parameter block
+       at 0x10FECA and one into the BIOS ROM itself - a real BIOS aims
+       the latter at one of two spots twelve bytes apart depending on
+       the disc, at what looks like its embedded sound driver rather
+       than 68000 code. It is set to the commoner of the two: a game
+       that reads through it finds a sensible address, and one that
+       jumps through it lands in this ROM where the unwritten-routine
+       diagnostic can name the address, instead of sailing through a
+       zero pointer. Fatal Fury 2's menus came from characters nobody
+       drew twice, and The King of Fighters '99's disk error came from
+       a heartbeat nobody kept - both cures were bytes a real BIOS
+       maintains and this one did not, so the rest of the stable ones
+       go in before a third game finds a third byte.
+    */
+    ram[0x10FE04] = 0x80;
+    ram[0x10FE0E] = 0x01;
+    ram[0x10FE0F] = 0x0F;
+    ram[0x10FE10] = 0x14;
+    ram[0x10FE12] = 0x18;
+    ram[0x10FE14] = 0x1A;
+    ram[0x10FE16] = 0x1C;
+    ram[0x10FE1F] = 0x20;
+    ram[0x10FEBB] = 0x01;
+    ram[0x10FEBD] = 0x02;
+    ram[0x10FEBE] = 0x01;
+    ram[0x10FEC0] = 0x00;   // pointer, 0x00C0A2A4
+    ram[0x10FEC1] = 0xC0;
+    ram[0x10FEC2] = 0xA2;
+    ram[0x10FEC3] = 0xA4;
+    ram[0x10FEC6] = 0x00;   // pointer, 0x0010FECA
+    ram[0x10FEC7] = 0x10;
+    ram[0x10FEC8] = 0xFE;
+    ram[0x10FEC9] = 0xCA;
+    ram[0x10FEDF] = 0x02;
+    ram[0x10FEE1] = 0x0A;
     // Not zeroed here: 0x10FD84 is the first byte of the block a game
     // supplies above, and clearing it threw that byte away again.
 
