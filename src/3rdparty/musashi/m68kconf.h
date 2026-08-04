@@ -55,21 +55,6 @@ int neocd_illegal_handler(int instruction);
 
 
 /* ======================================================================== */
-/* ============================== MAME STUFF ============================== */
-/* ======================================================================== */
-
-/* If you're compiling this for MAME, only change M68K_COMPILE_FOR_MAME
- * to OPT_ON and use m68kmame.h to configure the 68k core.
- */
-#ifndef M68K_COMPILE_FOR_MAME
-#define M68K_COMPILE_FOR_MAME      OPT_OFF
-#endif /* M68K_COMPILE_FOR_MAME */
-
-
-#if M68K_COMPILE_FOR_MAME == OPT_OFF
-
-
-/* ======================================================================== */
 /* ============================= CONFIGURATION ============================ */
 /* ======================================================================== */
 
@@ -108,7 +93,6 @@ int neocd_illegal_handler(int instruction);
  */
 #define M68K_EMULATE_BKPT_ACK       OPT_OFF
 #define M68K_BKPT_ACK_CALLBACK()    your_bkpt_ack_handler_function()
-
 
 /* If ON, the CPU will monitor the trace flags and take trace exceptions
  */
@@ -190,7 +174,6 @@ int neocd_illegal_handler(int instruction);
  * M68K_LOG_FILEHANDLE must be #defined to a stdio file stream.
  * Turn on M68K_LOG_1010_1111 to log all 1010 and 1111 calls.
  */
-#define M68K_LOG_ENABLE             OPT_OFF
 #define M68K_LOG_1010_1111          OPT_OFF
 #define M68K_LOG_FILEHANDLE         some_file_handle
 
@@ -210,8 +193,6 @@ int neocd_illegal_handler(int instruction);
 */
 #define M68K_USE_64_BIT  OPT_ON
 
-
-#endif /* M68K_COMPILE_FOR_MAME */
 
 /* ======================================================================== */
 /* ============================== END OF FILE ============================= */

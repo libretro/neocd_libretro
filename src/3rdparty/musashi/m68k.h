@@ -391,16 +391,6 @@ unsigned int m68k_disassemble(char* str_buff, unsigned int pc, unsigned int cpu_
  */
 unsigned int m68k_disassemble_raw(char* str_buff, unsigned int pc, const unsigned char* opdata, const unsigned char* argdata, unsigned int cpu_type);
 
-
-/* ======================================================================== */
-/* ============================== MAME STUFF ============================== */
-/* ======================================================================== */
-
-#if M68K_COMPILE_FOR_MAME == OPT_ON
-#include "m68kmame.h"
-#endif /* M68K_COMPILE_FOR_MAME */
-
-
 /* ======================================================================== */
 /* ============================== END OF FILE ============================= */
 /* ======================================================================== */

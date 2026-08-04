@@ -58,23 +58,6 @@ int  m68ki_remaining_cycles = 0;                     /* Number of clocks remaini
 uint m68ki_tracing = 0;
 uint m68ki_address_space;
 
-#ifdef M68K_LOG_ENABLE
-const char *const m68ki_cpu_names[] =
-{
-	"Invalid CPU",
-	"M68000",
-	"M68010",
-	"M68EC020",
-	"M68020",
-	"M68EC030",
-	"M68030",
-	"M68EC040",
-	"M68LC040",
-	"M68040",
-	"SCC68070",
-};
-#endif /* M68K_LOG_ENABLE */
-
 /* The CPU core */
 m68ki_cpu_core m68ki_cpu = {0};
 
@@ -1164,59 +1147,6 @@ void m68k_set_context(void* src)
 {
 	if(src) m68ki_cpu = *(m68ki_cpu_core*)src;
 }
-
-/* ======================================================================== */
-/* ============================== MAME STUFF ============================== */
-/* ======================================================================== */
-
-#if M68K_COMPILE_FOR_MAME == OPT_ON
-
-static struct {
-	UINT16 sr;
-	UINT8 stopped;
-	UINT8 halted;
-} m68k_substate;
-
-static void m68k_prepare_substate(void)
-{
-	m68k_substate.sr = m68ki_get_sr();
-	m68k_substate.stopped = (CPU_STOPPED & STOP_LEVEL_STOP) != 0;
-	m68k_substate.halted  = (CPU_STOPPED & STOP_LEVEL_HALT) != 0;
-}
-
-static void m68k_post_load(void)
-{
-	m68ki_set_sr_noint_nosp(m68k_substate.sr);
-	CPU_STOPPED = m68k_substate.stopped ? STOP_LEVEL_STOP : 0
-		        | m68k_substate.halted  ? STOP_LEVEL_HALT : 0;
-	m68ki_jump(REG_PC);
-}
-
-void m68k_state_register(const char *type, int index)
-{
-	/* Note, D covers A because the dar array is common, REG_A=REG_D+8 */
-	state_save_register_item_array(type, index, REG_D);
-	state_save_register_item(type, index, REG_PPC);
-	state_save_register_item(type, index, REG_PC);
-	state_save_register_item(type, index, REG_USP);
-	state_save_register_item(type, index, REG_ISP);
-	state_save_register_item(type, index, REG_MSP);
-	state_save_register_item(type, index, REG_VBR);
-	state_save_register_item(type, index, REG_SFC);
-	state_save_register_item(type, index, REG_DFC);
-	state_save_register_item(type, index, REG_CACR);
-	state_save_register_item(type, index, REG_CAAR);
-	state_save_register_item(type, index, m68k_substate.sr);
-	state_save_register_item(type, index, CPU_INT_LEVEL);
-	state_save_register_item(type, index, m68k_substate.stopped);
-	state_save_register_item(type, index, m68k_substate.halted);
-	state_save_register_item(type, index, CPU_PREF_ADDR);
-	state_save_register_item(type, index, CPU_PREF_DATA);
-	state_save_register_func_presave(m68k_prepare_substate);
-	state_save_register_func_postload(m68k_post_load);
-}
-
-#endif /* M68K_COMPILE_FOR_MAME */
 
 /* ======================================================================== */
 /* ============================== END OF FILE ============================= */
