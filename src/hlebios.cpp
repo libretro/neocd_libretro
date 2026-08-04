@@ -1284,6 +1284,14 @@ int HleBios::trap(uint32_t pc)
     switch (pc)
     {
     case BOOT:
+        // A real BIOS initialises sample memory to 0x08 before it loads
+        // anything - the ADPCM silence byte, so a sample that strays or
+        // points past what was loaded decays quietly to the floor. Left
+        // at zero, the same stray plays a slow climb to full scale
+        // instead: a thump the hardware never makes. Fill first, load
+        // over it.
+        std::memset(neocd->memory.pcmRam, 0x08, Memory::PCMRAM_SIZE);
+
         if (!loadDisc())
         {
             // Nothing to run. Stop rather than execute the disc's
