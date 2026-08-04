@@ -74,7 +74,20 @@ static void videoRamWriteWord(uint32_t address, uint32_t data)
 
     case    0xA:    // $3C000A: Display Counter low
         neocd->video.hirqRegister = (neocd->video.hirqRegister & 0xFFFF0000) | data;
-        if (neocd->video.hirqControl & Video::HIRQ_CTRL_RELATIVE)
+        // A counter loaded with 0xFFFFFFFF counts for four billion
+        // pixels before it fires, which is to say it does not: games
+        // park the timer this way. The rearm below adds one to the
+        // register, and on that value the one wrapped the sum to zero
+        // and fired the interrupt right where the beam stood - Neo
+        // Drift Out parks its timer mid-screen every frame it runs its
+        // road, and every spurious interrupt sent its raster handler
+        // chasing lines that had already passed for the rest of the
+        // frame. The auto-repeat path two cases up has guarded against
+        // this exact value for years, with this game's name on the
+        // comment; the load-on-write path fires through the same
+        // arithmetic and needed the same guard.
+        if ((neocd->video.hirqControl & Video::HIRQ_CTRL_RELATIVE)
+            && (neocd->video.hirqRegister != 0xFFFFFFFF))
         {
             // Karnov uses this for raster effects, they calculate precisely the number of cycles to wait for the next line.
             // We need to take into account the number of cycles already executed in the timeslice.
