@@ -6,7 +6,6 @@
 #include "3rdparty/musashi/m68k.h"
 #include "3rdparty/ym/ym2610.h"
 #include "3rdparty/z80/z80.h"
-#include <cmath>
 #include "hlebios.h"
 #include "libretro_common.h"
 #include "libretro_log.h"
@@ -142,36 +141,46 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_STREAM_START, OP_RTS);
 
     /* The sine table at 0xC04000, which games read straight out of the
-       BIOS ROM. Fatal Fury 2 shapes the spinning globe of its VS
+       BIOS ROM. Fatal Fury 2 shapes the spinning globe of its versus
        screen from it - each column's place and width comes from an
        entry - and with nothing here the columns all fell in a heap.
        The table is the magnitude of the sine, one word per 1/256th of
        a turn, scaled so a quarter turn reads 0x10000 - stored in
        sixteen bits, so the two peaks keep only their carry and read
-       0x0001, which is what a real table holds there. Two entries in
-       the second quarter of the original have digits transposed -
-       0xBDAF written 0xBDFA, 0x6D74 written 0x67D4 - while their twins
-       in the first quarter are right, so the table was written out by
-       hand at least that far; the second half repeats the mistakes at
-       the same places. They are reproduced, mistakes and all: what a
-       game reads from this table has to be what a game has always
-       read.
+       0x0001. The quarter is spelled out below rather than computed,
+       so that every build of this file produces the same bytes with no
+       floating point and no library in the loop; the rest of the table
+       is its mirror. Two entries in the second quarter of a real
+       BIOS's table have digits transposed - 0xBDAF written 0xBDFA,
+       0x6D74 written 0x67D4 - while their twins in the first quarter
+       are right, so the original was written out by hand at least that
+       far, and the second half repeats the mistakes at the same
+       places. They are reproduced: what a game reads from this table
+       has to be what a game has always read, slips included.
     */
+    static const uint16_t sineQuarter[65] = {
+        0x0000, 0x0648, 0x0C90, 0x12D5, 0x1918, 0x1F56, 0x2590, 0x2BC4,
+        0x31F1, 0x3817, 0x3E34, 0x4447, 0x4A50, 0x504D, 0x563E, 0x5C22,
+        0x61F8, 0x67BE, 0x6D74, 0x731A, 0x78AD, 0x7E2F, 0x839C, 0x88F6,
+        0x8E3A, 0x9368, 0x9880, 0x9D80, 0xA268, 0xA736, 0xABEB, 0xB086,
+        0xB505, 0xB968, 0xBDAF, 0xC1D8, 0xC5E4, 0xC9D1, 0xCD9F, 0xD14D,
+        0xD4DB, 0xD848, 0xDB94, 0xDEBE, 0xE1C6, 0xE4AA, 0xE76C, 0xEA0A,
+        0xEC83, 0xEED9, 0xF109, 0xF314, 0xF4FA, 0xF6BA, 0xF854, 0xF9C8,
+        0xFB15, 0xFC3B, 0xFD3B, 0xFE13, 0xFEC4, 0xFF4E, 0xFFB1, 0xFFEC,
+        0x0001
+    };
+
     for (uint32_t k = 0; k < 256; k++)
     {
         uint32_t fold = k & 127;
         if (fold > 64)
             fold = 128 - fold;
 
-        uint32_t value = static_cast<uint32_t>(
-            std::sin(2.0 * M_PI * static_cast<double>(fold) / 256.0) * 65536.0 + 0.5);
+        uint32_t value = sineQuarter[fold];
 
-        if (value >= 0x10000)
-            value = 0x0001;
-
-        if ((k & 127) == 94)   /* 0xBDAF in any table freshly computed */
+        if ((k & 127) == 94)
             value = 0xBDFA;
-        if ((k & 127) == 110)  /* 0x6D74 likewise */
+        if ((k & 127) == 110)
             value = 0x67D4;
 
         rom[0x4000 + k * 2] = static_cast<uint8_t>(value >> 8);
