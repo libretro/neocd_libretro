@@ -6,6 +6,7 @@
 #include "libretro_common.h"
 #include "m68kintf.h"
 #include "neogeocd.h"
+#include "3rdparty/musashi/m68k.h"
 #include "timer.h"
 #include "z80intf.h"
 #include "libretro_log.h"
@@ -103,8 +104,19 @@ void NeoGeoCD::reset()
     YM2610Reset();
 }
 
+static bool g_m68kMidSlice = false;
+
+int32_t NeoGeoCD::midSliceElapsed() const
+{
+    if (!g_m68kMidSlice)
+        return 0;
+
+    return Timer::m68kToMaster(m68k_cycles_run());
+}
+
 void NeoGeoCD::runOneFrame()
 {
+
     remainingCyclesThisFrame += Timer::CYCLES_PER_FRAME;
 
     audio.initFrame();
@@ -112,7 +124,11 @@ void NeoGeoCD::runOneFrame()
     while (remainingCyclesThisFrame > 0)
     {
         uint32_t timeSlice = std::min(timers.timeSlice(), remainingCyclesThisFrame);
+
+        g_m68kMidSlice = true;
         uint32_t elapsed   = Timer::m68kToMaster(m68k_execute(Timer::masterToM68k(timeSlice)));
+        g_m68kMidSlice = false;
+
 
         z80TimeSlice += elapsed;
         if (z80TimeSlice > 0)

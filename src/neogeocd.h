@@ -63,12 +63,23 @@ public:
 #endif
     }
 
+    /// Master cycles the 68000 has run inside the timeslice currently
+    /// being executed, or zero between slices. The frame's remaining
+    /// cycle count only moves when a slice ends, so without this the
+    /// beam stands still for everyone who looks at it from inside one:
+    /// a game that polls the raster counter waiting for a line sees the
+    /// same line for the whole slice, misses its moment, and spends the
+    /// rest of the frame waiting for a wrap that already happened. Neo
+    /// Drift Out times its road effect that way, and stuttered at every
+    /// other frame for it.
+    int32_t midSliceElapsed() const;
+
     inline int  getScreenY() const
     {
 #ifndef ADJUST_FRAME_BOUNDARY
-        return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame) / Timer::SCREEN_WIDTH);
+        return (Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame + midSliceElapsed()) / Timer::SCREEN_WIDTH);
 #else
-        return (Timer::VBL_IRQ_Y + (Timer::VBL_IRQ_X + Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame)) / Timer::SCREEN_WIDTH) % Timer::SCREEN_HEIGHT;
+        return (Timer::VBL_IRQ_Y + (Timer::VBL_IRQ_X + Timer::masterToPixel(Timer::CYCLES_PER_FRAME - remainingCyclesThisFrame + midSliceElapsed())) / Timer::SCREEN_WIDTH) % Timer::SCREEN_HEIGHT;
 #endif
     }
 
