@@ -139,6 +139,14 @@ public:
     uint32_t    pendingInterrupts;
     int32_t     remainingCyclesThisFrame;
     int32_t     z80TimeSlice;
+    /* Remainder of the overclock division, in hundredths of a master
+       cycle, carried from one timeslice into the next so the scaling
+       neither creates nor loses time. Deliberately not in the saved
+       state - it is a fraction of a cycle - but it is machine state
+       all the same, so reset clears it and a restore starts it from
+       zero rather than from whatever this session had reached.
+    */
+    uint32_t    cpuOverclockCarry;
     bool        z80Disable;
     bool        z80NMIDisable;
     /* Master clock cycles since power on, whole ones; the fractions a

@@ -35,6 +35,7 @@ NeoGeoCD::NeoGeoCD() :
     pendingInterrupts(0),
     remainingCyclesThisFrame(0),
     z80TimeSlice(0),
+    cpuOverclockCarry(0),
     z80Disable(true),
     z80NMIDisable(true),
     currentTimeCycles(0),
@@ -92,6 +93,7 @@ void NeoGeoCD::reset()
     irqMask2 = 0;
     remainingCyclesThisFrame = 0;
     z80TimeSlice = 0;
+    cpuOverclockCarry = 0;
     z80Disable = true;
     z80NMIDisable = true;
     currentTimeCycles = 0;
@@ -149,13 +151,14 @@ void NeoGeoCD::runOneFrame()
             // overclock/100 times the stock rate, so it consumed
             // executed * 100 / overclock of wall time. The division
             // remainder is carried so no time is created or lost over
-            // the long run. The carry is deliberately transient: it is
-            // at most a fraction of a 68000 cycle and not worth a
-            // savestate format change.
-            static uint32_t carry = 0;
-            uint64_t t = (uint64_t)Timer::m68kToMaster(executed) * 100 + carry;
+            // the long run. The carry stays out of the saved state -
+            // it is a fraction of a cycle - but it lives with the rest
+            // of the frame accounting so that reset clears it and a
+            // restore begins from zero.
+            uint64_t t = (uint64_t)Timer::m68kToMaster(executed) * 100
+                       + cpuOverclockCarry;
             elapsed = (uint32_t)(t / overclock);
-            carry = (uint32_t)(t % overclock);
+            cpuOverclockCarry = (uint32_t)(t % overclock);
 
             if (!elapsed && executed > 0)
                 elapsed = 1;
@@ -357,6 +360,12 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     m68ki_cpu.pc_changed_callback = nullptr;
     m68ki_cpu.set_fc_callback = nullptr;
     m68ki_cpu.instr_hook_callback = nullptr;
+
+    // The overclock remainder is not in the state and must not be
+    // inherited from whatever was running before the restore: a state
+    // has to resume the same way every time it is loaded, which rewind
+    // depends on more than anything.
+    cpuOverclockCarry = 0;
 
     // Z80
     in >> Z80;
