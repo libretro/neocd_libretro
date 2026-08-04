@@ -15,6 +15,7 @@ static const char* const SPEEDHACK_VARIABLE = "neocd_cdspeedhack";
 static const char* const LOADSKIP_VARIABLE = "neocd_loadskip";
 static const char* const PER_CONTENT_SAVES_VARIABLE = "neocd_per_content_saves";
 static const char* const OVERSCAN_H_VARIABLE = "neocd_overscan_h";
+static const char* const CPU_OVERCLOCK_VARIABLE = "neocd_cpu_overclock";
 
 static const char* const CATEGORY_SYSTEM = "system";
 static const char* const CATEGORY_VIDEO = "video";
@@ -120,6 +121,7 @@ static void buildLegacyVariables()
 
     variables.emplace_back(retro_variable{ OVERSCAN_H_VARIABLE, "Horizontal Overscan Mask; 8|4|0|12|16" });
     variables.emplace_back(retro_variable{ SPEEDHACK_VARIABLE, "CD Speed Hack; On|Off" });
+    variables.emplace_back(retro_variable{ CPU_OVERCLOCK_VARIABLE, "CPU Overclock; 100%|110%|125%|150%|200%" });
     variables.emplace_back(retro_variable{ LOADSKIP_VARIABLE, "Skip CD Loading; On|Off" });
     variables.emplace_back(retro_variable{ PER_CONTENT_SAVES_VARIABLE, "Per-Game Saves (Restart); Off|On" });
 
@@ -129,7 +131,7 @@ static void buildLegacyVariables()
 static void buildCoreOptionsV2()
 {
     coreOptionDefinitions.clear();
-    coreOptionDefinitions.reserve(6);
+    coreOptionDefinitions.reserve(7);
 
     retro_core_option_v2_definition option;
 
@@ -152,6 +154,10 @@ static void buildCoreOptionsV2()
     coreOptionDefinitions.emplace_back(option);
 
     fillBasicOption(option, LOADSKIP_VARIABLE, "Skip CD Loading", CATEGORY_ADVANCED, "On", onOffValues, 2);
+    coreOptionDefinitions.emplace_back(option);
+
+    const char* const overclockValues[] = { "100%", "110%", "125%", "150%", "200%" };
+    fillBasicOption(option, CPU_OVERCLOCK_VARIABLE, "CPU Overclock", CATEGORY_ADVANCED, "100%", overclockValues, 5);
     coreOptionDefinitions.emplace_back(option);
 
     const char* const offOnValues[] = { "Off", "On" };
@@ -262,6 +268,16 @@ void Libretro::Variables::update(bool needReset)
 
     if (libretro.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         globals.skipCDLoading = strcmp(var.value, "On") ? false : true;
+
+    var.value = NULL;
+    var.key = CPU_OVERCLOCK_VARIABLE;
+
+    if (libretro.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        uint32_t newValue = (uint32_t)atoi(var.value);
+        if (newValue >= 100 && newValue <= 1000)
+            globals.cpuOverclock = newValue;
+    }
 
     var.value = NULL;
     var.key = PER_CONTENT_SAVES_VARIABLE;

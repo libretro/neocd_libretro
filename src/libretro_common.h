@@ -59,6 +59,9 @@ struct Globals
     // Pixels of horizontal overscan hidden on each side of the picture
     uint32_t overscanH{ 8 };
 
+    // 68000 overclock, in percent of the stock clock. 100 is stock.
+    uint32_t cpuOverclock{ 100 };
+
     bool perContentSaves{ false };
 };
 

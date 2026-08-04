@@ -111,7 +111,15 @@ int32_t NeoGeoCD::midSliceElapsed() const
     if (!g_m68kMidSlice)
         return 0;
 
-    return Timer::m68kToMaster(m68k_cycles_run());
+    int32_t elapsed = Timer::m68kToMaster(m68k_cycles_run());
+    uint32_t overclock = globals.cpuOverclock;
+
+    // Under overclock the processor's cycles cover proportionally less
+    // of the frame, and the beam must not run ahead of the wall clock.
+    if (overclock != 100)
+        elapsed = (int32_t)(((int64_t)elapsed * 100) / overclock);
+
+    return elapsed;
 }
 
 void NeoGeoCD::runOneFrame()
@@ -124,10 +132,36 @@ void NeoGeoCD::runOneFrame()
     while (remainingCyclesThisFrame > 0)
     {
         uint32_t timeSlice = std::min(timers.timeSlice(), remainingCyclesThisFrame);
+        uint32_t overclock = globals.cpuOverclock;
+        int32_t  request   = Timer::masterToM68k(timeSlice);
+        uint32_t elapsed;
+
+        if (overclock != 100)
+            request = std::max(INT32_C(1), (int32_t)(((int64_t)request * overclock) / 100));
 
         g_m68kMidSlice = true;
-        uint32_t elapsed   = Timer::m68kToMaster(m68k_execute(Timer::masterToM68k(timeSlice)));
+        int32_t executed = m68k_execute(request);
         g_m68kMidSlice = false;
+
+        if (overclock != 100)
+        {
+            // Exact accounting: the processor ran executed cycles at
+            // overclock/100 times the stock rate, so it consumed
+            // executed * 100 / overclock of wall time. The division
+            // remainder is carried so no time is created or lost over
+            // the long run. The carry is deliberately transient: it is
+            // at most a fraction of a 68000 cycle and not worth a
+            // savestate format change.
+            static uint32_t carry = 0;
+            uint64_t t = (uint64_t)Timer::m68kToMaster(executed) * 100 + carry;
+            elapsed = (uint32_t)(t / overclock);
+            carry = (uint32_t)(t % overclock);
+
+            if (!elapsed && executed > 0)
+                elapsed = 1;
+        }
+        else
+            elapsed = Timer::m68kToMaster(executed);
 
 
         z80TimeSlice += elapsed;
