@@ -1810,6 +1810,23 @@ int HleBios::trap(uint32_t pc)
         // The frame flag a BIOS spins on is cleared here.
         neocd->memory.ram[0x10F6D8] = 0x00;
 
+        // The mode byte in work RAM says whether the game proper is
+        // running, and it is machine state: it saves, restores and
+        // rolls back with everything else. The sound CPU's reset line
+        // must agree with it - a machine in game mode with the sound
+        // CPU held in reset is a contradiction no real machine can be
+        // in, whatever sequence of savestate loads produced it. Rather
+        // than trust every frontend's rollback choreography to keep
+        // the two in step, restore the invariant whenever it is found
+        // broken: the processor was not running anyway, so starting it
+        // from reset is the only correct thing to do with it.
+        if (neocd->memory.ram[BIOS_SYSTEM_MODE] == 0x82 && neocd->z80Disable)
+        {
+            neocd->z80Disable = false;
+            z80_reset();
+            YM2610Reset();
+        }
+
         stopAtTrackEnd();
         consumeCdBlock();
 
