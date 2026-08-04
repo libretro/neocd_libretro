@@ -6,6 +6,7 @@
 #include "3rdparty/musashi/m68k.h"
 #include "3rdparty/ym/ym2610.h"
 #include "3rdparty/z80/z80.h"
+#include <cmath>
 #include "hlebios.h"
 #include "libretro_common.h"
 #include "libretro_log.h"
@@ -139,6 +140,43 @@ void HleBios::buildRom(uint8_t* rom)
     entryPoint(rom, CD_QUIET_1, OP_RTS);
     entryPoint(rom, CLEAR_TEXT, OP_RTS);
     entryPoint(rom, CD_STREAM_START, OP_RTS);
+
+    /* The sine table at 0xC04000, which games read straight out of the
+       BIOS ROM. Fatal Fury 2 shapes the spinning globe of its VS
+       screen from it - each column's place and width comes from an
+       entry - and with nothing here the columns all fell in a heap.
+       The table is the magnitude of the sine, one word per 1/256th of
+       a turn, scaled so a quarter turn reads 0x10000 - stored in
+       sixteen bits, so the two peaks keep only their carry and read
+       0x0001, which is what a real table holds there. Two entries in
+       the second quarter of the original have digits transposed -
+       0xBDAF written 0xBDFA, 0x6D74 written 0x67D4 - while their twins
+       in the first quarter are right, so the table was written out by
+       hand at least that far; the second half repeats the mistakes at
+       the same places. They are reproduced, mistakes and all: what a
+       game reads from this table has to be what a game has always
+       read.
+    */
+    for (uint32_t k = 0; k < 256; k++)
+    {
+        uint32_t fold = k & 127;
+        if (fold > 64)
+            fold = 128 - fold;
+
+        uint32_t value = static_cast<uint32_t>(
+            std::sin(2.0 * M_PI * static_cast<double>(fold) / 256.0) * 65536.0 + 0.5);
+
+        if (value >= 0x10000)
+            value = 0x0001;
+
+        if ((k & 127) == 94)   /* 0xBDAF in any table freshly computed */
+            value = 0xBDFA;
+        if ((k & 127) == 110)  /* 0x6D74 likewise */
+            value = 0x67D4;
+
+        rom[0x4000 + k * 2] = static_cast<uint8_t>(value >> 8);
+        rom[0x4000 + k * 2 + 1] = static_cast<uint8_t>(value);
+    }
     entryPoint(rom, CD_STREAM_ALT, OP_RTS);
     entryPoint(rom, SOUND_COMMAND, OP_RTS);
     entryPoint(rom, CLEAR_SPRITES, OP_RTS);
