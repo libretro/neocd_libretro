@@ -94,8 +94,14 @@ static void videoRamWriteWord(uint32_t address, uint32_t data)
             // A<--->t<----------->B (A=Current time for the emulator, t=time in the m68k timeslice, B=Set time for HIRQ)
             // A<--hirqReg-->      B Too early.
             // A<--t-><--hirqReg-->B Correct.
+            // Clamped for the same reason the vblank-load path is: the
+            // conversion below takes a signed pixel count and the result
+            // is added to the elapsed time before it is armed, so a
+            // counter near the top of its range would arm a delay that
+            // does not fit.
             uint32_t timesliceElapsed = Timer::m68kToMaster(m68k_cycles_run());
-            uint32_t delay = Timer::pixelToMaster(neocd->video.hirqRegister + 1);
+            uint32_t delay = Timer::pixelToMaster(std::min(HIRQ_MAX_PIXELS,
+                                                           neocd->video.hirqRegister + 1));
             neocd->timers.timer<TimerGroup::Hbl>().arm(timesliceElapsed + delay);
         }
         break;

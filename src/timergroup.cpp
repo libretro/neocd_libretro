@@ -72,8 +72,28 @@ void hirqTimerCallback(Timer* timer, uint32_t userData)
 void vblReloadTimerCallback(Timer* timer, uint32_t userData)
 {
     // Handle HIRQ_CTRL_VBLANK_LOAD
-    if (neocd->video.hirqControl & Video::HIRQ_CTRL_VBLANK_LOAD)
-        neocd->timers.timer<TimerGroup::Hbl>().arm(timer->delay() + Timer::pixelToMaster(neocd->video.hirqRegister + 1));
+    //
+    // This is the third of the three places the raster timer is armed
+    // from the counter register, and it was the last one still running
+    // the plus-one over a parked counter. A game that wants the timer
+    // quiet writes 0xFFFFFFFF; the one carried that to zero, zero
+    // pixels is zero master cycles, and the timer fired at the reload
+    // point of every frame with an interrupt the hardware never
+    // raises. The auto-repeat path above has guarded this value for
+    // years and the load-on-write path in memory_video.cpp now does
+    // too.
+    //
+    // The clamp is the other half of the same arithmetic.
+    // pixelToMaster() takes a signed 32-bit pixel count, so a register
+    // near the top of its range converts to a delay that does not fit;
+    // and unlike the auto-repeat path, which arms relative to now,
+    // this delay is added to the reload timer's own before it is
+    // armed, so it clamps to the bound that leaves room for that sum.
+    if ((neocd->video.hirqControl & Video::HIRQ_CTRL_VBLANK_LOAD)
+        && (neocd->video.hirqRegister != 0xFFFFFFFF))
+        neocd->timers.timer<TimerGroup::Hbl>().arm(timer->delay()
+            + Timer::pixelToMaster(std::min(HIRQ_MAX_PIXELS,
+                                            neocd->video.hirqRegister + 1)));
 
     timer->armRelative(Timer::pixelToMaster(Timer::SCREEN_WIDTH * Timer::SCREEN_HEIGHT));
 }

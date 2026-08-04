@@ -5,6 +5,7 @@
 #include "round.h"
 
 #include <cstdint>
+#include <limits>
 
 class Timer
 {
@@ -116,5 +117,15 @@ protected:
 
 DataPacker& operator<<(DataPacker& out, const Timer& timer);
 DataPacker& operator>>(DataPacker& in, Timer& timer);
+
+/* The largest pixel count that can be converted to master cycles and
+   then added to a delay a timer is already carrying without leaving
+   int32_t. Both paths that arm the raster timer as an offset from an
+   existing delay clamp the counter register to this; the headroom is
+   a frame, which is the most either of them can be adding to. */
+constexpr uint32_t HIRQ_MAX_PIXELS = static_cast<uint32_t>(
+    Timer::masterToPixel(std::numeric_limits<int32_t>::max()
+                         - Timer::pixelToMaster(Timer::SCREEN_WIDTH * Timer::SCREEN_HEIGHT)
+                         - 4));
 
 #endif // TIMER_H
