@@ -337,19 +337,11 @@ typedef int32_t  int32;
 #define REG_SP_BASE      m68ki_cpu.sp
 #define REG_USP          m68ki_cpu.sp[0]
 #define REG_ISP          m68ki_cpu.sp[4]
-#define REG_MSP          m68ki_cpu.sp[6]
 #define REG_SP           m68ki_cpu.dar[15]
-#define REG_VBR          m68ki_cpu.vbr
-#define REG_SFC          m68ki_cpu.sfc
-#define REG_DFC          m68ki_cpu.dfc
-#define REG_CACR         m68ki_cpu.cacr
-#define REG_CAAR         m68ki_cpu.caar
 #define REG_IR           m68ki_cpu.ir
 
 #define FLAG_T1          m68ki_cpu.t1_flag
-#define FLAG_T0          m68ki_cpu.t0_flag
 #define FLAG_S           m68ki_cpu.s_flag
-#define FLAG_M           m68ki_cpu.m_flag
 #define FLAG_X           m68ki_cpu.x_flag
 #define FLAG_N           m68ki_cpu.n_flag
 #define FLAG_Z           m68ki_cpu.not_z_flag
@@ -539,7 +531,8 @@ typedef int32_t  int32;
 	/* Initiates trace checking before each instruction (t1) */
 	#define m68ki_trace_t1() m68ki_tracing = FLAG_T1
 	/* adds t0 to trace checking if we encounter change of flow */
-	#define m68ki_trace_t0() m68ki_tracing |= FLAG_T0
+	/* T0 is the 68020's change-of-flow trace; a 68000 has no such bit */
+	#define m68ki_trace_t0()
 	/* Clear all tracing */
 	#define m68ki_clear_trace() m68ki_tracing = 0
 	/* Cause a trace exception if we are tracing */
@@ -738,8 +731,6 @@ extern jmp_buf m68ki_aerr_trap;
 
 #define SFLAG_SET   4
 #define SFLAG_CLEAR 0
-#define MFLAG_SET   2
-#define MFLAG_CLEAR 0
 
 /* Turn flag values into 1 or 0 */
 #define XFLAG_AS_1() ((FLAG_X>>8)&1)
@@ -795,9 +786,7 @@ extern jmp_buf m68ki_aerr_trap;
 
 /* Get the status register */
 #define m68ki_get_sr() ( FLAG_T1              | \
-						 FLAG_T0              | \
 						(FLAG_S        << 11) | \
-						(FLAG_M        << 11) | \
 						 FLAG_INT_MASK        | \
 						 m68ki_get_ccr())
 
@@ -860,17 +849,10 @@ typedef struct
 						   stack when a bus error occurs)*/
 	uint ppc;		   /* Previous program counter */
 	uint pc;           /* Program Counter */
-	uint sp[7];        /* User, Interrupt, and Master Stack Pointers */
-	uint vbr;          /* Vector Base Register (m68010+) */
-	uint sfc;          /* Source Function Code Register (m68010+) */
-	uint dfc;          /* Destination Function Code Register (m68010+) */
-	uint cacr;         /* Cache Control Register (m68020, unemulated) */
-	uint caar;         /* Cache Address Register (m68020, unemulated) */
+	uint sp[5];        /* User and Interrupt Stack Pointers */
 	uint ir;           /* Instruction Register */
 	uint t1_flag;      /* Trace 1 */
-	uint t0_flag;      /* Trace 0 */
 	uint s_flag;       /* Supervisor */
-	uint m_flag;       /* Master/Interrupt state */
 	uint x_flag;       /* Extend */
 	uint n_flag;       /* Negative */
 	uint not_z_flag;   /* Zero, inverted for speedups */
@@ -1348,7 +1330,7 @@ static inline void m68ki_jump(uint new_pc)
 
 static inline void m68ki_jump_vector(uint vector)
 {
-	REG_PC = (vector<<2) + REG_VBR;
+	REG_PC = vector<<2;
 	REG_PC = m68ki_read_data_32(REG_PC);
 	m68ki_pc_changed(REG_PC);
 }
@@ -1383,33 +1365,17 @@ static inline void m68ki_branch_32(uint offset)
 static inline void m68ki_set_s_flag(uint value)
 {
 	/* Backup the old stack pointer */
-	REG_SP_BASE[FLAG_S | ((FLAG_S>>1) & FLAG_M)] = REG_SP;
+	REG_SP_BASE[FLAG_S] = REG_SP;
 	/* Set the S flag */
 	FLAG_S = value;
 	/* Set the new stack pointer */
-	REG_SP = REG_SP_BASE[FLAG_S | ((FLAG_S>>1) & FLAG_M)];
+	REG_SP = REG_SP_BASE[FLAG_S];
 }
 
-/* Set the S and M flags and change the active stack pointer.
- * Note that value MUST be 0, 2, 4, or 6 (bit2 = S, bit1 = M).
- */
-static inline void m68ki_set_sm_flag(uint value)
+/* Set the S flag.  Don't touch the stack pointer. */
+static inline void m68ki_set_s_flag_nosp(uint value)
 {
-	/* Backup the old stack pointer */
-	REG_SP_BASE[FLAG_S | ((FLAG_S>>1) & FLAG_M)] = REG_SP;
-	/* Set the S and M flags */
 	FLAG_S = value & SFLAG_SET;
-	FLAG_M = value & MFLAG_SET;
-	/* Set the new stack pointer */
-	REG_SP = REG_SP_BASE[FLAG_S | ((FLAG_S>>1) & FLAG_M)];
-}
-
-/* Set the S and M flags.  Don't touch the stack pointer. */
-static inline void m68ki_set_sm_flag_nosp(uint value)
-{
-	/* Set the S and M flags */
-	FLAG_S = value & SFLAG_SET;
-	FLAG_M = value & MFLAG_SET;
 }
 
 
@@ -1431,10 +1397,9 @@ static inline void m68ki_set_sr_noint(uint value)
 
 	/* Now set the status register */
 	FLAG_T1 = BIT_F(value);
-	FLAG_T0 = BIT_E(value);
 	FLAG_INT_MASK = value & 0x0700;
 	m68ki_set_ccr(value);
-	m68ki_set_sm_flag((value >> 11) & 6);
+	m68ki_set_s_flag((value >> 11) & SFLAG_SET);
 }
 
 /* Set the status register but don't check for interrupts nor
@@ -1447,10 +1412,9 @@ static inline void m68ki_set_sr_noint_nosp(uint value)
 
 	/* Now set the status register */
 	FLAG_T1 = BIT_F(value);
-	FLAG_T0 = BIT_E(value);
 	FLAG_INT_MASK = value & 0x0700;
 	m68ki_set_ccr(value);
-	m68ki_set_sm_flag_nosp((value >> 11) & 6);
+	m68ki_set_s_flag_nosp((value >> 11) & SFLAG_SET);
 }
 
 /* Set the status register and check for interrupts */
@@ -1470,7 +1434,7 @@ static inline uint m68ki_init_exception(void)
 	uint sr = m68ki_get_sr();
 
 	/* Turn off trace flag, clear pending traces */
-	FLAG_T1 = FLAG_T0 = 0;
+	FLAG_T1 = 0;
 	m68ki_clear_trace();
 	/* Enter supervisor mode */
 	m68ki_set_s_flag(SFLAG_SET);
@@ -1962,21 +1926,14 @@ static inline void m68ki_exception_interrupt(uint int_level)
 	FLAG_INT_MASK = int_level<<8;
 
 	/* Get the new PC */
-	new_pc = m68ki_read_data_32((vector<<2) + REG_VBR);
+	new_pc = m68ki_read_data_32(vector<<2);
 
 	/* If vector is uninitialized, call the uninitialized interrupt vector */
 	if(new_pc == 0)
-		new_pc = m68ki_read_data_32((EXCEPTION_UNINITIALIZED_INTERRUPT<<2) + REG_VBR);
+		new_pc = m68ki_read_data_32(EXCEPTION_UNINITIALIZED_INTERRUPT<<2);
 
 	/* Generate a stack frame */
 	m68ki_stack_frame_0000(REG_PC, sr, vector);
-	if(FLAG_M && CPU_TYPE_IS_EC020_PLUS(CPU_TYPE))
-	{
-		/* Create throwaway frame */
-		m68ki_set_sm_flag(FLAG_S);	/* clear M */
-		sr |= 0x2000; /* Same as SR in master stack frame except S is forced high */
-		m68ki_stack_frame_0001(REG_PC, sr, vector);
-	}
 
 	m68ki_jump(new_pc);
 

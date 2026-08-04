@@ -122,12 +122,6 @@ typedef enum
 	M68K_REG_SP,		/* The current Stack Pointer (located in A7) */
 	M68K_REG_USP,		/* User Stack Pointer */
 	M68K_REG_ISP,		/* Interrupt Stack Pointer */
-	M68K_REG_MSP,		/* Master Stack Pointer */
-	M68K_REG_SFC,		/* Source Function Code */
-	M68K_REG_DFC,		/* Destination Function Code */
-	M68K_REG_VBR,		/* Vector Base Register */
-	M68K_REG_CACR,		/* Cache Control Register */
-	M68K_REG_CAAR,		/* Cache Address Register */
 
 	/* Assumed registers */
 	/* These are cheat registers which emulate the 1-longword prefetch

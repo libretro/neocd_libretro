@@ -322,9 +322,7 @@ unsigned int m68k_get_reg(void* context, m68k_register_t regnum)
 		case M68K_REG_A7:	return cpu->dar[15];
 		case M68K_REG_PC:	return MASK_OUT_ABOVE_32(cpu->pc);
 		case M68K_REG_SR:	return	cpu->t1_flag						|
-									cpu->t0_flag						|
 									(cpu->s_flag << 11)					|
-									(cpu->m_flag << 11)					|
 									cpu->int_mask						|
 									((cpu->x_flag & XFLAG_SET) >> 4)	|
 									((cpu->n_flag & NFLAG_SET) >> 4)	|
@@ -333,13 +331,7 @@ unsigned int m68k_get_reg(void* context, m68k_register_t regnum)
 									((cpu->c_flag & CFLAG_SET) >> 8);
 		case M68K_REG_SP:	return cpu->dar[15];
 		case M68K_REG_USP:	return cpu->s_flag ? cpu->sp[0] : cpu->dar[15];
-		case M68K_REG_ISP:	return cpu->s_flag && !cpu->m_flag ? cpu->dar[15] : cpu->sp[4];
-		case M68K_REG_MSP:	return cpu->s_flag && cpu->m_flag ? cpu->dar[15] : cpu->sp[6];
-		case M68K_REG_SFC:	return cpu->sfc;
-		case M68K_REG_DFC:	return cpu->dfc;
-		case M68K_REG_VBR:	return cpu->vbr;
-		case M68K_REG_CACR:	return cpu->cacr;
-		case M68K_REG_CAAR:	return cpu->caar;
+		case M68K_REG_ISP:	return cpu->s_flag ? cpu->dar[15] : cpu->sp[4];
 		case M68K_REG_PREF_ADDR:	return cpu->pref_addr;
 		case M68K_REG_PREF_DATA:	return cpu->pref_data;
 		case M68K_REG_PPC:	return MASK_OUT_ABOVE_32(cpu->ppc);
@@ -381,21 +373,11 @@ void m68k_set_reg(m68k_register_t regnum, unsigned int value)
 							else
 								REG_SP = MASK_OUT_ABOVE_32(value);
 							return;
-		case M68K_REG_ISP:	if(FLAG_S && !FLAG_M)
+		case M68K_REG_ISP:	if(FLAG_S)
 								REG_SP = MASK_OUT_ABOVE_32(value);
 							else
 								REG_ISP = MASK_OUT_ABOVE_32(value);
 							return;
-		case M68K_REG_MSP:	if(FLAG_S && FLAG_M)
-								REG_SP = MASK_OUT_ABOVE_32(value);
-							else
-								REG_MSP = MASK_OUT_ABOVE_32(value);
-							return;
-		case M68K_REG_VBR:	REG_VBR = MASK_OUT_ABOVE_32(value); return;
-		case M68K_REG_SFC:	REG_SFC = value & 7; return;
-		case M68K_REG_DFC:	REG_DFC = value & 7; return;
-		case M68K_REG_CACR:	REG_CACR = MASK_OUT_ABOVE_32(value); return;
-		case M68K_REG_CAAR:	REG_CAAR = MASK_OUT_ABOVE_32(value); return;
 		case M68K_REG_PPC:	REG_PPC = MASK_OUT_ABOVE_32(value); return;
 		case M68K_REG_IR:	REG_IR = MASK_OUT_ABOVE_16(value); return;
 		case M68K_REG_CPU_TYPE: m68k_set_cpu_type(value); return;
@@ -647,16 +629,14 @@ void m68k_pulse_reset(void)
 	CPU_INSTR_MODE = INSTRUCTION_YES;
 
 	/* Turn off tracing */
-	FLAG_T1 = FLAG_T0 = 0;
+	FLAG_T1 = 0;
 	m68ki_clear_trace();
 	/* Interrupt mask to level 7 */
 	FLAG_INT_MASK = 0x0700;
 	CPU_INT_LEVEL = 0;
 	m68ki_cpu.virq_state = 0;
-	/* Reset VBR */
-	REG_VBR = 0;
 	/* Go to supervisor mode */
-	m68ki_set_sm_flag(SFLAG_SET | MFLAG_CLEAR);
+	m68ki_set_s_flag(SFLAG_SET);
 
 	/* Invalidate the prefetch queue */
 #if M68K_EMULATE_PREFETCH
