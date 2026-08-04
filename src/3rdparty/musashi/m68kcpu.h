@@ -96,26 +96,16 @@ typedef uint32 uint64;
 #define S64(val) val
 #endif
 
-/* The 68000 in this machine has no FPU, and the software float
-   library that emulated one for bigger chips is gone with it. The
-   register file below still carries the FPU data registers so that
-   the layout of the context, which goes into saved states whole,
-   stays exactly what it was; this is the one type of the library the
-   layout needs, sixteen bits of sign and exponent and sixty-four of
-   mantissa, never computed with.
+/* The 68000 has no floating point of any kind: no FPU, no coprocessor
+   interface to attach one to, and no instruction that names a float.
+   Nothing in this build computes with one, and the core carries no
+   floating point type. These three signed names are all that is left
+   of the wider library that once lived here; CHK2 and CMP2 sign-extend
+   their bounds through them.
 */
 typedef int8_t   int8;
 typedef int16_t  int16;
 typedef int32_t  int32;
-typedef int64_t  int64;
-
-typedef struct
-{
-    uint16_t high;
-    uint64_t low;
-} floatx80;
-
-typedef char floatx80_layout_assert[(sizeof(floatx80) == 16) ? 1 : -1];
 
 
 /* Allow for architectures that don't have 8-bit sizes */
@@ -194,18 +184,10 @@ typedef char floatx80_layout_assert[(sizeof(floatx80) == 16) ? 1 : -1];
 #define FUNCTION_CODE_SUPERVISOR_PROGRAM 6
 #define FUNCTION_CODE_CPU_SPACE          7
 
-/* CPU types for deciding what to emulate */
+/* The only CPU this core emulates: the 68000, which in a Neo Geo CD is
+   a Toshiba TMP68HC000, the CMOS part with the same programming model
+   and the same timings as the Motorola original. */
 #define CPU_TYPE_000	(0x00000001)
-#define CPU_TYPE_008    (0x00000002)
-#define CPU_TYPE_010    (0x00000004)
-#define CPU_TYPE_EC020  (0x00000008)
-#define CPU_TYPE_020    (0x00000010)
-#define CPU_TYPE_EC030  (0x00000020)
-#define CPU_TYPE_030    (0x00000040)
-#define CPU_TYPE_EC040  (0x00000080)
-#define CPU_TYPE_LC040  (0x00000100)
-#define CPU_TYPE_040    (0x00000200)
-#define CPU_TYPE_SCC070 (0x00000400)
 
 /* Different ways to stop the CPU */
 #define STOP_LEVEL_STOP 1
@@ -364,11 +346,6 @@ typedef char floatx80_layout_assert[(sizeof(floatx80) == 16) ? 1 : -1];
 #define REG_CAAR         m68ki_cpu.caar
 #define REG_IR           m68ki_cpu.ir
 
-#define REG_FP           m68ki_cpu.fpr
-#define REG_FPCR         m68ki_cpu.fpcr
-#define REG_FPSR         m68ki_cpu.fpsr
-#define REG_FPIAR        m68ki_cpu.fpiar
-
 #define FLAG_T1          m68ki_cpu.t1_flag
 #define FLAG_T0          m68ki_cpu.t0_flag
 #define FLAG_S           m68ki_cpu.s_flag
@@ -400,8 +377,6 @@ typedef char floatx80_layout_assert[(sizeof(floatx80) == 16) ? 1 : -1];
 #define CYC_MOVEM_L      m68ki_cpu.cyc_movem_l
 #define CYC_SHIFT        m68ki_cpu.cyc_shift
 #define CYC_RESET        m68ki_cpu.cyc_reset
-#define HAS_PMMU	 m68ki_cpu.has_pmmu
-#define PMMU_ENABLED	 m68ki_cpu.pmmu_enabled
 #define RESET_CYCLES	 m68ki_cpu.reset_cycles
 
 
@@ -422,60 +397,20 @@ typedef char floatx80_layout_assert[(sizeof(floatx80) == 16) ? 1 : -1];
 
 /* These defines are dependant on the configuration defines in m68kconf.h */
 
-/* Disable certain comparisons if we're not using all CPU types */
-#if M68K_EMULATE_040
-#define CPU_TYPE_IS_040_PLUS(A)    ((A) & (CPU_TYPE_040 | CPU_TYPE_EC040))
-	#define CPU_TYPE_IS_040_LESS(A)    1
-#else
-	#define CPU_TYPE_IS_040_PLUS(A)    0
-	#define CPU_TYPE_IS_040_LESS(A)    1
-#endif
-
-#if M68K_EMULATE_030
-#define CPU_TYPE_IS_030_PLUS(A)    ((A) & (CPU_TYPE_030 | CPU_TYPE_EC030 | CPU_TYPE_040 | CPU_TYPE_EC040))
+/* There is one CPU type, so every generation test is a constant. */
+#define CPU_TYPE_IS_000(A)         1
+#define CPU_TYPE_IS_010(A)         0
+#define CPU_TYPE_IS_010_PLUS(A)    0
+#define CPU_TYPE_IS_010_LESS(A)    1
+#define CPU_TYPE_IS_EC020_PLUS(A)  0
+#define CPU_TYPE_IS_EC020_LESS(A)  1
+#define CPU_TYPE_IS_020_PLUS(A)    0
+#define CPU_TYPE_IS_020_LESS(A)    1
+#define CPU_TYPE_IS_020_VARIANT(A) 0
+#define CPU_TYPE_IS_030_PLUS(A)    0
 #define CPU_TYPE_IS_030_LESS(A)    1
-#else
-#define CPU_TYPE_IS_030_PLUS(A)	0
-#define CPU_TYPE_IS_030_LESS(A)    1
-#endif
-
-#if M68K_EMULATE_020
-#define CPU_TYPE_IS_020_PLUS(A)    ((A) & (CPU_TYPE_020 | CPU_TYPE_030 | CPU_TYPE_EC030 | CPU_TYPE_040 | CPU_TYPE_EC040))
-	#define CPU_TYPE_IS_020_LESS(A)    1
-#else
-	#define CPU_TYPE_IS_020_PLUS(A)    0
-	#define CPU_TYPE_IS_020_LESS(A)    1
-#endif
-
-#if M68K_EMULATE_EC020
-#define CPU_TYPE_IS_EC020_PLUS(A)  ((A) & (CPU_TYPE_EC020 | CPU_TYPE_020 | CPU_TYPE_030 | CPU_TYPE_EC030 | CPU_TYPE_040 | CPU_TYPE_EC040))
-	#define CPU_TYPE_IS_EC020_LESS(A)  ((A) & (CPU_TYPE_000 | CPU_TYPE_010 | CPU_TYPE_EC020))
-#else
-	#define CPU_TYPE_IS_EC020_PLUS(A)  CPU_TYPE_IS_020_PLUS(A)
-	#define CPU_TYPE_IS_EC020_LESS(A)  CPU_TYPE_IS_020_LESS(A)
-#endif
-
-#if M68K_EMULATE_010
-	#define CPU_TYPE_IS_010(A)         ((A) == CPU_TYPE_010)
-#define CPU_TYPE_IS_010_PLUS(A)    ((A) & (CPU_TYPE_010 | CPU_TYPE_EC020 | CPU_TYPE_020 | CPU_TYPE_EC030 | CPU_TYPE_030 | CPU_TYPE_040 | CPU_TYPE_EC040))
-#define CPU_TYPE_IS_010_LESS(A)    ((A) & (CPU_TYPE_000 | CPU_TYPE_008 | CPU_TYPE_010))
-#else
-	#define CPU_TYPE_IS_010(A)         0
-	#define CPU_TYPE_IS_010_PLUS(A)    CPU_TYPE_IS_EC020_PLUS(A)
-	#define CPU_TYPE_IS_010_LESS(A)    CPU_TYPE_IS_EC020_LESS(A)
-#endif
-
-#if M68K_EMULATE_020 || M68K_EMULATE_EC020
-	#define CPU_TYPE_IS_020_VARIANT(A) ((A) & (CPU_TYPE_EC020 | CPU_TYPE_020))
-#else
-	#define CPU_TYPE_IS_020_VARIANT(A) 0
-#endif
-
-#if M68K_EMULATE_040 || M68K_EMULATE_020 || M68K_EMULATE_EC020 || M68K_EMULATE_010
-	#define CPU_TYPE_IS_000(A)         ((A) == CPU_TYPE_000)
-#else
-	#define CPU_TYPE_IS_000(A)         1
-#endif
+#define CPU_TYPE_IS_040_PLUS(A)    0
+#define CPU_TYPE_IS_040_LESS(A)    1
 
 
 #if !M68K_SEPARATE_READS
@@ -917,12 +852,6 @@ extern jmp_buf m68ki_aerr_trap;
 /* =============================== PROTOTYPES ============================= */
 /* ======================================================================== */
 
-typedef union
-{
-	uint64 i;
-	double f;
-} fp_reg;
-
 typedef struct
 {
 	uint cpu_type;     /* CPU Type: 68000, 68008, 68010, 68EC020, 68020, 68EC030, 68030, 68EC040, or 68040 */
@@ -938,10 +867,6 @@ typedef struct
 	uint cacr;         /* Cache Control Register (m68020, unemulated) */
 	uint caar;         /* Cache Address Register (m68020, unemulated) */
 	uint ir;           /* Instruction Register */
-	floatx80 fpr[8];     /* FPU Data Register (m68030/040) */
-	uint fpiar;        /* FPU Instruction Address Register (m68040) */
-	uint fpsr;         /* FPU Status Register (m68040) */
-	uint fpcr;         /* FPU Control Register (m68040) */
 	uint t1_flag;      /* Trace 1 */
 	uint t0_flag;      /* Trace 0 */
 	uint s_flag;       /* Supervisor */
@@ -960,9 +885,6 @@ typedef struct
 	uint sr_mask;      /* Implemented status register bits */
 	uint instr_mode;   /* Stores whether we are in instruction mode or group 0/1 exception mode */
 	uint run_mode;     /* Stores whether we are processing a reset, bus error, address error, or something else */
-	int    has_pmmu;     /* Indicates if a PMMU available (yes on 030, 040, no on EC030) */
-	int    pmmu_enabled; /* Indicates if the PMMU is enabled */
-	int    fpu_just_reset; /* Indicates the FPU was just reset */
 	uint reset_cycles;
 
 	/* Clocks required for instructions / exceptions */
@@ -979,12 +901,6 @@ typedef struct
 	/* Virtual IRQ lines state */
 	uint virq_state;
 	uint nmi_pending;
-
-	/* PMMU registers */
-	uint mmu_crp_aptr, mmu_crp_limit;
-	uint mmu_srp_aptr, mmu_srp_limit;
-	uint mmu_tc;
-	uint16 mmu_sr;
 
 	const uint8* cyc_instruction;
 	const uint8* cyc_exception;
@@ -1010,7 +926,7 @@ extern uint           m68ki_tracing;
 extern const uint8    m68ki_shift_8_table[];
 extern const uint16   m68ki_shift_16_table[];
 extern const uint     m68ki_shift_32_table[];
-extern const uint8    m68ki_exception_cycle_table[][256];
+extern const uint8    m68ki_exception_cycle_table[256];
 extern uint           m68ki_address_space;
 extern const uint8    m68ki_ea_idx_cycle_table[];
 
@@ -1035,7 +951,6 @@ char* m68ki_disassemble_quick(unsigned int pc, unsigned int cpu_type);
 
 /* ---------------------------- Read Immediate ---------------------------- */
 
-extern uint pmmu_translate_addr(uint addr_in);
 
 /* Handles all immediate reads, does address error check, function code setting,
  * and prefetching if they are enabled in m68kconf.h
@@ -1046,10 +961,6 @@ static inline uint m68ki_read_imm_16(void)
 	m68ki_check_address_error(REG_PC, MODE_READ, FLAG_S | FUNCTION_CODE_USER_PROGRAM); /* auto-disable (see m68kcpu.h) */
 
 #if M68K_SEPARATE_READS
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 #endif
 
 #if M68K_EMULATE_PREFETCH
@@ -1081,10 +992,6 @@ static inline uint m68ki_read_imm_8(void)
 static inline uint m68ki_read_imm_32(void)
 {
 #if M68K_SEPARATE_READS
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 #endif
 
 #if M68K_EMULATE_PREFETCH
@@ -1130,10 +1037,6 @@ static inline uint m68ki_read_8_fc(uint address, uint fc)
 	(void)fc;
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	return m68k_read_memory_8(ADDRESS_68K(address));
 }
@@ -1143,10 +1046,6 @@ static inline uint m68ki_read_16_fc(uint address, uint fc)
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 	m68ki_check_address_error_010_less(address, MODE_READ, fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	return m68k_read_memory_16(ADDRESS_68K(address));
 }
@@ -1156,10 +1055,6 @@ static inline uint m68ki_read_32_fc(uint address, uint fc)
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 	m68ki_check_address_error_010_less(address, MODE_READ, fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	return m68k_read_memory_32(ADDRESS_68K(address));
 }
@@ -1169,10 +1064,6 @@ static inline void m68ki_write_8_fc(uint address, uint fc, uint value)
 	(void)fc;
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	m68k_write_memory_8(ADDRESS_68K(address), value);
 }
@@ -1182,10 +1073,6 @@ static inline void m68ki_write_16_fc(uint address, uint fc, uint value)
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 	m68ki_check_address_error_010_less(address, MODE_WRITE, fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	m68k_write_memory_16(ADDRESS_68K(address), value);
 }
@@ -1195,10 +1082,6 @@ static inline void m68ki_write_32_fc(uint address, uint fc, uint value)
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 	m68ki_check_address_error_010_less(address, MODE_WRITE, fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	m68k_write_memory_32(ADDRESS_68K(address), value);
 }
@@ -1210,10 +1093,6 @@ static inline void m68ki_write_32_pd_fc(uint address, uint fc, uint value)
 	m68ki_set_fc(fc); /* auto-disable (see m68kcpu.h) */
 	m68ki_check_address_error_010_less(address, MODE_WRITE, fc); /* auto-disable (see m68kcpu.h) */
 
-#if M68K_EMULATE_PMMU
-	if (PMMU_ENABLED)
-	    address = pmmu_translate_addr(address);
-#endif
 
 	m68k_write_memory_32_pd(ADDRESS_68K(address), value);
 }
