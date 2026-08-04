@@ -1474,15 +1474,30 @@ int HleBios::trap(uint32_t pc)
                 // so of a character's whole map one record in each
                 // upload landed - which is why a battle had exactly one
                 // effect, the landing thud, and nothing else.
+                //
+                // The length is not consulted, because a real BIOS does
+                // not consult it: its walker takes records until one
+                // begins with zero, and that is the whole protocol.
+                // Fatal Fury 2 posts these maps with the length left at
+                // nought, which under a length-counted reading came to
+                // no records at all - the announcer and the system
+                // sounds pointed at their cartridge addresses all
+                // through a battle, and sample memory holds no such
+                // place. A guard caps the walk at a generous count, and
+                // the padding word a table is tiled out with ends it
+                // too, since walking into the filler would write the
+                // driver's slots at wherever 0xFFFF plus a base points.
                 uint32_t base = ((static_cast<uint32_t>(ram[0x10FEDB] & 1) << 20)
                               | (destination & 0xFFFFF)) >> 8;
 
-                for (uint32_t at = 0; (at + 10) <= length; at += 10)
+                (void)length;
+
+                for (uint32_t at = 0; at < (256 * 10); at += 10)
                 {
                     uint32_t where = m68k_read_memory_16(source + at);
 
                     if ((where == 0x0000) || (where == 0xFFFF))
-                        continue;
+                        break;
 
                     for (int half = 0; half < 2; ++half)
                     {
