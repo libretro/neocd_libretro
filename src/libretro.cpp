@@ -196,6 +196,16 @@ bool retro_load_game(const struct retro_game_info *info)
     // Set libretro memory maps
     Libretro::Memmap::init();
 
+    // Savestates here are complete, deterministic, fixed-size within a
+    // session, and safe to move between instances of the core - which
+    // is what saying nothing here fails to promise. Frontends gate
+    // rewind and run-ahead on this promise, conservatively refusing
+    // features the states have supported all along when it is absent.
+    {
+        uint64_t quirks = 0;
+        libretro.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &quirks);
+    }
+
     return true;
 }
 
