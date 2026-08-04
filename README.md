@@ -3,7 +3,7 @@
 
 ## Introduction
 
-NeoCD-Libretro is a complete rewrite of NeoCD from scratch in modern C++11. It is designed with accuracy and portability in mind rather than being all about speed like the the older versions. The goal is also to document all I know about the platform in the source code so other emulator authors can make their own implementations.
+NeoCD-Libretro is a complete rewrite of NeoCD from scratch in modern C++14. It is designed with accuracy and portability in mind rather than being all about speed like the the older versions. The goal is also to document all I know about the platform in the source code so other emulator authors can make their own implementations.
 
 What is different?
 
@@ -36,7 +36,7 @@ Copy `neocd_libretro.info` to folder `RetroArch/info`
 
 ### BIOS Files
 
-NeoCD runs best with a BIOS from a Front Loading, Top Loading or CDZ machine. If no BIOS file is found, the core falls back to a built-in high level BIOS: games boot instantly and many run well, but it is a work in progress and an original BIOS remains the most compatible choice. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder. NeoCD will look for any .bin or .rom file in the `neocd` folder and any folder under it. It will also look into .zip archives. BIOS files are identified by contents so the name of the files don't matter. File hashes do not matter either.
+NeoCD runs best with a BIOS from a Front Loading, Top Loading or CDZ machine. If no BIOS file is found, the core falls back to a built-in high level BIOS: games boot instantly and many run well, but it is a work in progress and an original BIOS remains the most compatible choice. Savestates record which kind of BIOS they were made with; a state saved with the built-in BIOS will not load correctly under an original BIOS ROM, or the other way around. The BIOS files should be installed in a `neocd` folder under RetroArch's system folder. NeoCD will look for any .bin or .rom file in the `neocd` folder and any folder under it. It will also look into .zip archives. BIOS files are identified by contents so the name of the files don't matter. File hashes do not matter either.
 
 #### BIOS
 
@@ -77,7 +77,7 @@ NeoCD accepts as input a cue sheet file (CUE) or a MAME CHD file. CUE images can
 
 ### Project Dependencies
 
-* A C++11 compiler
+* A C++14 compiler
 * MSYS2 (Windows)
 
 Everything else the core needs, including the CHD and audio format readers, is vendored in `deps/libretro-common`.
