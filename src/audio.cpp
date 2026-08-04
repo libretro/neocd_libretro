@@ -17,7 +17,7 @@ void YM2610UpdateRequest(void)
         YM2610Update(currentSample - neocd->audio.buffer.writePointer);
 }
 
-void YM2610TimerHandler(int channel, int count, double steptime)
+void YM2610TimerHandler(int channel, int count)
 {
     auto& timer = (channel == 0) ? neocd->timers.timer<TimerGroup::Ym2610A>() : neocd->timers.timer<TimerGroup::Ym2610B>();
 
@@ -25,8 +25,14 @@ void YM2610TimerHandler(int channel, int count, double steptime)
         timer.setState(Timer::Stopped);
     else
     {
-        const double time_seconds = (double)count * steptime;
-        const uint32_t time_cycles = (uint32_t)Timer::secondsToMaster(time_seconds);
+        /* count ticks of the chip's timer clock, 8000000 / 144, in
+           master clock cycles: the ratio to the 24168000 master is
+           exactly 144 * 3021 / 1000 per tick, and the count never
+           makes the product big enough to care about the order. Half
+           is added before the divide because the old path rounded to
+           nearest, and no count can land exactly on a half.
+        */
+        const uint32_t time_cycles = (uint32_t)(((uint64_t)count * 144 * 3021 + 500) / 1000);
 
         timer.arm(time_cycles);
     }

@@ -139,6 +139,11 @@ typedef int8_t		INT8;
 
 /*------------------------------------------------------------------------*/
 
+/* clock 8000000, rate 44100, prescaler 144: (8000000 / 44100) / 144,
+   as the exact fraction it is */
+#define FREQBASE_NUM	5000
+#define FREQBASE_DEN	3969
+
 #define FREQ_SH			16  /* 16.16 fixed point (frequency calculations) */
 #define EG_SH			16  /* 16.16 fixed point (envelope generator timing) */
 #define LFO_SH			24  /*  8.24 fixed point (LFO calculations)       */
@@ -577,9 +582,15 @@ typedef struct fm_state
 {
 	int		clock;		/* master clock  (Hz)   */
 	int		rate;		/* sampling rate (Hz)   */
-	double	freqbase;	/* frequency base       */
-	double	TimerBase;	/* Timer base time      */
-	double	BusyExpire;	/* ExpireTime of Busy clear */
+	/* The machine's clock and rate are fixed, so the frequency base is
+	   the exact ratio 5000/3969 and every table below is computed from
+	   it in integers. These three slots keep the context's saved-state
+	   layout: the first two carry nothing now, the third holds the busy
+	   flag's expiry in master clock cycles.
+	*/
+	uint64_t	freqbase_unused;
+	uint64_t	TimerBase_unused;
+	uint64_t	BusyExpire;	/* ExpireTime of Busy clear, master cycles */
 	UINT8	address;	/* address register     */
 	UINT8	irq;		/* interrupt level      */
 	UINT8	irqmask;	/* irq mask             */
@@ -685,7 +696,7 @@ typedef struct adpcma_state
 typedef struct adpcmb_state
 {
 	INT32	*pan;			/* pan : &output_pointer[pan]   */
-	double	freqbase;
+	uint64_t	freqbase_unused;
 	int	output_range;
 	UINT32	now_addr;		/* current address      */
 	UINT32	now_step;		/* currect step         */
@@ -993,7 +1004,7 @@ INLINE void set_timers(FM_ST *ST, int v)
 		{
 			ST->TBC = (256 - ST->TB) << 4;
 			/* External timer handler */
-			(ST->Timer_Handler)(1, ST->TBC, ST->TimerBase);
+			(ST->Timer_Handler)(1, ST->TBC);
 		}
 	}
 	else
@@ -1002,7 +1013,7 @@ INLINE void set_timers(FM_ST *ST, int v)
 		if (ST->TBC != 0)
 		{
 			ST->TBC = 0;
-			(ST->Timer_Handler)(1, 0, ST->TimerBase);
+			(ST->Timer_Handler)(1, 0);
 		}
 	}
 	/* load a */
@@ -1012,7 +1023,7 @@ INLINE void set_timers(FM_ST *ST, int v)
 		{
 			ST->TAC = (1024 - ST->TA);
 			/* External timer handler */
-			(ST->Timer_Handler)(0, ST->TAC, ST->TimerBase);
+			(ST->Timer_Handler)(0, ST->TAC);
 		}
 	}
 	else
@@ -1021,7 +1032,7 @@ INLINE void set_timers(FM_ST *ST, int v)
 		if (ST->TAC != 0)
 		{
 			ST->TAC = 0;
-			(ST->Timer_Handler)(0, 0, ST->TimerBase);
+			(ST->Timer_Handler)(0, 0);
 		}
 	}
 }
@@ -1034,7 +1045,7 @@ INLINE void TimerAOver(FM_ST *ST)
 
 	/* clear or reload the counter */
 	ST->TAC = (1024 - ST->TA);
-	(ST->Timer_Handler)(0, ST->TAC, ST->TimerBase);
+	(ST->Timer_Handler)(0, ST->TAC);
 }
 
 /* Timer B Overflow */
@@ -1045,14 +1056,14 @@ INLINE void TimerBOver(FM_ST *ST)
 
 	/* clear or reload the counter */
 	ST->TBC = (256 - ST->TB) << 4;
-	(ST->Timer_Handler)(1, ST->TBC, ST->TimerBase);
+	(ST->Timer_Handler)(1, ST->TBC);
 }
 
 INLINE UINT8 FM_STATUS_FLAG(FM_ST *ST)
 {
 	if (ST->BusyExpire)
 	{
-		if ((ST->BusyExpire - FM_GET_TIME_NOW()) > 0)
+		if (ST->BusyExpire > FM_GET_TIME_NOW())
 			return ST->status | 0x80; /* with busy */
 		/* expire */
 		ST->BusyExpire = 0;
@@ -1062,7 +1073,10 @@ INLINE UINT8 FM_STATUS_FLAG(FM_ST *ST)
 
 INLINE void FM_BUSY_SET(FM_ST *ST,int busyclock)
 {
-	ST->BusyExpire = FM_GET_TIME_NOW() + (ST->TimerBase * busyclock);
+	/* busyclock ticks of the chip's clock, as master cycles: the master
+	   clock is 24168000 to this chip's 8000000, an exact 3021/1000.
+	*/
+	ST->BusyExpire = FM_GET_TIME_NOW() + ((uint64_t)busyclock * 3021 + 500) / 1000;
 }
 
 #define FM_BUSY_CLEAR(ST) ((ST)->BusyExpire = 0)
@@ -1449,17 +1463,28 @@ INLINE void refresh_fc_eg_chan(FM_CH *CH)
 /* initialize time tables */
 static void init_timetables(FM_ST *ST, const UINT8 *dttable)
 {
+	/* The detune increments for this machine's fixed frequency base,
+	   spelled out rather than computed: the floating point that made
+	   them rounded a handful of entries across a truncation boundary
+	   that the exact fraction lands on, so the values written are the
+	   values everything has always used.
+	*/
+	static const INT32 dt_fixed[4][32] = {
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 80, 80, 80, 80, 80, 80, 80, 80, 161, 161, 161, 161, 161, 241, 241, 241, 322, 322, 322, 403, 403, 483, 483, 564, 644, 644, 644, 644 },
+    { 80, 80, 80, 80, 161, 161, 161, 161, 161, 241, 241, 241, 322, 322, 322, 403, 403, 483, 483, 564, 644, 644, 725, 806, 886, 967, 1048, 1128, 1289, 1289, 1289, 1289 },
+    { 161, 161, 161, 161, 161, 241, 241, 241, 322, 322, 322, 403, 403, 483, 483, 564, 644, 644, 725, 806, 886, 967, 1048, 1128, 1289, 1370, 1531, 1612, 1773, 1773, 1773, 1773 },
+	};
 	int i, d;
-	double rate;
 
-	/* DeTune table */
+	(void)dttable;
+
 	for (d = 0; d <= 3; d++)
 	{
 		for (i = 0; i <= 31; i++)
 		{
-			rate = ((double)dttable[d * 32 + i]) * SIN_LEN * ST->freqbase * (1 << FREQ_SH) / ((double)(1 << 20));
-			ST->dt_tab[d][i] = (INT32)rate;
-			ST->dt_tab[d + 4][i] = -ST->dt_tab[d][i];
+			ST->dt_tab[d][i] = dt_fixed[d][i];
+			ST->dt_tab[d + 4][i] = -dt_fixed[d][i];
 		}
 	}
 }
@@ -1492,50 +1517,104 @@ static void reset_channels(FM_ST *ST, FM_CH *CH, int channels)
 /* initialize generic tables */
 static void OPNInitTable(void)
 {
+	/* The two tables at the heart of the FM sound: the power table the
+	   operator output is read through, and the logarithm of the sine the
+	   phase is looked up in. They used to be computed at start-up from
+	   the C library's pow, sin and log; the two hundred fifty-six values
+	   each is built from are spelled out instead, so the sound never
+	   depends on whose mathematics library is linked in. The expansion -
+	   thirteen shifted copies of the power table, sign and mirror for
+	   the sine's other three quarters - is the same integer work as
+	   before.
+	*/
+	static const INT32 tl_first[TL_RES_LEN] = {
+		8168, 8148, 8124, 8104, 8080, 8060, 8040, 8016,
+		7996, 7972, 7952, 7932, 7908, 7888, 7864, 7844,
+		7824, 7804, 7780, 7760, 7740, 7720, 7696, 7676,
+		7656, 7636, 7616, 7592, 7572, 7552, 7532, 7512,
+		7492, 7472, 7452, 7432, 7412, 7392, 7372, 7352,
+		7332, 7312, 7292, 7272, 7252, 7232, 7212, 7192,
+		7176, 7156, 7136, 7116, 7096, 7076, 7060, 7040,
+		7020, 7000, 6984, 6964, 6944, 6928, 6908, 6888,
+		6868, 6852, 6832, 6816, 6796, 6776, 6760, 6740,
+		6724, 6704, 6688, 6668, 6652, 6632, 6616, 6596,
+		6580, 6560, 6544, 6524, 6508, 6492, 6472, 6456,
+		6436, 6420, 6404, 6384, 6368, 6352, 6336, 6316,
+		6300, 6284, 6264, 6248, 6232, 6216, 6200, 6180,
+		6164, 6148, 6132, 6116, 6100, 6080, 6064, 6048,
+		6032, 6016, 6000, 5984, 5968, 5952, 5936, 5920,
+		5904, 5888, 5872, 5856, 5840, 5824, 5808, 5792,
+		5776, 5760, 5744, 5732, 5716, 5700, 5684, 5668,
+		5652, 5636, 5624, 5608, 5592, 5576, 5564, 5548,
+		5532, 5516, 5504, 5488, 5472, 5456, 5444, 5428,
+		5412, 5400, 5384, 5368, 5356, 5340, 5328, 5312,
+		5296, 5284, 5268, 5256, 5240, 5228, 5212, 5200,
+		5184, 5168, 5156, 5144, 5128, 5116, 5100, 5088,
+		5072, 5060, 5044, 5032, 5020, 5004, 4992, 4976,
+		4964, 4952, 4936, 4924, 4912, 4896, 4884, 4872,
+		4856, 4844, 4832, 4820, 4804, 4792, 4780, 4768,
+		4752, 4740, 4728, 4716, 4704, 4688, 4676, 4664,
+		4652, 4640, 4628, 4616, 4600, 4588, 4576, 4564,
+		4552, 4540, 4528, 4516, 4504, 4492, 4480, 4468,
+		4456, 4444, 4432, 4420, 4408, 4396, 4384, 4372,
+		4360, 4348, 4336, 4324, 4312, 4300, 4288, 4276,
+		4264, 4256, 4244, 4232, 4220, 4208, 4196, 4184,
+		4176, 4164, 4152, 4140, 4128, 4120, 4108, 4096
+	};
+	static const UINT32 sin_quarter[SIN_LEN / 4] = {
+		4274, 3462, 3086, 2838, 2652, 2504, 2380, 2274,
+		2182, 2100, 2026, 1958, 1898, 1840, 1788, 1738,
+		1692, 1650, 1608, 1570, 1534, 1498, 1464, 1434,
+		1402, 1374, 1344, 1318, 1292, 1266, 1242, 1218,
+		1196, 1174, 1152, 1132, 1112, 1092, 1072, 1054,
+		1036, 1018, 1002, 984, 968, 952, 936, 922,
+		906, 892, 878, 864, 850, 836, 822, 810,
+		798, 784, 772, 760, 750, 738, 726, 716,
+		704, 694, 682, 672, 662, 652, 642, 632,
+		622, 614, 604, 594, 586, 578, 568, 560,
+		552, 542, 534, 526, 518, 510, 502, 496,
+		488, 480, 472, 466, 458, 452, 444, 438,
+		430, 424, 418, 410, 404, 398, 392, 386,
+		380, 374, 368, 362, 356, 350, 344, 338,
+		334, 328, 322, 318, 312, 306, 302, 296,
+		292, 286, 282, 276, 272, 268, 262, 258,
+		254, 250, 244, 240, 236, 232, 228, 224,
+		220, 216, 212, 208, 204, 200, 196, 192,
+		188, 184, 182, 178, 174, 170, 166, 164,
+		160, 156, 154, 150, 148, 144, 140, 138,
+		134, 132, 128, 126, 124, 120, 118, 114,
+		112, 110, 106, 104, 102, 98, 96, 94,
+		92, 90, 86, 84, 82, 80, 78, 76,
+		74, 72, 70, 68, 66, 64, 62, 60,
+		58, 56, 54, 52, 50, 48, 46, 46,
+		44, 42, 40, 40, 38, 36, 34, 34,
+		32, 30, 30, 28, 26, 26, 24, 24,
+		22, 20, 20, 18, 18, 16, 16, 14,
+		14, 14, 12, 12, 10, 10, 10, 8,
+		8, 8, 6, 6, 6, 4, 4, 4,
+		4, 2, 2, 2, 2, 2, 2, 2,
+		0, 0, 0, 0, 0, 0, 0, 0
+	};
 	INT32 i, x;
-	INT32 n;
-	double o, m;
 
 	for (x = 0; x < TL_RES_LEN; x++)
 	{
-		m = (1 << 16) / pow(2, (x + 1) * (ENV_STEP / 4.0) / 8.0);
-		m = floor(m);
-
-		/* we never reach (1<<16) here due to the (x+1) */
-		/* result fits within 16 bits at maximum */
-
-		n = (int)m;								/* 16 bits here */
-		n >>= 4;								/* 12 bits here */
-		n = (n & 1) ? (n >> 1) + 1 : (n >> 1);	/* 11 bits here (rounded) */
-		n <<= 2;								/* 13 bits here (as in real chip) */
-		tl_tab[x * 2 + 0] = n;
-		tl_tab[x * 2 + 1] = -tl_tab[x * 2 + 0];
+		tl_tab[x * 2 + 0] = tl_first[x];
+		tl_tab[x * 2 + 1] = -tl_first[x];
 
 		for (i = 1; i < 13; i++)
 		{
-			tl_tab[x * 2 + 0 + i * 2 * TL_RES_LEN] =  tl_tab[x * 2 + 0] >> i;
-			tl_tab[x * 2 + 1 + i * 2 * TL_RES_LEN] = -tl_tab[x * 2 + 0 + i * 2 * TL_RES_LEN];
+			tl_tab[x * 2 + 0 + i * 2 * TL_RES_LEN] =  tl_first[x] >> i;
+			tl_tab[x * 2 + 1 + i * 2 * TL_RES_LEN] = -(tl_first[x] >> i);
 		}
 	}
 
-	for (i = 0; i < SIN_LEN; i++)
+	for (i = 0; i < SIN_LEN / 4; i++)
 	{
-		/* non-standard sinus */
-		m = sin(((i * 2) + 1) * PI / SIN_LEN); /* checked against the real chip */
-
-		/* we never reach zero here due to ((i*2)+1) */
-
-		if (m > 0.0)
-			o = 8 * log(1.0 / m) / log(2);	/* convert to 'decibels' */
-		else
-			o = 8 * log(-1.0 / m) / log(2);	/* convert to 'decibels' */
-
-		o = o / (ENV_STEP / 4);
-
-		n = (int)(2.0 * o);
-		n = (n & 1) ? (n >> 1) + 1 : (n >> 1);	/* round to nearest */
-
-		sin_tab[i] = n * 2 + (m >= 0.0 ? 0 : 1);
+		sin_tab[i] = sin_quarter[i];
+		sin_tab[SIN_LEN / 2 - 1 - i] = sin_quarter[i];
+		sin_tab[SIN_LEN / 2 + i] = sin_quarter[i] ^ 1;
+		sin_tab[SIN_LEN - 1 - i] = sin_quarter[i] ^ 1;
 	}
 
 	/* build LFO PM modulation table */
@@ -1588,18 +1667,20 @@ static void OPNSetPres(FM_OPN *OPN, int pres, int TimerPres, int SSGpres)
 {
 	int i;
 
-	/* frequency base */
-	OPN->ST.freqbase = (OPN->ST.rate) ? ((double)OPN->ST.clock / OPN->ST.rate) / pres : 0;
+	/* The frequency base is (clock / rate) / pres. With the clock at
+	   8000000, the rate at 44100 and the prescaler at 144 that is
+	   exactly 5000/3969, and everything below multiplies by it as that
+	   fraction, truncating where the old arithmetic truncated. Checked
+	   value for value against what the floating point produced.
+	*/
+	(void)pres;
 
-	OPN->eg_timer_add  = (uint32_t)((1 << EG_SH)  *  OPN->ST.freqbase);
+	OPN->eg_timer_add  = (uint32_t)(((uint64_t)(1 << EG_SH) * FREQBASE_NUM) / FREQBASE_DEN);
 	OPN->eg_timer_overflow = 3 * (1 << EG_SH);
-
-	/* Timer base time */
-	OPN->ST.TimerBase = 1.0 / ((double)OPN->ST.clock / (double)TimerPres);
 
 	/* SSG part prescaler set */
 	if (SSGpres)
-		SSG.step = (uint32_t)(((double)SSG_STEP * OPN->ST.rate * 8) / (OPN->ST.clock * 2 / SSGpres));
+		SSG.step = (uint32_t)(((uint64_t)SSG_STEP * OPN->ST.rate * 8) / (OPN->ST.clock * 2 / SSGpres));
 
 	/* make time tables */
 	init_timetables(&OPN->ST, dt_tab);
@@ -1611,7 +1692,7 @@ static void OPNSetPres(FM_OPN *OPN, int pres, int TimerPres, int SSGpres)
 	{
 		/* freq table for octave 7 */
 		/* OPN phase increment counter = 20bit */
-		OPN->fn_table[i] = (UINT32)((double)i * 32 * OPN->ST.freqbase * (1 << (FREQ_SH - 10))); /* -10 because chip works with 10.10 fixed point, while we use 16.16 */
+		OPN->fn_table[i] = (UINT32)(((uint64_t)i * 32 * (1 << (FREQ_SH - 10)) * FREQBASE_NUM) / FREQBASE_DEN); /* -10 because chip works with 10.10 fixed point, while we use 16.16 */
 	}
 
 	/* LFO freq. table */
@@ -1619,7 +1700,7 @@ static void OPNSetPres(FM_OPN *OPN, int pres, int TimerPres, int SSGpres)
 	{
 		/* Amplitude modulation: 64 output levels (triangle waveform); 1 level lasts for one of "lfo_samples_per_step" samples */
 		/* Phase modulation: one entry from lfo_pm_output lasts for one of 4 * "lfo_samples_per_step" samples  */
-		OPN->lfo_freq[i] = (uint32_t)((1.0 / lfo_samples_per_step[i]) * (1 << LFO_SH) * OPN->ST.freqbase);
+		OPN->lfo_freq[i] = (uint32_t)(((uint64_t)(1 << LFO_SH) * FREQBASE_NUM) / (FREQBASE_DEN * (uint64_t)lfo_samples_per_step[i]));
 	}
 }
 
@@ -2087,21 +2168,20 @@ static int SSG_CALC(int outn)
 
 static void SSG_init_table(void)
 {
+	/* The SSG's thirty-two volume levels, one and a half decibels apart,
+	   written out instead of walked down from full scale with a decimal
+	   constant and the rounding of whatever floating point was at hand.
+	*/
+	static const uint32_t vol[32] = {
+		0, 184, 219, 260, 309, 368, 437, 519,
+		617, 734, 872, 1036, 1232, 1464, 1740, 2067,
+		2457, 2920, 3471, 4125, 4903, 5827, 6925, 8231,
+		9782, 11626, 13818, 16422, 19518, 23197, 27570, 32767
+	};
 	int i;
-	double out;
 
-	/* calculate the volume->voltage conversion table */
-	/* The AY-3-8910 has 16 levels, in a logarithmic scale (3dB per step) */
-	/* The YM2149 still has 16 levels for the tone generators, but 32 for */
-	/* the envelope generator (1.5dB per step). */
-	out = SSG_MAX_OUTPUT;
-	for (i = 31; i > 0; i--)
-	{
-		SSG.vol_table[i] = (uint32_t)(out + 0.5);	/* round to nearest */
-
-		out /= 1.188502227;	/* = 10 ^ (1.5/20) = 1.5dB */
-	}
-	SSG.vol_table[0] = 0;
+	for (i = 0; i < 32; i++)
+		SSG.vol_table[i] = vol[i];
 }
 
 
@@ -2262,7 +2342,7 @@ static void OPNB_ADPCMA_write(int r, int v)
 				if ((v >> ch) & 1)
 				{
 					/**** start adpcm ****/
-					adpcma[ch].step        = (UINT32)((float)(1 << ADPCM_SHIFT) * ((float)YM2610.OPN.ST.freqbase) / 3.0);
+					adpcma[ch].step        = (UINT32)(((uint64_t)(1 << ADPCM_SHIFT) * FREQBASE_NUM) / (FREQBASE_DEN * 3));
 					adpcma[ch].now_addr    = adpcma[ch].start << 1;
 					adpcma[ch].now_step    = 0;
 					adpcma[ch].adpcma_acc  = 0;
@@ -2618,7 +2698,7 @@ value:   START, REC, MEMDAT, REPEAT, SPOFF, x,x,RESET   meaning:
 	case 0x19:	/* DELTA-N L (ADPCM Playback Prescaler) */
 	case 0x1a:	/* DELTA-N H */
 		adpcmb->delta = YM2610.regs[0x1a] * 0x100 | YM2610.regs[0x19];
-		adpcmb->step  = (UINT32)((double)(adpcmb->delta /* * (1 << (ADPCMb_SHIFT - 16)) */) * (adpcmb->freqbase));
+		adpcmb->step  = (UINT32)(((uint64_t)adpcmb->delta /* * (1 << (ADPCMb_SHIFT - 16)) */ * FREQBASE_NUM) / FREQBASE_DEN);
 		/*logerror("DELTAT deltan:09=%2x 0a=%2x\n", YM2610.regs[0x19], YM2610.regs[0x1a]);*/
 		break;
 
@@ -2634,7 +2714,13 @@ value:   START, REC, MEMDAT, REPEAT, SPOFF, x,x,RESET   meaning:
 			/*logerror("DELTAT vol = %2x\n", v & 0xff);*/
 			if (oldvol != 0)
 			{
-				adpcmb->adpcml = (int)((double)adpcmb->adpcml / (double)oldvol * (double)adpcmb->volume);
+				/* Exact, where the floating point it replaces could come
+				   out one low when the true quotient was a whole number -
+				   dividing first cost it the last bit. One accumulator
+				   step, on a volume change mid-sample, in the right
+				   direction.
+				*/
+				adpcmb->adpcml = (int)(((int64_t)adpcmb->adpcml * adpcmb->volume) / oldvol);
 			}
 		}
 		break;
@@ -2916,7 +3002,7 @@ int YM2610Init(int clock, int rate,
 	YM2610.OPN.ST.IRQ_Handler = IRQHandler;
 
 	/* SSG */
-	SSG.step = (uint32_t)(((double)SSG_STEP * rate * 8) / clock);
+	SSG.step = (uint32_t)(((uint64_t)SSG_STEP * rate * 8) / clock);
 
 	/* ADPCM-A */
 	pcmbufA = (UINT8 *)pcmroma;
@@ -2978,7 +3064,7 @@ void YM2610Reset(void)
 	/**** ADPCM work initial ****/
 	for (i = 0; i < 6; i++)
 	{
-		YM2610.adpcma[i].step        = (UINT32)((float)(1 << ADPCM_SHIFT) * ((float)YM2610.OPN.ST.freqbase) / 3.0);
+		YM2610.adpcma[i].step        = (UINT32)(((uint64_t)(1 << ADPCM_SHIFT) * FREQBASE_NUM) / (FREQBASE_DEN * 3));
 		YM2610.adpcma[i].now_addr    = 0;
 		YM2610.adpcma[i].now_step    = 0;
 		YM2610.adpcma[i].step        = 0;
@@ -3191,8 +3277,8 @@ DataPacker& operator<<(DataPacker& out, const FM_ST& fmState)
 {
 	out << fmState.clock;
 	out << fmState.rate;
-	out << fmState.freqbase;
-	out << fmState.TimerBase;
+	out << fmState.freqbase_unused;
+	out << fmState.TimerBase_unused;
 	out << fmState.BusyExpire;
 	out << fmState.address;
 	out << fmState.irq;
@@ -3214,8 +3300,8 @@ DataPacker& operator>>(DataPacker& in, FM_ST& fmState)
 {
 	in >> fmState.clock;
 	in >> fmState.rate;
-	in >> fmState.freqbase;
-	in >> fmState.TimerBase;
+	in >> fmState.freqbase_unused;
+	in >> fmState.TimerBase_unused;
 	in >> fmState.BusyExpire;
 	in >> fmState.address;
 	in >> fmState.irq;

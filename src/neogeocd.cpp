@@ -36,7 +36,7 @@ NeoGeoCD::NeoGeoCD() :
     z80TimeSlice(0),
     z80Disable(true),
     z80NMIDisable(true),
-    currentTimeSeconds(0.0),
+    currentTimeCycles(0),
     audioCommand(0),
     audioResult(0),
     biosType(Bios::Unknown),
@@ -93,7 +93,7 @@ void NeoGeoCD::reset()
     z80TimeSlice = 0;
     z80Disable = true;
     z80NMIDisable = true;
-    currentTimeSeconds = 0.0;
+    currentTimeCycles = 0;
     fastForward = false;
     audioCommand = 0;
     audioResult = 0;
@@ -128,7 +128,7 @@ void NeoGeoCD::runOneFrame()
         }
 
         remainingCyclesThisFrame -= elapsed;
-        currentTimeSeconds += Timer::masterToSeconds(elapsed);
+        currentTimeCycles += (uint64_t)elapsed;
 
         timers.advanceTime(elapsed);
     }
@@ -206,9 +206,9 @@ int32_t NeoGeoCD::z80CyclesRun() const
    return z80TimeSlice - Timer::z80ToMaster(z80_ICount);
 }
 
-double NeoGeoCD::z80CurrentTimeSeconds() const
+uint64_t NeoGeoCD::z80CurrentTimeCycles() const
 {
-    return currentTimeSeconds + Timer::masterToSeconds(z80CyclesRun());
+    return currentTimeCycles + (uint64_t)z80CyclesRun();
 }
 
 int32_t NeoGeoCD::z80CyclesThisFrame() const
@@ -232,7 +232,7 @@ bool NeoGeoCD::saveState(DataPacker& out) const
     out << z80TimeSlice;
     out << z80Disable;
     out << z80NMIDisable;
-    out << currentTimeSeconds;
+    out << currentTimeCycles;
     out << audioCommand;
     out << audioResult;
     out << biosType;
@@ -283,7 +283,7 @@ bool NeoGeoCD::restoreState(DataPacker& in)
     in >> z80TimeSlice;
     in >> z80Disable;
     in >> z80NMIDisable;
-    in >> currentTimeSeconds;
+    in >> currentTimeCycles;
     in >> audioCommand;
     in >> audioResult;
     in >> biosType;

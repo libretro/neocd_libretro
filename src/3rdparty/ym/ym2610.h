@@ -27,15 +27,18 @@ class DataPacker;
 
 /*
  for busy flag emulation , function FM_GET_TIME_NOW() should be
- return the present time in second unit with (double) value
+ return the present time in master clock cycles
  in timer.c
  */
-#define FM_GET_TIME_NOW() neocd->z80CurrentTimeSeconds()
+#define FM_GET_TIME_NOW() neocd->z80CurrentTimeCycles()
 
 typedef int16_t FMSAMPLE;
 typedef int32_t FMSAMPLE_MIX;
 
-typedef void(*FM_TIMERHANDLER) (int channel, int count, double stepTime);
+/* The chip hands its timer loads over as counts of its own clock
+   ticks; what a tick is in host time is the caller's business.
+*/
+typedef void(*FM_TIMERHANDLER) (int channel, int count);
 typedef void(*FM_IRQHANDLER) (int irq);
 
 int YM2610Init(int baseclock, int rate,

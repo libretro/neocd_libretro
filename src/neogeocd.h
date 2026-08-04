@@ -101,7 +101,7 @@ public:
 
     int32_t z80CyclesRun() const;
 
-    double z80CurrentTimeSeconds() const;
+    uint64_t z80CurrentTimeCycles() const;
 
     int32_t z80CyclesThisFrame() const;
 
@@ -130,7 +130,12 @@ public:
     int32_t     z80TimeSlice;
     bool        z80Disable;
     bool        z80NMIDisable;
-    double      currentTimeSeconds;
+    /* Master clock cycles since power on, whole ones; the fractions a
+       double used to carry served nothing but the sound chip's busy
+       flag, which counts in cycles anyway. Same eight bytes in the
+       saved state.
+    */
+    uint64_t    currentTimeCycles;
     uint32_t    audioCommand;
     uint32_t    audioResult;
     uint32_t    biosType;

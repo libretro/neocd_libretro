@@ -9,7 +9,7 @@
 #include "timer.h"
 
 extern void YM2610UpdateRequest(void);
-extern void YM2610TimerHandler(int channel, int count, double steptime);
+extern void YM2610TimerHandler(int channel, int count);
 extern void YM2610IrqHandler(int irq);
 
 /**
