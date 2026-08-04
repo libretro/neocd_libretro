@@ -37,6 +37,7 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
 #include "m68k.h"
 
 #include <limits.h>
@@ -95,8 +96,26 @@ typedef uint32 uint64;
 #define S64(val) val
 #endif
 
-#include "softfloat/milieu.h"
-#include "softfloat/softfloat.h"
+/* The 68000 in this machine has no FPU, and the software float
+   library that emulated one for bigger chips is gone with it. The
+   register file below still carries the FPU data registers so that
+   the layout of the context, which goes into saved states whole,
+   stays exactly what it was; this is the one type of the library the
+   layout needs, sixteen bits of sign and exponent and sixty-four of
+   mantissa, never computed with.
+*/
+typedef int8_t   int8;
+typedef int16_t  int16;
+typedef int32_t  int32;
+typedef int64_t  int64;
+
+typedef struct
+{
+    uint16_t high;
+    uint64_t low;
+} floatx80;
+
+typedef char floatx80_layout_assert[(sizeof(floatx80) == 16) ? 1 : -1];
 
 
 /* Allow for architectures that don't have 8-bit sizes */

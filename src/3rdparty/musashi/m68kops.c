@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include "m68kcpu.h"
-extern void m68040_fpu_op0(void);
-extern void m68040_fpu_op1(void);
-extern void m68881_mmu_ops(void);
+/* With only the 68000 compiled in, the coprocessor branches below
+   fold away as constant falsehoods; these stubs keep unoptimised
+   builds linking, and nothing can reach them.
+*/
+static void m68040_fpu_op0(void) { }
+static void m68040_fpu_op1(void) { }
+static void m68881_mmu_ops(void) { }
 
 /* ======================================================================== */
 /* ========================= INSTRUCTION HANDLERS ========================= */

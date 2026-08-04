@@ -56,7 +56,6 @@ SOURCES_CXX += \
 SOURCES_C := \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kcpu.c \
 	$(CORE_DIR)/src/3rdparty/musashi/m68kops.c \
-	$(CORE_DIR)/src/3rdparty/musashi/softfloat/softfloat.c
 
 # libretro-common. The CD image reader (rchd), the Vorbis, FLAC and WAV
 # decoders and the zip/deflate/lzma/zstd primitives all live here now:
