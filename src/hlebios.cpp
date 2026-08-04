@@ -19,6 +19,7 @@ uint8_t HleBios::m_userRequest = 0;
 uint32_t HleBios::m_userDelay = 0;
 uint8_t HleBios::m_startLatch = 0;
 uint32_t HleBios::m_busyFrames = 0;
+uint32_t HleBios::m_heartbeatFrames = 0;
 uint32_t HleBios::m_playUntil = 0;
 bool HleBios::m_loopAtEnd = false;
 uint8_t HleBios::m_lastP1 = 0;
@@ -244,7 +245,10 @@ bool HleBios::readSector(uint32_t lba, uint8_t* out)
     neocd->cdrom.seek(lba);
 
     if (!neocd->cdrom.isData())
+    {
+        fprintf(stderr, "HLE FAIL: readSector %u lands on non-data\n", lba);
         return false;
+    }
 
     neocd->cdrom.readData(reinterpret_cast<char*>(out));
     return true;
@@ -403,6 +407,7 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
 
     if (!findFile(entry.name, lba, size))
     {
+        fprintf(stderr, "HLE FAIL: file not found: %s\n", entry.name.c_str());
         Libretro::Log::message(RETRO_LOG_ERROR, "HLE BIOS: %s is listed in IPL.TXT but not on the disc.\n", entry.name.c_str());
         return false;
     }
@@ -605,6 +610,12 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
 
     Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> %s+0x%X\n",
         entry.name.c_str(), data.size(), ext.c_str(), offset);
+
+    // Keep the heartbeat below running for about the time this load
+    // would really have taken, even when the pacing itself is switched
+    // off: a game that checks whether the drive is moving deserves to
+    // see it move.
+    m_heartbeatFrames = 30;
 
     /* The fix drawing keeps a map of which characters are empty so it
        can skip them, and every other road into fix memory - the CD
@@ -1721,6 +1732,31 @@ int HleBios::trap(uint32_t pc)
         // moves leaves them spinning in a loop waiting for a different
         // number - which is not a hang a game can be blamed for.
         ++neocd->memory.ram[0x10F749];
+
+        // A real BIOS's CD service keeps a pair of heartbeat counters
+        // at 0x10FE84 and 0x10FE85: the first steps on every pass, the
+        // second steps when the disc position has moved on as expected
+        // and is cleared when the first wraps, so while the drive is
+        // reading or playing the two climb together and while it sits
+        // idle both stand still. The King of Fighters '99 samples the
+        // second one for eight frames during its transitions and, when
+        // it never moves, declares DISK I/O ERROR ( ID = 0003 ) and
+        // asks to be powered off. Here the drive is an illusion and
+        // every operation goes perfectly, so the counters climb
+        // together whenever the illusion would be busy: audio playing,
+        // or a load still being paced out.
+        if (neocd->cdrom.isPlaying() || m_busyFrames || m_heartbeatFrames)
+        {
+            uint8_t* hbram = neocd->memory.ram;
+
+            if (m_heartbeatFrames)
+                --m_heartbeatFrames;
+
+            ++hbram[0x10FE84];
+            if (!hbram[0x10FE84])
+                hbram[0x10FE85] = 0;
+            ++hbram[0x10FE85];
+        }
 
         // Acknowledging the interrupt is the point of this call. Without
         // it the level stays asserted and the handler is re-entered the

@@ -258,6 +258,10 @@ protected:
     /// happened here in no time at all.
     static uint32_t m_busyFrames;
 
+    /// Frames the CD heartbeat counters keep stepping after a load,
+    /// so a game that checks for drive motion sees some.
+    static uint32_t m_heartbeatFrames;
+
     /// The sector the track being played runs out at, so it can be
     /// stopped there rather than running on into the next one.
     static uint32_t m_playUntil;
