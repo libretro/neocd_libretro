@@ -89,6 +89,18 @@ static void mappedRamWriteByte(uint32_t address, uint32_t data)
             {
                 address = ((address >> 1) & 0x1FFFF);
                 neocd->memory.fixRam[address] = data;
+
+                /* The character usage map that lets the fix drawing
+                   skip empty characters has to hear about this write,
+                   or a character filled through this window stays
+                   skipped as empty for as long as nothing else
+                   recomputes the map. Marking is one way: a character
+                   written to counts as in use, and a character that a
+                   game blanks merely draws nothing until the next full
+                   recomputation.
+                */
+                if (data)
+                    neocd->video.fixUsageMap[address >> 5] = 1;
             }
             break;
 
@@ -128,6 +140,10 @@ static void mappedRamWriteWord(uint32_t address, uint32_t data)
         case Memory::AREA_FIX:
             address = ((address >> 1) & 0x1FFFF);
             neocd->memory.fixRam[address] = data;
+
+            // The usage map hears about this write too, as above.
+            if (data & 0xFF)
+                neocd->video.fixUsageMap[address >> 5] = 1;
             break;
 
         case Memory::AREA_SPR:

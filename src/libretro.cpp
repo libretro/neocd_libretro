@@ -142,6 +142,11 @@ bool retro_unserialize(const void *data, size_t size)
         if (neocd->usingHleBios)
             HleBios::buildTrackTable();
 
+        // The fix character usage map describes fix memory, and fix
+        // memory was just replaced wholesale; recompute rather than
+        // trust whatever the session had.
+        neocd->video.updateFixUsageMap();
+
         return true;
     }
 

@@ -559,6 +559,17 @@ bool HleBios::loadIplEntry(const IplEntry& entry)
     Libretro::Log::message(RETRO_LOG_INFO, "HLE BIOS: loaded %-16s %7zu bytes -> %s+0x%X\n",
         entry.name.c_str(), data.size(), ext.c_str(), offset);
 
+    /* The fix drawing keeps a map of which characters are empty so it
+       can skip them, and every other road into fix memory - the CD
+       sector path, DMA, and now the mapped window - tells it about
+       writes. This loader wrote around all of them, so a game whose
+       text lives in characters it never touches again after loading -
+       Fatal Fury 2's menus, cursor and health bars - was showing
+       nothing where the map still said empty.
+    */
+    if (ext == "FIX")
+        neocd->video.updateFixUsageMap();
+
     return true;
 }
 
@@ -1294,6 +1305,9 @@ int HleBios::trap(uint32_t pc)
             uint32_t destination = m68k_read_memory_32(0x0010FEF4);
             uint32_t length = m68k_read_memory_32(0x0010FEFC);
 
+            fprintf(stderr, "HLE upload: type=%u bank=%u src=%06X dst=%06X len=%06X\n",
+                type, ram[0x10FEDB], source, destination, length);
+
             // Which area, the bank register that goes with it - and the
             // bus. The window only takes writes for an area whose bus
             // has been asked for, which is what the request registers
@@ -1422,6 +1436,8 @@ int HleBios::trap(uint32_t pc)
                     {
                     case 1:
                         neocd->memory.fixRam[at & 0x1FFFF] = value;
+                        if (value)
+                            neocd->video.fixUsageMap[(at & 0x1FFFF) >> 5] = 1;
                         break;
                     case 3:
                         if (at < Memory::Z80RAM_SIZE)
