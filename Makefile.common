@@ -1,6 +1,14 @@
 LIBRETRO_DEPS_DIR    = $(CORE_DIR)/deps
 LIBRETRO_COMM_DIR    = $(LIBRETRO_DEPS_DIR)/libretro-common
 
+# libretro-common configuration, shared by every build (Makefile and
+# jni/Android.mk). The four HAVE_RCHD_* codecs are what chdfile.cpp
+# requires; a build that loses one fails to compile there rather than
+# reading images compressed with it as unsupported.
+LIBRETRO_COMMON_FLAGS := -DHAVE_COMPRESSION -DARCHIVE_USE_BUILTIN_DEFLATE \
+	-DHAVE_RCHD_DEFLATE -DHAVE_RCHD_LZMA -DHAVE_RCHD_FLAC -DHAVE_RCHD_ZSTD \
+	-DUSE_LIBRETRO_VFS
+
 INCFLAGS :=  \
 	-I$(CORE_DIR)/src \
 	-I$(LIBRETRO_COMM_DIR)/include

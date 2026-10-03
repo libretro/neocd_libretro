@@ -4,6 +4,15 @@
 #include "chdfile.h"
 #include "neocd_endian.h"
 
+/* Every CD codec chdman writes. rchd treats a codec it was built without
+ * as unsupported only when a hunk needs it, so a build that dropped one
+ * would open such images and then fail every read; this makes it fail to
+ * build instead. The set comes from LIBRETRO_COMMON_FLAGS. */
+#if !defined(HAVE_RCHD_DEFLATE) || !defined(HAVE_RCHD_LZMA) \
+ || !defined(HAVE_RCHD_FLAC) || !defined(HAVE_RCHD_ZSTD)
+#error "rchd must be built with all four CD codecs: see LIBRETRO_COMMON_FLAGS"
+#endif
+
 constexpr int CHD_SECTOR_SIZE = 2352 + 96;
 constexpr int CD_SECTOR_SIZE = 2352;
 
