@@ -1304,18 +1304,6 @@ void HleBios::callUser(uint8_t request)
 
 int HleBios::trap(uint32_t pc)
 {
-    if (getenv("ENTLOG"))
-    {
-        static unsigned seen[64]; static unsigned nseen = 0;
-        bool has = false;
-        for (unsigned q = 0; q < nseen; ++q) if (seen[q] == pc) { has = true; break; }
-        if (!has && nseen < 64)
-        {
-            seen[nseen++] = pc;
-            fprintf(stderr, "entry %06X\n", pc);
-        }
-    }
-
     switch (pc)
     {
     case BOOT:
